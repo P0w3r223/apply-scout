@@ -67,3 +67,18 @@ class ScriptedLLM:
         if not self._turns:
             raise AssertionError("ScriptedLLM ran out of scripted turns")
         return self._turns.pop(0)
+
+
+class ScriptedStructurer:
+    """A fake Structurer that returns pre-baked JSON strings, one per call, in order.
+    Feed it an invalid string then a valid one to exercise the validate-and-retry path."""
+
+    def __init__(self, outputs: list[str]) -> None:
+        self._outputs = list(outputs)
+        self.calls = 0
+
+    def to_json(self, *, instructions: str, content: str, schema: dict, model: str) -> str:
+        self.calls += 1
+        if not self._outputs:
+            raise AssertionError("ScriptedStructurer ran out of outputs")
+        return self._outputs.pop(0)
