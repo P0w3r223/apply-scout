@@ -36,6 +36,7 @@ src/apply_scout/
   synthesis.py    # generate MatchReport + CoverLetterDraft from gathered evidence (LLM-structured)
   guardrail.py    # deterministic anti-hallucination guardrail + unsupported-fraction measurement
   pipeline.py     # assess(): deterministic gather -> synthesize -> guard; produces the deliverables
+  evaluation.py   # the eval harness: metrics (requirement F1, citation fidelity), aggregate, table
   tools/
     base.py               # Tool contract: Pydantic input schema, run(); errors return as structured results
     registry.py           # name -> tool dispatch; unknown tool = structured error
@@ -45,7 +46,8 @@ src/apply_scout/
     real.py               # real_tools() factory (all three tools live)
     mock.py               # stand-ins matching the real tools' contracts (used by the loop tests)
 tests/            # pytest; the loop is tested under a scripted fake model (no network, no key)
-eval/results/     # trajectory JSONL + metric tables (later milestone)
+eval/tasks.example.json  # annotated task fixtures (documents the eval format)
+eval/results/     # trajectory JSONL + eval markdown tables (gitignored)
 docs/decisions/   # ADRs
 ```
 
@@ -85,6 +87,12 @@ apply-scout run --url <posting-url> --cv path/to/cv.md --github-user <user> --ve
 # streams each step, writes the trajectory JSONL to eval/results/, prints a summary
 ```
 
+Evaluate over annotated tasks (writes a markdown table comparing two models):
+
+```bash
+apply-scout eval --tasks eval/tasks.json --models claude-haiku-4-5,claude-opus-4-8
+```
+
 ## Roadmap (7 milestones)
 
 1. **Architecture + contracts + loop skeleton.** ✅ Pydantic contracts, budgets,
@@ -95,10 +103,12 @@ apply-scout run --url <posting-url> --cv path/to/cv.md --github-user <user> --ve
    (repo metadata + README, with snippets), on-disk cache. `real_tools()` is fully real.
 4. **Full loop + budgets.** ✅ `run_assessment()` + `apply-scout run` CLI: real tools wired
    end-to-end, per-model cost accounting, `--verbose` step stream, trajectory JSONL.
-5. **Report + letter + guardrail (this milestone).** ✅ `synthesis` (MatchReport + cover letter),
-   a deterministic anti-hallucination `guardrail` (removes fabricated citations; measures the
-   unsupported fraction before/after), and a `pipeline.assess()` that produces the deliverables.
-6. **Evaluation harness**: 20–30 annotated tasks, metrics, markdown table, two-model compare.
+5. **Report + letter + guardrail.** ✅ `synthesis` (MatchReport + cover letter), a deterministic
+   anti-hallucination `guardrail` (removes fabricated citations; measures unsupported before/after),
+   and `pipeline.assess()`.
+6. **Evaluation harness (this milestone).** ✅ `evaluation` + `apply-scout eval`: annotated tasks
+   scored for completion, requirement F1, citation fidelity, median LLM calls / cost → markdown
+   table comparing two models.
 7. CLI (rich) + README with the eval table + cost analysis + limitations + ADRs.
 
 ## What not to do
