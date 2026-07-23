@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "apply-scout"
+version = "0.1.0"
+description = "An LLM agent that matches a job posting against a candidate's CV and GitHub evidence — a from-scratch tool loop with safety budgets and a trajectory-evaluation harness."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+keywords = ["llm-agent", "function-calling", "tool-use", "agent-evaluation", "anthropic"]
+dependencies = [
+    # The agent talks to Claude via the official SDK. The tool loop is written
+    # from scratch (see docs/decisions/0001) — the SDK is used only as the model
+    # transport, never as an agent framework.
+    "anthropic>=0.40",
+    "pydantic>=2.7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3,<9",
+    "ruff>=0.6",
+]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+packages = ["apply_scout", "apply_scout.tools"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
