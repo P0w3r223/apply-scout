@@ -2,10 +2,11 @@
 
 - `apply-scout run --url ... --cv ... --github-user ...` — assess one posting with the
   agent loop, streaming steps under `--verbose` and writing the trajectory JSONL.
-- `apply-scout eval --tasks tasks.json --models a,b` — run the evaluation harness over a
-  set of annotated tasks and write a markdown results table (two-model comparison).
+- `apply-scout eval --tasks tasks.json --models a,b` — run the evaluation harness and
+  write a markdown results table (plus a pretty table in the terminal).
 
-A thin, standard-library CLI (a richer TUI is a later milestone).
+Uses `rich` for the terminal UI; the machine-readable outputs (trajectory JSONL, the
+markdown eval table) stay plain so they drop straight into a file or the README.
 """
 
 from __future__ import annotations
@@ -14,12 +15,23 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 
+from rich.console import Console
+from rich.table import Table
+
 from apply_scout import config
 from apply_scout.agent import RunStatus
 from apply_scout.budget import Budget
-from apply_scout.evaluation import evaluate_and_report, load_tasks
+from apply_scout.evaluation import Aggregate, format_comparison, load_tasks, run_models
 from apply_scout.formatting import format_step, format_summary
 from apply_scout.runner import run_assessment
+from apply_scout.trajectory import StepKind, TrajectoryStep
+
+_STEP_STYLE = {
+    StepKind.MODEL_CALL: "cyan",
+    StepKind.TOOL_RESULT: "dim",
+    StepKind.FINAL: "bold green",
+    StepKind.BUDGET_STOP: "bold yellow",
+}
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -51,7 +63,13 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def _run(args: argparse.Namespace) -> int:
-    on_step = (lambda step: print(format_step(step))) if args.verbose else None
+    console = Console()
+
+    def print_step(step: TrajectoryStep) -> None:
+        style = "red" if step.kind is StepKind.TOOL_RESULT and step.tool_ok is False else None
+        console.print(format_step(step), style=style or _STEP_STYLE.get(step.kind), markup=False)
+
+    on_step = print_step if args.verbose else None
     budget = Budget(max_steps=args.max_steps, max_cost_usd=args.max_cost)
 
     result = run_assessment(
@@ -70,17 +88,34 @@ def _run(args: argparse.Namespace) -> int:
     )
     result.trajectory.write(out_path)
 
-    if args.verbose:
-        print()  # separate the step stream from the summary
+    # Plain print for the summary + path so they're copy-pasteable and unwrapped.
+    print()
     print(format_summary(result))
     print(f"\ntrajectory: {out_path}")
     return 0 if result.status is RunStatus.COMPLETED else 1
 
 
+def _eval_table(aggregates: list[Aggregate]) -> Table:
+    table = Table(title="Evaluation — model comparison")
+    for column in ("Model", "Tasks", "Completed", "Req F1", "Citation", "Med. calls", "Med. cost"):
+        table.add_column(column)
+    for a in aggregates:
+        table.add_row(
+            a.model,
+            str(a.n_tasks),
+            f"{a.completion_rate:.0%}",
+            f"{a.mean_requirement_f1:.2f}",
+            f"{a.mean_citation_fidelity:.2f}",
+            f"{a.median_llm_calls:g}",
+            f"${a.median_cost_usd:.4f}",
+        )
+    return table
+
+
 def _eval(args: argparse.Namespace) -> int:
     tasks = load_tasks(Path(args.tasks))
     models = [m.strip() for m in args.models.split(",") if m.strip()]
-    table = evaluate_and_report(tasks, models)
+    aggregates = run_models(tasks, models)
 
     out_path = (
         Path(args.out)
@@ -88,10 +123,10 @@ def _eval(args: argparse.Namespace) -> int:
         else config.RESULTS_DIR / f"eval-{datetime.now().strftime('%Y%m%d-%H%M%S')}.md"
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(table, encoding="utf-8")
+    out_path.write_text(format_comparison(aggregates), encoding="utf-8")  # markdown for the README
 
-    print(table)
-    print(f"results: {out_path}")
+    Console().print(_eval_table(aggregates))
+    print(f"results (markdown): {out_path}")
     return 0
 
 

@@ -186,6 +186,16 @@ def pipeline_assess_fn(model: str) -> AssessFn:
     return run
 
 
+def run_models(
+    tasks: list[EvalTask],
+    models: list[str],
+    *,
+    assess_fn_factory: Callable[[str], AssessFn] = pipeline_assess_fn,
+) -> list[Aggregate]:
+    """Run the harness for each model and return one aggregate per model."""
+    return [aggregate(m, run_evaluation(tasks, assess_fn_factory(m))) for m in models]
+
+
 def evaluate_and_report(
     tasks: list[EvalTask],
     models: list[str],
@@ -193,5 +203,4 @@ def evaluate_and_report(
     assess_fn_factory: Callable[[str], AssessFn] = pipeline_assess_fn,
 ) -> str:
     """Run the harness for each model and return the markdown comparison table."""
-    aggregates = [aggregate(m, run_evaluation(tasks, assess_fn_factory(m))) for m in models]
-    return format_comparison(aggregates)
+    return format_comparison(run_models(tasks, models, assess_fn_factory=assess_fn_factory))
