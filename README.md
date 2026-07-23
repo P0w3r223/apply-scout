@@ -10,10 +10,12 @@ with links) and a **cover-letter draft built only from facts it can cite**. It r
 tool loop written from scratch — no agent framework — so that budgets, a machine-readable
 trajectory log, and a proper evaluation are possible.
 
-> Status: **milestone 4 of 7** — the architecture, contracts, budgets, trajectory log, the
-> from-scratch loop, all three real tools, **and a full end-to-end run**: an `apply-scout run`
-> CLI that assembles the tools + model + budget, streams each step with `--verbose`, and writes
-> the trajectory JSONL. The evaluation harness (metrics, two-model comparison) follows. See the roadmap.
+> Status: **milestone 5 of 7** — the from-scratch loop with all three real tools and a full
+> end-to-end run (`apply-scout run`), **plus the deliverables**: a structured `MatchReport`
+> (requirement → evidence → rating), a cover letter drafted only from the report's facts, and a
+> **deterministic anti-hallucination guardrail** that removes any sentence citing evidence not in
+> the report — and *measures* it (unsupported-sentence fraction before/after). The evaluation
+> harness (metrics over 20–30 tasks, two-model comparison) follows. See the roadmap.
 
 ## Why it's built this way
 
@@ -67,7 +69,7 @@ The test suite exercises the full loop against mock tools and a scripted model �
 | 2 | `fetch_job_posting` + `read_cv` | ✅ httpx fetch + trafilatura extraction + LLM structuring with validate-and-retry |
 | 3 | `github_evidence` | ✅ GitHub API client (pagination, rate limit), evidence search, on-disk cache |
 | 4 | Full loop + budgets | ✅ `apply-scout run` CLI, cost accounting, `--verbose`, trajectory JSONL |
-| 5 | Report + letter + guardrail | match report, cover letter, measured anti-hallucination guardrail |
+| 5 | Report + letter + guardrail | ✅ MatchReport, cover letter, measured anti-hallucination guardrail |
 | 6 | **Evaluation harness** | 20–30 annotated tasks, metrics, markdown table, two-model comparison |
 | 7 | Interface + docs | rich CLI, README eval table, cost analysis, limitations, ADRs, demo |
 
