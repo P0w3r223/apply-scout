@@ -55,23 +55,27 @@ def assess(
     structurer: Structurer | None = None,
     github: GitHubClient | None = None,
     model: str = config.DEFAULT_MODEL,
+    structure_model: str = config.STRUCTURE_MODEL,
     max_attempts: int = config.STRUCTURE_MAX_ATTEMPTS,
 ) -> Assessment:
-    """Run a full assessment: fetch + read CV + gather evidence -> report -> letter -> guardrail."""
+    """Run a full assessment: fetch + read CV + gather evidence -> report -> letter -> guardrail.
+
+    `model` drives the higher-stakes report/letter; `structure_model` drives the cheaper
+    fetch/CV extraction. The eval harness sets them equal to compare a model head to head."""
     fetcher = fetcher or HttpFetcher()
     structurer = structurer or AnthropicStructurer()
     github = github or GitHubClient(cache=DiskCache(config.CACHE_DIR))
 
     posting: JobPosting = _tool_json(  # type: ignore[assignment]
         FetchJobPosting(
-            fetcher=fetcher, structurer=structurer, model=config.STRUCTURE_MODEL,
+            fetcher=fetcher, structurer=structurer, model=structure_model,
             max_attempts=max_attempts,
         ),
         {"url": job_url},
         JobPosting,
     )
     cv: CVProfile = _tool_json(  # type: ignore[assignment]
-        ReadCV(structurer=structurer, model=config.STRUCTURE_MODEL, max_attempts=max_attempts),
+        ReadCV(structurer=structurer, model=structure_model, max_attempts=max_attempts),
         {"path": cv_path},
         CVProfile,
     )

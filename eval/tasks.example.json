@@ -1,0 +1,26 @@
+[
+  {
+    "name": "pl-junior-python",
+    "job_url": "https://theprotocol.it/example/junior-python-developer",
+    "cv_path": "cv/candidate.md",
+    "github_user": "P0w3r223",
+    "expected_requirements": ["Python", "FastAPI", "SQL", "Docker", "Git"],
+    "notes": "standard Polish posting"
+  },
+  {
+    "name": "en-ml-engineer",
+    "job_url": "https://example.com/jobs/ml-engineer",
+    "cv_path": "cv/candidate.md",
+    "github_user": "P0w3r223",
+    "expected_requirements": ["Python", "scikit-learn", "MLflow", "Docker"],
+    "notes": "edge case: English posting"
+  },
+  {
+    "name": "backend-no-salary",
+    "job_url": "https://example.com/jobs/backend",
+    "cv_path": "cv/candidate.md",
+    "github_user": "P0w3r223",
+    "expected_requirements": ["Python", "PostgreSQL", "REST"],
+    "notes": "edge case: no salary range listed"
+  }
+]
