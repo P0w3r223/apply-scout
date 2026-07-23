@@ -10,10 +10,11 @@ with links) and a **cover-letter draft built only from facts it can cite**. It r
 tool loop written from scratch — no agent framework — so that budgets, a machine-readable
 trajectory log, and a proper evaluation are possible.
 
-> Status: **milestone 2 of 7** — the architecture, data contracts, safety budgets, the
-> trajectory log, and the from-scratch loop (milestone 1), plus the real `fetch_job_posting`
-> and `read_cv` tools (httpx fetch + trafilatura extraction + LLM structuring with
-> validate-and-retry). `github_evidence` and the evaluation harness follow. See the roadmap.
+> Status: **milestone 3 of 7** — the architecture, contracts, budgets, trajectory log, and
+> from-scratch loop, plus **all three real tools**: `fetch_job_posting` (httpx + trafilatura +
+> LLM structuring with validate-and-retry), `read_cv`, and `github_evidence` (GitHub API with
+> pagination, rate-limit handling, and an on-disk cache). Wiring the tools into a real end-to-end
+> run and the evaluation harness follow. See the roadmap.
 
 ## Why it's built this way
 
@@ -65,7 +66,7 @@ The test suite exercises the full loop against mock tools and a scripted model �
 |---|-----------|-------------|
 | 1 | Architecture + contracts + loop skeleton | ✅ this repo: contracts, budgets, trajectory, loop, mock tools, tests |
 | 2 | `fetch_job_posting` + `read_cv` | ✅ httpx fetch + trafilatura extraction + LLM structuring with validate-and-retry |
-| 3 | `github_evidence` | GitHub API client (pagination, rate limit), evidence search, cache |
+| 3 | `github_evidence` | ✅ GitHub API client (pagination, rate limit), evidence search, on-disk cache |
 | 4 | Full loop + budgets | end-to-end on real tasks, cost accounting, `--verbose` trajectory |
 | 5 | Report + letter + guardrail | match report, cover letter, measured anti-hallucination guardrail |
 | 6 | **Evaluation harness** | 20–30 annotated tasks, metrics, markdown table, two-model comparison |
