@@ -25,12 +25,17 @@ src/apply_scout/
   budget.py       # Budget (max_steps/max_tokens/max_cost) + BudgetTracker; breach = controlled stop
   trajectory.py   # TrajectoryStep + TrajectoryLogger (JSONL); the flagship artifact
   llm.py          # LLMClient protocol + AnthropicLLM adapter (lazy import); loop is provider-agnostic
+  fetch.py        # httpx fetch + trafilatura/stdlib main-text extraction (for fetch_job_posting)
+  structuring.py  # LLM text -> contract with validate-and-retry (Structurer protocol + Anthropic impl)
   prompts.py      # the system prompt (a change here => re-run the harness)
   agent.py        # the from-scratch loop: model -> tool_use -> result -> next, with budgets + trajectory
   tools/
-    base.py       # Tool contract: Pydantic input schema, run(); errors return as structured results
-    registry.py   # name -> tool dispatch; unknown tool = structured error
-    mock.py       # milestone-1 stand-ins matching the real tools' contracts
+    base.py               # Tool contract: Pydantic input schema, run(); errors return as structured results
+    registry.py           # name -> tool dispatch; unknown tool = structured error
+    fetch_job_posting.py  # real: fetch + extract + structure -> JobPosting
+    read_cv.py            # real: read file + structure -> CVProfile
+    real.py               # real_tools() factory (github_evidence still mocked until milestone 3)
+    mock.py               # stand-ins matching the real tools' contracts (used by the loop tests)
 tests/            # pytest; the loop is tested under a scripted fake model (no network, no key)
 eval/results/     # trajectory JSONL + metric tables (later milestone)
 docs/decisions/   # ADRs
@@ -69,9 +74,10 @@ Real runs (later milestones) need `ANTHROPIC_API_KEY` in the environment.
 
 ## Roadmap (7 milestones)
 
-1. **Architecture + contracts + loop skeleton (this milestone).** ✅ Pydantic contracts,
-   budgets, trajectory, from-scratch loop, mock tools, tests.
-2. `fetch_job_posting` + `read_cv` (httpx, recorded HTTP in tests, LLM structuring + retry).
+1. **Architecture + contracts + loop skeleton.** ✅ Pydantic contracts, budgets,
+   trajectory, from-scratch loop, mock tools, tests.
+2. **`fetch_job_posting` + `read_cv` (this milestone).** ✅ httpx fetch + trafilatura
+   extraction + LLM structuring with validate-and-retry; `real_tools()` factory.
 3. `github_evidence` (GitHub API: pagination, rate limit, evidence search, disk cache).
 4. Full loop wired on real tasks + budgets + cost accounting + `--verbose` trajectory.
 5. Match report + cover letter + **anti-hallucination guardrail** (with measurement).
