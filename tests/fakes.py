@@ -76,6 +76,7 @@ class ScriptedStructurer:
     def __init__(self, outputs: list[str]) -> None:
         self._outputs = list(outputs)
         self.calls = 0
+        self.cost_usd = 0.0  # fakes have no token cost — keeps eval metrics deterministic
 
     def to_json(self, *, instructions: str, content: str, schema: dict, model: str) -> str:
         self.calls += 1

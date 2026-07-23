@@ -81,3 +81,22 @@ def test_verbose_passes_on_step_callback(tmp_path, monkeypatch):
         ]
     )
     assert captured["on_step"] is not None  # --verbose -> observer wired
+
+
+def test_eval_writes_markdown_table(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(
+        cli, "evaluate_and_report", lambda tasks, models, **kwargs: "| Model |\n| good |\n"
+    )
+    tasks_file = tmp_path / "tasks.json"
+    tasks_file.write_text(
+        '[{"name": "t", "job_url": "u", "cv_path": "c", "github_user": "g", '
+        '"expected_requirements": ["Python"]}]',
+        encoding="utf-8",
+    )
+    out = tmp_path / "report.md"
+
+    code = cli.main(["eval", "--tasks", str(tasks_file), "--models", "a,b", "--out", str(out)])
+
+    assert code == 0
+    assert "| good |" in out.read_text(encoding="utf-8")
+    assert "| good |" in capsys.readouterr().out
