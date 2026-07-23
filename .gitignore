@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+build/
+dist/
+
+# Local secrets / env
+.env
+
+# Agent run artifacts (trajectories are regenerated; keep the tracked samples only)
+eval/results/*.jsonl
+!eval/results/.gitkeep
+
+# OS / editor
+.DS_Store
+Thumbs.db
