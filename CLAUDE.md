@@ -27,6 +27,7 @@ src/apply_scout/
   llm.py          # LLMClient protocol + AnthropicLLM adapter (lazy import); loop is provider-agnostic
   fetch.py        # httpx fetch + trafilatura/stdlib main-text extraction (for fetch_job_posting)
   structuring.py  # LLM text -> contract with validate-and-retry (Structurer protocol + Anthropic impl)
+  github.py       # GitHub API client: list repos + README, pagination, rate limits, on-disk cache
   prompts.py      # the system prompt (a change here => re-run the harness)
   agent.py        # the from-scratch loop: model -> tool_use -> result -> next, with budgets + trajectory
   tools/
@@ -34,7 +35,8 @@ src/apply_scout/
     registry.py           # name -> tool dispatch; unknown tool = structured error
     fetch_job_posting.py  # real: fetch + extract + structure -> JobPosting
     read_cv.py            # real: read file + structure -> CVProfile
-    real.py               # real_tools() factory (github_evidence still mocked until milestone 3)
+    github_evidence.py    # real: find_evidence (pure) + GitHub-backed tool -> Evidence[]
+    real.py               # real_tools() factory (all three tools live)
     mock.py               # stand-ins matching the real tools' contracts (used by the loop tests)
 tests/            # pytest; the loop is tested under a scripted fake model (no network, no key)
 eval/results/     # trajectory JSONL + metric tables (later milestone)
@@ -76,9 +78,11 @@ Real runs (later milestones) need `ANTHROPIC_API_KEY` in the environment.
 
 1. **Architecture + contracts + loop skeleton.** ✅ Pydantic contracts, budgets,
    trajectory, from-scratch loop, mock tools, tests.
-2. **`fetch_job_posting` + `read_cv` (this milestone).** ✅ httpx fetch + trafilatura
-   extraction + LLM structuring with validate-and-retry; `real_tools()` factory.
-3. `github_evidence` (GitHub API: pagination, rate limit, evidence search, disk cache).
+2. **`fetch_job_posting` + `read_cv`.** ✅ httpx fetch + trafilatura extraction + LLM
+   structuring with validate-and-retry; `real_tools()` factory.
+3. **`github_evidence` (this milestone).** ✅ GitHub API client (pagination, rate limit),
+   evidence search (repo metadata + README, with snippets), on-disk cache. `real_tools()`
+   is now fully real.
 4. Full loop wired on real tasks + budgets + cost accounting + `--verbose` trajectory.
 5. Match report + cover letter + **anti-hallucination guardrail** (with measurement).
 6. **Evaluation harness**: 20–30 annotated tasks, metrics, markdown table, two-model compare.
