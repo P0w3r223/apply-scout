@@ -72,6 +72,14 @@ STRUCTURE_MODEL = MODEL_CHEAP
 STRUCTURE_MAX_CHARS = 20_000  # cap the text handed to the model, to bound token cost
 STRUCTURE_MAX_ATTEMPTS = 3  # validate-and-retry attempts before giving up
 
+# --- GitHub (github_evidence) ------------------------------------------------
+GITHUB_API_BASE = "https://api.github.com"
+GITHUB_PER_PAGE = 100
+GITHUB_MAX_REPOS = 30  # cap README scans per lookup — rate-limit friendly
+# On-disk cache for GitHub API responses (gitignored). Respects rate limits and makes
+# repeated runs cheap. GITHUB_TOKEN (if set in the env) raises the rate limit.
+CACHE_DIR = PROJECT_ROOT / ".cache"
+
 
 def token_cost(input_tokens: int, output_tokens: int, model: str) -> float:
     """USD cost of a call, from the per-model base rates above.
