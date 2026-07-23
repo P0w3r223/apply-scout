@@ -10,12 +10,11 @@ with links) and a **cover-letter draft built only from facts it can cite**. It r
 tool loop written from scratch — no agent framework — so that budgets, a machine-readable
 trajectory log, and a proper evaluation are possible.
 
-> Status: **milestone 5 of 7** — the from-scratch loop with all three real tools and a full
-> end-to-end run (`apply-scout run`), **plus the deliverables**: a structured `MatchReport`
-> (requirement → evidence → rating), a cover letter drafted only from the report's facts, and a
-> **deterministic anti-hallucination guardrail** that removes any sentence citing evidence not in
-> the report — and *measures* it (unsupported-sentence fraction before/after). The evaluation
-> harness (metrics over 20–30 tasks, two-model comparison) follows. See the roadmap.
+> Status: **milestone 6 of 7** — the from-scratch loop, all three real tools, an end-to-end run,
+> the structured deliverables (match report + cover letter), the measured anti-hallucination
+> guardrail, **and the evaluation harness**: annotated tasks scored for completion, requirement-
+> extraction F1 (vs a human annotation), citation fidelity, and median LLM calls / cost — written
+> as a markdown table comparing two models (`apply-scout eval`). Only the CLI/README polish remains.
 
 ## Why it's built this way
 
@@ -70,7 +69,7 @@ The test suite exercises the full loop against mock tools and a scripted model �
 | 3 | `github_evidence` | ✅ GitHub API client (pagination, rate limit), evidence search, on-disk cache |
 | 4 | Full loop + budgets | ✅ `apply-scout run` CLI, cost accounting, `--verbose`, trajectory JSONL |
 | 5 | Report + letter + guardrail | ✅ MatchReport, cover letter, measured anti-hallucination guardrail |
-| 6 | **Evaluation harness** | 20–30 annotated tasks, metrics, markdown table, two-model comparison |
+| 6 | **Evaluation harness** | ✅ annotated tasks, metrics (F1, citation fidelity, calls, cost), markdown table, two-model compare |
 | 7 | Interface + docs | rich CLI, README eval table, cost analysis, limitations, ADRs, demo |
 
 ## License
