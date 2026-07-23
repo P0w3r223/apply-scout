@@ -109,7 +109,10 @@ apply-scout eval --tasks eval/tasks.json --models claude-haiku-4-5,claude-opus-4
 6. **Evaluation harness (this milestone).** ✅ `evaluation` + `apply-scout eval`: annotated tasks
    scored for completion, requirement F1, citation fidelity, median LLM calls / cost → markdown
    table comparing two models.
-7. CLI (rich) + README with the eval table + cost analysis + limitations + ADRs.
+7. **Interface + docs (this milestone).** ✅ rich CLI (colored step stream + eval table),
+   README with the eval-table shape + cost analysis + honest limitations + mermaid diagram,
+   ADR-0002 (pipeline vs loop) and ADR-0003 (structured outputs + guardrail). Demo GIF pending a
+   live run.
 
 ## What not to do
 
