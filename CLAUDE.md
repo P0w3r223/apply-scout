@@ -30,6 +30,9 @@ src/apply_scout/
   github.py       # GitHub API client: list repos + README, pagination, rate limits, on-disk cache
   prompts.py      # the system prompt (a change here => re-run the harness)
   agent.py        # the from-scratch loop: model -> tool_use -> result -> next, with budgets + trajectory
+  runner.py       # run_assessment(): assemble real tools + LLM + budget, run one posting end-to-end
+  formatting.py   # render steps (--verbose) and the run summary (ASCII, pure)
+  cli.py          # `apply-scout run --url ... --cv ... --github-user ...` (+ __main__ for `python -m`)
   tools/
     base.py               # Tool contract: Pydantic input schema, run(); errors return as structured results
     registry.py           # name -> tool dispatch; unknown tool = structured error
@@ -72,7 +75,12 @@ pytest                                             # the loop runs under a fake 
 ruff check .
 ```
 
-Real runs (later milestones) need `ANTHROPIC_API_KEY` in the environment.
+Real runs need `ANTHROPIC_API_KEY` (and optionally `GITHUB_TOKEN` for a higher GitHub rate limit):
+
+```bash
+apply-scout run --url <posting-url> --cv path/to/cv.md --github-user <user> --verbose
+# streams each step, writes the trajectory JSONL to eval/results/, prints a summary
+```
 
 ## Roadmap (7 milestones)
 
@@ -80,10 +88,10 @@ Real runs (later milestones) need `ANTHROPIC_API_KEY` in the environment.
    trajectory, from-scratch loop, mock tools, tests.
 2. **`fetch_job_posting` + `read_cv`.** ✅ httpx fetch + trafilatura extraction + LLM
    structuring with validate-and-retry; `real_tools()` factory.
-3. **`github_evidence` (this milestone).** ✅ GitHub API client (pagination, rate limit),
-   evidence search (repo metadata + README, with snippets), on-disk cache. `real_tools()`
-   is now fully real.
-4. Full loop wired on real tasks + budgets + cost accounting + `--verbose` trajectory.
+3. **`github_evidence`.** ✅ GitHub API client (pagination, rate limit), evidence search
+   (repo metadata + README, with snippets), on-disk cache. `real_tools()` is fully real.
+4. **Full loop + budgets (this milestone).** ✅ `run_assessment()` + `apply-scout run` CLI:
+   real tools wired end-to-end, per-model cost accounting, `--verbose` step stream, trajectory JSONL.
 5. Match report + cover letter + **anti-hallucination guardrail** (with measurement).
 6. **Evaluation harness**: 20–30 annotated tasks, metrics, markdown table, two-model compare.
 7. CLI (rich) + README with the eval table + cost analysis + limitations + ADRs.
