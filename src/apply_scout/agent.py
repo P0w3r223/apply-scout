@@ -11,6 +11,7 @@ under a scripted fake model with no network and no API key (that is how it is te
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import StrEnum
 
@@ -58,14 +59,22 @@ class Agent:
         *,
         agent_config: AgentConfig | None = None,
         system_prompt: str = DEFAULT_SYSTEM_PROMPT,
+        on_step: Callable[[TrajectoryStep], None] | None = None,
     ) -> None:
         self.llm = llm
         self.tools = tools
         self.cfg = agent_config or AgentConfig()
         self.system_prompt = system_prompt
+        self._on_step = on_step  # called after each recorded step (e.g. --verbose printing)
 
     def run(self, task: str) -> AgentResult:
         traj = TrajectoryLogger()
+
+        def record(step: TrajectoryStep) -> None:
+            traj.record(step)
+            if self._on_step is not None:
+                self._on_step(step)
+
         tracker = BudgetTracker(self.cfg.budget)
         messages: list[dict] = [{"role": "user", "content": task}]
         step_index = 0
@@ -76,7 +85,7 @@ class Agent:
             # `max_steps` calls and then stops with whatever report it has so far.
             breach = tracker.breach()
             if breach is not None:
-                traj.record(
+                record(
                     TrajectoryStep(
                         index=step_index,
                         kind=StepKind.BUDGET_STOP,
@@ -96,7 +105,7 @@ class Agent:
                 response.usage.input_tokens, response.usage.output_tokens, response.model
             )
             last_text = response.text
-            traj.record(
+            record(
                 TrajectoryStep(
                     index=step_index,
                     kind=StepKind.MODEL_CALL,
@@ -107,6 +116,7 @@ class Agent:
                         response.usage.input_tokens, response.usage.output_tokens, response.model
                     ),
                     tool_calls_requested=len(response.tool_calls),
+                    text=response.text or None,
                 )
             )
             step_index += 1
@@ -114,7 +124,7 @@ class Agent:
 
             # No tool calls -> the model is done; that is the normal exit.
             if response.stop_reason != "tool_use" or not response.tool_calls:
-                traj.record(
+                record(
                     TrajectoryStep(index=step_index, kind=StepKind.FINAL, note=response.stop_reason)
                 )
                 return self._result(RunStatus.COMPLETED, last_text, traj, tracker, None)
@@ -124,7 +134,7 @@ class Agent:
             tool_result_blocks: list[dict] = []
             for call in response.tool_calls:
                 result = self.tools.dispatch(call.name, call.input)
-                traj.record(
+                record(
                     TrajectoryStep(
                         index=step_index,
                         kind=StepKind.TOOL_RESULT,
