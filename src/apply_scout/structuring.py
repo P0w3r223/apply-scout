@@ -92,6 +92,9 @@ class AnthropicStructurer:
 
     def __init__(self, client: object | None = None) -> None:
         self._client = client
+        # Accumulated across calls, so the eval harness can report per-task cost.
+        self.calls = 0
+        self.cost_usd = 0.0
 
     def _ensure_client(self) -> object:
         if self._client is None:
@@ -110,6 +113,10 @@ class AnthropicStructurer:
             system=instructions,
             messages=[{"role": "user", "content": content}],
             output_config={"format": {"type": "json_schema", "schema": schema}},
+        )
+        self.calls += 1
+        self.cost_usd += config.token_cost(
+            response.usage.input_tokens, response.usage.output_tokens, model
         )
         for block in response.content:
             if block.type == "text":
