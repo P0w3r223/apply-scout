@@ -19,6 +19,8 @@ dependencies = [
     # Fetching + main-content extraction for the fetch_job_posting tool.
     "httpx>=0.27",
     "trafilatura>=1.8",
+    # A polished terminal UI for the CLI (step stream + evaluation tables).
+    "rich>=13.7",
 ]
 
 [project.optional-dependencies]
