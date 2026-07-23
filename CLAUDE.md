@@ -33,6 +33,9 @@ src/apply_scout/
   runner.py       # run_assessment(): assemble real tools + LLM + budget, run one posting end-to-end
   formatting.py   # render steps (--verbose) and the run summary (ASCII, pure)
   cli.py          # `apply-scout run --url ... --cv ... --github-user ...` (+ __main__ for `python -m`)
+  synthesis.py    # generate MatchReport + CoverLetterDraft from gathered evidence (LLM-structured)
+  guardrail.py    # deterministic anti-hallucination guardrail + unsupported-fraction measurement
+  pipeline.py     # assess(): deterministic gather -> synthesize -> guard; produces the deliverables
   tools/
     base.py               # Tool contract: Pydantic input schema, run(); errors return as structured results
     registry.py           # name -> tool dispatch; unknown tool = structured error
@@ -90,9 +93,11 @@ apply-scout run --url <posting-url> --cv path/to/cv.md --github-user <user> --ve
    structuring with validate-and-retry; `real_tools()` factory.
 3. **`github_evidence`.** ✅ GitHub API client (pagination, rate limit), evidence search
    (repo metadata + README, with snippets), on-disk cache. `real_tools()` is fully real.
-4. **Full loop + budgets (this milestone).** ✅ `run_assessment()` + `apply-scout run` CLI:
-   real tools wired end-to-end, per-model cost accounting, `--verbose` step stream, trajectory JSONL.
-5. Match report + cover letter + **anti-hallucination guardrail** (with measurement).
+4. **Full loop + budgets.** ✅ `run_assessment()` + `apply-scout run` CLI: real tools wired
+   end-to-end, per-model cost accounting, `--verbose` step stream, trajectory JSONL.
+5. **Report + letter + guardrail (this milestone).** ✅ `synthesis` (MatchReport + cover letter),
+   a deterministic anti-hallucination `guardrail` (removes fabricated citations; measures the
+   unsupported fraction before/after), and a `pipeline.assess()` that produces the deliverables.
 6. **Evaluation harness**: 20–30 annotated tasks, metrics, markdown table, two-model compare.
 7. CLI (rich) + README with the eval table + cost analysis + limitations + ADRs.
 
