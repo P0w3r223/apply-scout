@@ -83,10 +83,11 @@ def test_verbose_passes_on_step_callback(tmp_path, monkeypatch):
     assert captured["on_step"] is not None  # --verbose -> observer wired
 
 
-def test_eval_writes_markdown_table(tmp_path, monkeypatch, capsys):
-    monkeypatch.setattr(
-        cli, "evaluate_and_report", lambda tasks, models, **kwargs: "| Model |\n| good |\n"
-    )
+def test_eval_writes_markdown_table_and_prints(tmp_path, monkeypatch, capsys):
+    from apply_scout.evaluation import Aggregate
+
+    fake = [Aggregate("good", 1, 1.0, 1.0, 1.0, 4, 0.01)]
+    monkeypatch.setattr(cli, "run_models", lambda tasks, models, **kwargs: fake)
     tasks_file = tmp_path / "tasks.json"
     tasks_file.write_text(
         '[{"name": "t", "job_url": "u", "cv_path": "c", "github_user": "g", '
@@ -95,8 +96,8 @@ def test_eval_writes_markdown_table(tmp_path, monkeypatch, capsys):
     )
     out = tmp_path / "report.md"
 
-    code = cli.main(["eval", "--tasks", str(tasks_file), "--models", "a,b", "--out", str(out)])
+    code = cli.main(["eval", "--tasks", str(tasks_file), "--models", "good", "--out", str(out)])
 
     assert code == 0
-    assert "| good |" in out.read_text(encoding="utf-8")
-    assert "| good |" in capsys.readouterr().out
+    assert "| good |" in out.read_text(encoding="utf-8")  # markdown table (for the README)
+    assert "good" in capsys.readouterr().out  # rich table rendered to the console
