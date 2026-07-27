@@ -27,6 +27,11 @@ class _Raising:
         raise ValueError("cannot reconfigure")
 
 
+class _RaisingOSError:
+    def reconfigure(self, **kwargs: object) -> None:
+        raise OSError("detached stream")
+
+
 class _Plain:
     """A stream with no `reconfigure` (e.g. already wrapped)."""
 
@@ -43,7 +48,11 @@ def test_reconfigures_both_streams_to_utf8_replace(monkeypatch: pytest.MonkeyPat
 
 
 def test_tolerates_missing_or_raising_reconfigure(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Missing `reconfigure` + the ValueError branch of the suppress.
     monkeypatch.setattr(sys, "stdout", _Plain())
     monkeypatch.setattr(sys, "stderr", _Raising())
+    cli._make_output_utf8_safe()  # must not raise
 
+    # The OSError branch (a detached / closed stream).
+    monkeypatch.setattr(sys, "stdout", _RaisingOSError())
     cli._make_output_utf8_safe()  # must not raise

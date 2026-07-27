@@ -22,6 +22,18 @@ class _TextBlock:
         return {"type": "text", "text": self.text}
 
 
+class _ToolUseBlock:
+    type = "tool_use"
+
+    def __init__(self, id_: str, name: str, input_: dict) -> None:
+        self.id = id_
+        self.name = name
+        self.input = input_
+
+    def model_dump(self) -> dict:
+        return {"type": "tool_use", "id": self.id, "name": self.name, "input": self.input}
+
+
 class _Usage:
     def __init__(self, input_tokens: int, output_tokens: int) -> None:
         self.input_tokens = input_tokens
@@ -29,29 +41,31 @@ class _Usage:
 
 
 class _Response:
-    def __init__(self, model: str) -> None:
-        self.content = [_TextBlock("hi")]
+    def __init__(self, model: str, content: list) -> None:
+        self.content = content
         self.stop_reason = "end_turn"
         self.model = model
         self.usage = _Usage(10, 3)
 
 
 class _Messages:
-    def __init__(self) -> None:
+    def __init__(self, content: list | None) -> None:
         self.calls: list[dict] = []
+        self._content = content
 
     def create(self, **kwargs: object) -> _Response:
         self.calls.append(kwargs)
-        return _Response(str(kwargs["model"]))
+        content = self._content if self._content is not None else [_TextBlock("hi")]
+        return _Response(str(kwargs["model"]), content)
 
 
 class _FakeClient:
-    def __init__(self) -> None:
-        self.messages = _Messages()
+    def __init__(self, content: list | None = None) -> None:
+        self.messages = _Messages(content)
 
 
-def _complete(model: str) -> tuple[_FakeClient, object]:
-    client = _FakeClient()
+def _complete(model: str, content: list | None = None) -> tuple[_FakeClient, object]:
+    client = _FakeClient(content)
     llm = AnthropicLLM(client=client)
     response = llm.complete(system="s", messages=[], tools=[], model=model)
     return client, response
@@ -79,3 +93,16 @@ def test_response_is_normalized() -> None:
     assert response.usage.input_tokens == 10
     assert response.usage.output_tokens == 3
     assert response.model == config.MODEL_STRONG
+
+
+def test_tool_use_and_raw_content_round_trip() -> None:
+    # The loop appends raw_content verbatim on the next turn, so both blocks must survive
+    # and each tool_use must normalize to a ToolCall.
+    blocks = [_TextBlock("planning"), _ToolUseBlock("tu_1", "fetch_job_posting", {"url": "x"})]
+    _, response = _complete(config.MODEL_STRONG, content=blocks)
+
+    assert response.text == "planning"
+    assert len(response.tool_calls) == 1
+    call = response.tool_calls[0]
+    assert (call.id, call.name, call.input) == ("tu_1", "fetch_job_posting", {"url": "x"})
+    assert [block["type"] for block in response.raw_content] == ["text", "tool_use"]
