@@ -1,0 +1,66 @@
+[
+  {
+    "name": "theathletic-senior-mlops-engineer",
+    "job_url": "https://jobs.lever.co/theathletic/131761d5-4711-4afc-bd7c-37070952ad45",
+    "cv_path": "cv/candidate.md",
+    "github_user": "P0w3r223",
+    "expected_requirements": ["Python", "SQL", "scikit-learn", "PyTorch", "Docker", "Kubernetes", "Airflow", "GCP", "AWS", "MLOps"],
+    "notes": "english posting (Lever) — senior ML Ops engineer"
+  },
+  {
+    "name": "jeeves-senior-ai-engineer",
+    "job_url": "https://jobs.lever.co/tryjeeves/2f00206f-6091-4eed-8b5f-1325afdbfe30",
+    "cv_path": "cv/candidate.md",
+    "github_user": "P0w3r223",
+    "expected_requirements": ["Python", "LLMs", "RAG", "LangChain", "vector databases", "embeddings", "PostgreSQL", "AWS", "MLflow"],
+    "notes": "english posting (Lever) — LLM/RAG AI engineer, fintech"
+  },
+  {
+    "name": "reddit-senior-ml-engineer-ads",
+    "job_url": "https://job-boards.greenhouse.io/reddit/jobs/8018517",
+    "cv_path": "cv/candidate.md",
+    "github_user": "P0w3r223",
+    "expected_requirements": ["Python", "PyTorch", "TensorFlow", "NLP", "LLMs", "embeddings", "Airflow", "BigQuery", "Kubernetes", "GCP"],
+    "notes": "english posting (Greenhouse) — ML engineer, ads embeddings/recsys"
+  },
+  {
+    "name": "konux-senior-data-scientist",
+    "job_url": "https://job-boards.greenhouse.io/konux/jobs/7805858003",
+    "cv_path": "cv/candidate.md",
+    "github_user": "P0w3r223",
+    "expected_requirements": ["Python", "pandas", "PySpark", "Polars", "SQL", "Git", "machine learning", "statistics", "AWS", "Databricks"],
+    "notes": "english posting (Greenhouse) — data scientist, IoT/time-series"
+  },
+  {
+    "name": "hhaexchange-principal-data-engineer",
+    "job_url": "https://jobs.lever.co/hhaexchange/58b599a5-48d2-4c12-a93c-c9d82678ab0b",
+    "cv_path": "cv/candidate.md",
+    "github_user": "P0w3r223",
+    "expected_requirements": ["Python", "SQL", "dbt", "Airflow", "Docker", "Kubernetes", "Snowflake", "AWS", "ETL", "data modeling"],
+    "notes": "english posting (Lever) — data engineer, pipelines/warehousing"
+  },
+  {
+    "name": "allegro-junior-data-scientist-pl",
+    "job_url": "https://jobs.smartrecruiters.com/Allegro/743999885325887-junior-data-scientist-data-ai-",
+    "cv_path": "cv/candidate.md",
+    "github_user": "P0w3r223",
+    "expected_requirements": ["Python", "scikit-learn", "PyTorch", "TensorFlow", "XGBoost", "pandas", "SQL", "GCP", "PySpark", "MLflow"],
+    "notes": "edge case: Polish-language posting (SmartRecruiters) — junior data scientist"
+  },
+  {
+    "name": "allegro-data-scientist-allegro-pay-pl",
+    "job_url": "https://jobs.smartrecruiters.com/Allegro/743999759633069-data-scientist-allegro-pay-",
+    "cv_path": "cv/candidate.md",
+    "github_user": "P0w3r223",
+    "expected_requirements": ["Python", "scikit-learn", "LightGBM", "pandas", "FastAPI", "Snowflake", "Airflow", "Azure", "GCP", "BigQuery"],
+    "notes": "edge case: Polish-language posting (SmartRecruiters) — data scientist, Allegro Pay"
+  },
+  {
+    "name": "zapier-ai-ml-js-only-edge",
+    "job_url": "https://jobs.ashbyhq.com/zapier/1f858242-acf4-4358-9197-2c79921c9d91",
+    "cv_path": "cv/candidate.md",
+    "github_user": "P0w3r223",
+    "expected_requirements": [],
+    "notes": "edge case: JavaScript-only page (Ashby) — static fetch yields only a JS shell; expected to fail extraction and score as not-completed"
+  }
+]

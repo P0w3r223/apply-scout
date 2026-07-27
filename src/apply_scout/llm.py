@@ -86,15 +86,19 @@ class AnthropicLLM:
         model: str,
     ) -> LLMResponse:
         client = self._ensure_client()
-        response = client.messages.create(  # type: ignore[attr-defined]
-            model=model,
-            max_tokens=config.MAX_OUTPUT_TOKENS,
-            system=system,
-            messages=messages,
-            tools=tools,
-            thinking={"type": "adaptive"},
-            output_config={"effort": config.DEFAULT_EFFORT},
-        )
+        request: dict = {
+            "model": model,
+            "max_tokens": config.MAX_OUTPUT_TOKENS,
+            "system": system,
+            "messages": messages,
+            "tools": tools,
+        }
+        # Adaptive thinking + effort are the Opus / Sonnet-5-tier controls; Haiku 4.5
+        # rejects them with a 400, so send them only for models that support them.
+        if model not in config.NO_ADAPTIVE_THINKING_MODELS:
+            request["thinking"] = {"type": "adaptive"}
+            request["output_config"] = {"effort": config.DEFAULT_EFFORT}
+        response = client.messages.create(**request)  # type: ignore[attr-defined]
         text_parts: list[str] = []
         tool_calls: list[ToolCall] = []
         raw_content: list[dict] = []

@@ -12,6 +12,8 @@ markdown eval table) stay plain so they drop straight into a file or the README.
 from __future__ import annotations
 
 import argparse
+import contextlib
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -130,7 +132,21 @@ def _eval(args: argparse.Namespace) -> int:
     return 0
 
 
+def _make_output_utf8_safe() -> None:
+    """Rich renders through ``sys.stdout``; on a legacy Windows console its codepage
+    (e.g. cp1250) can't encode characters like ``—`` and raises ``UnicodeEncodeError``
+    mid-render. Make the streams tolerant: prefer UTF-8, and never raise on a glyph the
+    stream can't encode."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        with contextlib.suppress(OSError, ValueError):  # a detached / already-closed stream
+            reconfigure(encoding="utf-8", errors="replace")
+
+
 def main(argv: list[str] | None = None) -> int:
+    _make_output_utf8_safe()
     args = _build_parser().parse_args(argv)
     if args.command == "eval":
         return _eval(args)
