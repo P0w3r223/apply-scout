@@ -36,6 +36,7 @@ class TrajectoryStep(BaseModel):
     output_tokens: int | None = None
     cost_usd: float | None = None
     tool_calls_requested: int | None = None
+    text: str | None = Field(None, description="Assistant's visible text on a model_call step.")
     # tool_result fields
     tool_name: str | None = None
     tool_input: dict | None = None

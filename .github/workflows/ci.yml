@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      # pyproject declares >=3.11, so both ends of that claim are tested.
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install (core + dev)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Lint
+        run: ruff check .
+      - name: Test
+        # The whole agent loop is exercised against a scripted fake model
+        # (tests/fakes.py) — no network and no ANTHROPIC_API_KEY are needed,
+        # so a failure here is a real change in behaviour, not a flaky call.
+        run: pytest

@@ -59,6 +59,27 @@ MAX_OUTPUT_TOKENS = 4096
 # / Haiku 4.5). "high" is a sensible default for multi-step tool reasoning.
 DEFAULT_EFFORT = "high"
 
+# --- HTTP / content extraction (fetch_job_posting) ---------------------------
+# Honest, descriptive UA — we identify the agent rather than impersonate a browser.
+HTTP_USER_AGENT = "apply-scout/0.1 (+https://github.com/P0w3r223/apply-scout)"
+HTTP_TIMEOUT_S = 15.0
+HTTP_MAX_HTML_CHARS = 2_000_000  # ignore absurdly large pages defensively
+
+# --- Structuring (turning free text into a contract via an LLM) --------------
+# Structuring is a simpler task than the agent's own reasoning, so it defaults to the
+# cheap model — part of the "when is the cheaper model enough?" story.
+STRUCTURE_MODEL = MODEL_CHEAP
+STRUCTURE_MAX_CHARS = 20_000  # cap the text handed to the model, to bound token cost
+STRUCTURE_MAX_ATTEMPTS = 3  # validate-and-retry attempts before giving up
+
+# --- GitHub (github_evidence) ------------------------------------------------
+GITHUB_API_BASE = "https://api.github.com"
+GITHUB_PER_PAGE = 100
+GITHUB_MAX_REPOS = 30  # cap README scans per lookup — rate-limit friendly
+# On-disk cache for GitHub API responses (gitignored). Respects rate limits and makes
+# repeated runs cheap. GITHUB_TOKEN (if set in the env) raises the rate limit.
+CACHE_DIR = PROJECT_ROOT / ".cache"
+
 
 def token_cost(input_tokens: int, output_tokens: int, model: str) -> float:
     """USD cost of a call, from the per-model base rates above.
