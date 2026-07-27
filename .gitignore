@@ -22,3 +22,6 @@ eval/results/*.jsonl
 # OS / editor
 .DS_Store
 Thumbs.db
+
+# Lokalny indeks CodeGraph (graf kodu per maszyna, odbudowywalny przez `codegraph init`)
+.codegraph/
