@@ -25,6 +25,11 @@ MODEL_CHEAP = "claude-haiku-4-5"  # $1.00 / $5.00 per 1M tokens (in / out)
 MODEL_STRONG = "claude-opus-4-8"  # $5.00 / $25.00 per 1M tokens (in / out)
 DEFAULT_MODEL = MODEL_STRONG
 
+# Haiku 4.5 rejects adaptive thinking and the `effort` control with a 400; the Opus /
+# Sonnet-5 tier accepts them. List the models that can't take them, so the agent loop
+# (llm.py) omits those params per model instead of assuming every model supports them.
+NO_ADAPTIVE_THINKING_MODELS: frozenset[str] = frozenset({MODEL_CHEAP})
+
 
 @dataclass(frozen=True)
 class ModelPrice:

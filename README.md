@@ -194,8 +194,7 @@ status: completed | steps: 5 | tokens: 31742+7898 | cost: $0.3562
 > A genuine run, trimmed for length. Two things it shows: the agent **self-corrects** — when its first
 > descriptive queries return nothing, it retries with short tokens and finds real evidence — and it rates
 > **honestly**, refusing to claim production / RAG / cloud experience the repos don't back up. The full
-> trajectory is written to `eval/results/` as JSONL. (On a legacy Windows console, run with
-> `PYTHONUTF8=1` so the report's `—` / `·` characters render.)
+> trajectory is written to `eval/results/` as JSONL.
 
 ## License
 
