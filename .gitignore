@@ -12,6 +12,9 @@ dist/
 # Local secrets / env
 .env
 
+# On-disk GitHub API cache
+.cache/
+
 # Agent run artifacts (trajectories are regenerated; keep the tracked samples only)
 eval/results/*.jsonl
 !eval/results/.gitkeep
@@ -19,3 +22,6 @@ eval/results/*.jsonl
 # OS / editor
 .DS_Store
 Thumbs.db
+
+# Lokalny indeks CodeGraph (graf kodu per maszyna, odbudowywalny przez `codegraph init`)
+.codegraph/

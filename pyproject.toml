@@ -16,6 +16,11 @@ dependencies = [
     # transport, never as an agent framework.
     "anthropic>=0.40",
     "pydantic>=2.7",
+    # Fetching + main-content extraction for the fetch_job_posting tool.
+    "httpx>=0.27",
+    "trafilatura>=1.8",
+    # A polished terminal UI for the CLI (step stream + evaluation tables).
+    "rich>=13.7",
 ]
 
 [project.optional-dependencies]
@@ -23,6 +28,9 @@ dev = [
     "pytest>=8.3,<9",
     "ruff>=0.6",
 ]
+
+[project.scripts]
+apply-scout = "apply_scout.cli:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
