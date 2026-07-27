@@ -15,8 +15,9 @@ dist/
 # On-disk GitHub API cache
 .cache/
 
-# Agent run artifacts (trajectories are regenerated; keep the tracked samples only)
+# Agent run artifacts (trajectories + generated eval tables are regenerated)
 eval/results/*.jsonl
+eval/results/*.md
 !eval/results/.gitkeep
 
 # OS / editor
