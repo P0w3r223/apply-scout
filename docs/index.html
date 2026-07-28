@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>apply-scout — an LLM job-matching agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body { font: 16px/1.55 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+         -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+         max-width: 820px; margin: 0 auto; padding: 32px 20px 56px; color: #1c2430; }
+  h1 { margin-bottom: 2px; font-weight: 700; letter-spacing: -0.01em; } .sub { color: #667085; margin-top: 0; }
+  h2 { font-weight: 600; margin-top: 0; }
+  .card { border: 1px solid #e3e7ee; border-radius: 12px; padding: 18px 20px; margin: 18px 0; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: right; padding: 6px 10px; border-bottom: 1px solid #eef1f6; }
+  th:first-child, td:first-child { text-align: left; }
+  code { background: #eef1f6; padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
+  ul { padding-left: 1.1rem; } li { margin: 4px 0; }
+  footer { color: #667085; font-size: 0.85rem; margin-top: 24px; }
+  a { color: #2563eb; }
+</style>
+</head>
+<body>
+<h1>apply-scout</h1>
+<p class="sub">An LLM agent that matches a job posting against a candidate's CV and GitHub evidence,
+then drafts a match report and a grounded cover letter — a tool loop written from scratch, with
+safety budgets and a trajectory-evaluation harness.</p>
+
+<div class="card">
+  <h2>Evaluation: when is the cheaper model enough?</h2>
+  <p>The harness runs each model end-to-end over the task set and records every metric from the
+  logged trajectory. Cost is measured through a single token-accounting helper, not estimated.</p>
+  <table>
+    <tr><th>Model</th><th>Tasks</th><th>Completed</th><th>Req F1</th><th>Citation fidelity</th><th>Median calls</th><th>Median cost</th></tr>
+    <tr><td>claude-haiku-4-5</td><td>8</td><td>100%</td><td>0.31</td><td>1.00</td><td>4</td><td><strong>$0.0273</strong></td></tr>
+    <tr><td>claude-opus-4-8</td><td>8</td><td>100%</td><td>0.25</td><td>1.00</td><td>4</td><td>$0.1995</td></tr>
+  </table>
+  <p class="sub">On this task set the strong model costs roughly seven times more per task while
+  scoring no better: identical completion and citation fidelity, and a marginally lower
+  requirement-F1. For extracting and matching postings at this scale the inexpensive model is the
+  better default. Requirement-F1 is an exact set match after case-folding, so it should be read as a
+  strict lower bound on extraction quality rather than a failure to read the posting.</p>
+</div>
+
+<div class="card">
+  <h2>Architecture: a tool loop written from scratch</h2>
+  <ul>
+    <li><strong>An explicit control loop, not a framework.</strong> Full control over the control
+    flow is what makes safety budgets, the trajectory log, and systematic evaluation possible.</li>
+    <li><strong>Safety budgets.</strong> Every run is bounded by maximum steps, tokens, and cost;
+    exceeding a ceiling is a controlled stop with a partial report, never a crash.</li>
+    <li><strong>A trajectory for every run.</strong> Each model call, tool call, and its cost is
+    logged as JSONL — the substrate the evaluation harness reads.</li>
+    <li><strong>Evidence or nothing.</strong> Every claim must trace to a real, checkable link; a
+    cover-letter sentence citing a link absent from the report is removed by the guardrail, and the
+    gap is reported rather than hidden.</li>
+    <li><strong>Dependency injection throughout.</strong> Every component depends only on injected
+    collaborators, so the whole system runs under scripted fakes with no network and no API key.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2>Limitations</h2>
+  <p>Stated plainly, because an agent that hides its failure modes is worse than one that names them:</p>
+  <ul>
+    <li>Postings are fetched as static HTML; a client-rendered, JavaScript-only page yields little
+    readable text, so requirements extracted from such a page are unreliable.</li>
+    <li>GitHub evidence is drawn from repository metadata and README text, not full code search; a
+    skill demonstrated only deep in a source file is honestly rated as unsupported.</li>
+    <li>The guardrail bounds hallucinated citations, not every possible overstatement; it checks that
+    a cited link exists in the report, not the truth of a grounded claim.</li>
+    <li>No application is ever submitted. apply-scout drafts a report and a letter for a human to
+    review and send; it does not act on the candidate's behalf.</li>
+  </ul>
+</div>
+
+<footer>
+  Portfolio project P3 · <a href="https://github.com/P0w3r223/apply-scout">source on GitHub</a> ·
+  prepared 2026-07-28
+</footer>
+</body>
+</html>
