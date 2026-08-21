@@ -156,6 +156,22 @@ def test_a_continuation_still_obeys_the_step_budget():
     assert result.final_text == "partial partial "  # the pieces so far, not nothing
 
 
+def test_a_cut_off_tool_call_stops_the_run_instead_of_being_continued():
+    """The cap can land inside a tool_use block — likely now that the deliverable *is* a
+    tool call. Asking for a continuation there appends a user turn after an unanswered
+    tool_use, which the API rejects: the run would die on a 400 with its trajectory
+    unwritten and its spend unrecorded. Partial JSON has nothing to continue."""
+    llm = ScriptedLLM(
+        [truncated_turn("Here is the report", calls=[("s1", "read_cv", {"path": "cv.md"})])]
+    )
+    agent = Agent(llm, ToolRegistry(mock_tools()))
+    result = agent.run("Assess my fit")
+
+    assert result.status is RunStatus.TRUNCATED
+    assert len(llm.requests) == 1  # it did not go back for more
+    assert "nothing to continue" in result.trajectory.steps[-1].note
+
+
 def test_only_a_continuation_accretes_text():
     """A continued answer is one answer. Text from an ordinary turn is not glued onto the
     next one — otherwise the report would carry the model's earlier thinking-out-loud."""

@@ -54,6 +54,10 @@ jobs:
               --models claude-haiku-4-5,claude-opus-4-8 \
               --cassette-mode replay --out eval/results/replay.md
             cat eval/results/replay.md
+            # Replaying without checking only proves the cassette still resolves. The
+            # published table is a claim about numbers, so diff them: a change in metric
+            # semantics regenerates a different table and must not pass green.
+            diff -u eval/expected/pipeline.md eval/results/replay.md
           else
             echo "No cassette committed yet — record one with --cassette-mode record."
           fi
@@ -65,6 +69,7 @@ jobs:
             apply-scout eval --tasks eval/tasks.json --models claude-haiku-4-5 \
               --runner agent --cassette-mode replay --out eval/results/replay-agent.md
             cat eval/results/replay-agent.md
+            diff -u eval/expected/agent.md eval/results/replay-agent.md
           fi
       - name: Replay the recorded demo run
         # The README's demo claims a specific stream of steps. Replay the run behind it and

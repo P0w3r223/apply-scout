@@ -37,8 +37,22 @@ def _canned_result(status: RunStatus = RunStatus.COMPLETED, breach=None) -> Agen
     )
 
 
+SUBMISSION = {
+    "report": {"job_title": "X", "job_url": "https://x/job", "assessments": []},
+    "letter": {"sentences": [{"text": "hello"}]},
+}
+
+
+def _canned_run(**kwargs):
+    """Stands in for a real run *including its deliverable* — the CLI now treats a run
+    that submitted nothing as a failure, so a stub that skips it is not a passing run."""
+    if kwargs.get("submit") is not None:
+        kwargs["submit"].run(SUBMISSION)
+    return _canned_result()
+
+
 def test_run_writes_trajectory_and_returns_zero(tmp_path, monkeypatch, capsys):
-    monkeypatch.setattr(cli, "run_assessment", lambda **kwargs: _canned_result())
+    monkeypatch.setattr(cli, "run_assessment", _canned_run)
     out = tmp_path / "traj.jsonl"
 
     code = cli.main(
@@ -89,7 +103,7 @@ def test_verbose_passes_on_step_callback(tmp_path, monkeypatch):
 def test_eval_writes_markdown_table_and_prints(tmp_path, monkeypatch, capsys):
     from apply_scout.evaluation import Aggregate
 
-    fake = [Aggregate("good", 1, 1.0, 1.0, 1.0, 4, 0.01)]
+    fake = [Aggregate("good", 1, 1.0, 1.0, 1.0, 1.0, 1, 1, 4, 0.01)]
     monkeypatch.setattr(cli, "run_models", lambda tasks, models, **kwargs: fake)
     tasks_file = tmp_path / "tasks.json"
     tasks_file.write_text(
@@ -158,7 +172,7 @@ def test_eval_replay_swaps_in_a_cassette_backed_assess_factory(tmp_path, monkeyp
 
     def stub(tasks, models, **kwargs):
         captured.update(kwargs)
-        return [Aggregate("m", 1, 1.0, 1.0, 1.0, 4, 0.01)]
+        return [Aggregate("m", 1, 1.0, 1.0, 1.0, 1.0, 1, 1, 4, 0.01)]
 
     monkeypatch.setattr(cli, "run_models", stub)
     tasks_file = tmp_path / "tasks.json"
@@ -204,3 +218,19 @@ def test_an_unknown_cassette_mode_is_rejected_at_parse_time(tmp_path):
         cli.main(
             ["run", "--url", "u", "--cv", "c", "--github-user", "g", "--cassette-mode", "nope"]
         )
+
+
+def test_run_reports_failure_when_nothing_was_submitted(tmp_path, monkeypatch, capsys):
+    """A run can end `completed` — the model simply stopped calling tools — and still have
+    produced no deliverable; both dead-URL tasks in the eval do exactly that. The exit code
+    has to follow the report, not the loop's stopping reason."""
+    monkeypatch.setattr(cli, "run_assessment", lambda **kwargs: _canned_result())
+    out = tmp_path / "traj.jsonl"
+
+    code = cli.main(
+        ["run", "--url", "https://x/job", "--cv", "cv.md", "--github-user", "g", "--out", str(out)]
+    )
+
+    assert code == 1
+    assert "no report was submitted" in capsys.readouterr().err
+    assert out.exists()  # the trajectory is still written — the spend is still recorded

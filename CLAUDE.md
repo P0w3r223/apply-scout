@@ -164,13 +164,23 @@ python scripts/demo.py render      # docs/demo-cast.json -> docs/demo.svg
    set. Replaced by `requirement_coverage` (recall, containment matching); precision is not
    reported because no honest denominator exists here (ADR-0005). Re-scoring cost $0: the metric
    is a pure function of the recorded assessments, so the cassette recomputed the table offline.
-12. **The loop, finally measured (this milestone).** ✅ `submit_report` makes the loop finish with a
-   validated `MatchReport` + `CoverLetterDraft`, so `agent_assess_fn` scores it on the same axes as
-   the pipeline (`apply-scout eval --runner agent`). Result: on `claude-haiku-4-5` the loop costs
-   3.3× the pipeline and buys citation fidelity 0.83 → 1.00 — grounded letters at half the price of
-   switching to Opus (ADR-0006). Surfaced a live bug: cost was priced from the API's *response* model
-   id, a dated snapshot missing from `PRICING`, so the loop billed $0.00 and `max_cost` could never
-   fire. `price_for` prefix-matches now; cassette entries were re-priced from recorded tokens.
+12. **The loop, finally measured.** ✅ `submit_report` makes the loop finish with a validated
+   `MatchReport` + `CoverLetterDraft`, so `agent_assess_fn` scores it on the same axes as the
+   pipeline (`apply-scout eval --runner agent`). On `claude-haiku-4-5` the loop costs 3.3× the
+   pipeline and is the only configuration that both cites (0.74 of sentences) and gets every
+   citation right — grounded letters at half the price of switching to Opus (ADR-0006). Surfaced a
+   live bug: cost was priced from the API's *response* model id, a dated snapshot missing from
+   `PRICING`, so the loop billed $0.00 and `max_cost` could never fire.
+13. **Metrics that can say "not applicable" (this milestone).** ✅ A code review caught both metrics
+   returning their *best* score when they had no data: an unannotated task scored 1.00 coverage, and
+   a letter citing nothing scored 1.00 fidelity. The published table therefore read 0.80/0.68 and
+   credited Opus with a headline it had not earned — five of its six letters cite nothing at all.
+   Both return `None` now, print as `n/a`, carry the count of tasks behind each mean, and are
+   published beside a new **citation rate**. Also fixed: a `max_tokens` cut inside a `tool_use` block
+   used to build a conversation the API rejects (crash, trajectory lost) and now stops as
+   `truncated`; `run` exits non-zero when nothing was submitted; the structurer seam re-derives cost
+   from recorded tokens so the rate card is never frozen in the artifact; CI diffs the replayed
+   tables against `eval/expected/` instead of only printing them.
 
 ## What not to do
 
