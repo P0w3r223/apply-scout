@@ -22,6 +22,10 @@ from pydantic import BaseModel, ConfigDict
 
 from apply_scout import config
 
+# How a 404 is stored in the cache: the JSON literal that parses back to `None`, so a
+# cached absence and a fresh one leave `_get_json` by exactly the same path.
+_MISSING = "null"
+
 
 class GitHubError(Exception):
     """A GitHub request failed (not-found, bad status, transport)."""
@@ -133,6 +137,13 @@ class GitHubClient:
         if response.status_code == 429:
             raise GitHubRateLimitError("secondary rate limit exceeded")
         if response.status_code == 404:
+            # A 404 is an answer, not a failure: "this repo has no README" is the
+            # documented non-fatal case. Cache it like any other response, because a
+            # cassette that stores nothing here cannot replay the run it recorded — the
+            # same request would miss and stop a replay that the live run sailed through.
+            # The on-disk cache has no expiry either way, so an absence is cached for
+            # exactly as long as a presence.
+            self._cache.set(url, _MISSING)
             return None
         if response.status_code != 200:
             raise GitHubError(f"HTTP {response.status_code}")

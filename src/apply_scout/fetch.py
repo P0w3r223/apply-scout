@@ -10,6 +10,7 @@ LLM structuring that follows.
 from __future__ import annotations
 
 from html.parser import HTMLParser
+from typing import Protocol, runtime_checkable
 
 import httpx
 
@@ -18,6 +19,41 @@ from apply_scout import config
 
 class FetchError(Exception):
     """Raised when a URL cannot be fetched into usable HTML (network, status, type)."""
+
+
+@runtime_checkable
+class Fetcher(Protocol):
+    """What the posting tool needs from the network: a URL in, HTML out.
+
+    Narrow on purpose — it is the seam a recording/replaying wrapper substitutes for, so
+    the same tool code runs live or entirely offline."""
+
+    def get(self, url: str) -> str: ...
+
+
+@runtime_checkable
+class Extractor(Protocol):
+    """HTML in, readable main text out — the seam between fetching and structuring.
+
+    Split out from `extract_main_text` as an injectable dependency because extraction is
+    not as reproducible as it looks: trafilatura's output shifts between its own versions
+    and between libxml2 builds, so the same recorded HTML yields different text on another
+    machine. A replay that re-ran extraction locally would key its structuring request off
+    that different text and miss every recorded entry — which is exactly what a CI runner
+    with a newer trafilatura did. Recording this seam makes the offline run depend on the
+    page, not on the environment that reads it."""
+
+    def extract(self, html: str, url: str = "") -> str: ...
+
+
+class MainTextExtractor:
+    """The production extractor: trafilatura, with the stdlib fallback behind it.
+
+    `url` is accepted for the recorder's benefit (it labels the entry) and ignored here —
+    extraction depends on the markup alone."""
+
+    def extract(self, html: str, url: str = "") -> str:
+        return extract_main_text(html)
 
 
 class HttpFetcher:

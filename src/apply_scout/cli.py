@@ -5,6 +5,10 @@
 - `apply-scout eval --tasks tasks.json --models a,b` — run the evaluation harness and
   write a markdown results table (plus a pretty table in the terminal).
 
+Both accept `--cassette-mode` to record every external response to a cassette, or to
+replay one — which is how the evaluation reruns with no network, no API key, and no
+cost (see `cassette.py`).
+
 Uses `rich` for the terminal UI; the machine-readable outputs (trajectory JSONL, the
 markdown eval table) stay plain so they drop straight into a file or the README.
 """
@@ -23,10 +27,26 @@ from rich.table import Table
 from apply_scout import config
 from apply_scout.agent import RunStatus
 from apply_scout.budget import Budget
-from apply_scout.evaluation import Aggregate, format_comparison, load_tasks, run_models
+from apply_scout.cassette import (
+    CassetteMiss,
+    CassetteMode,
+    CassetteSession,
+    default_cassette_path,
+)
+from apply_scout.env import load_dotenv
+from apply_scout.evaluation import (
+    Aggregate,
+    format_comparison,
+    load_tasks,
+    pipeline_assess_fn,
+    run_models,
+)
 from apply_scout.formatting import format_step, format_summary
+from apply_scout.github import GitHubClient
 from apply_scout.runner import run_assessment
 from apply_scout.trajectory import StepKind, TrajectoryStep
+
+_CASSETTE_MODES = ("off", *(mode.value for mode in CassetteMode))
 
 _STEP_STYLE = {
     StepKind.MODEL_CALL: "cyan",
@@ -34,6 +54,42 @@ _STEP_STYLE = {
     StepKind.FINAL: "bold green",
     StepKind.BUDGET_STOP: "bold yellow",
 }
+
+
+def _add_cassette_args(parser: argparse.ArgumentParser, default_name: str) -> None:
+    """The record/replay switches, identical on every subcommand."""
+    parser.add_argument(
+        "--cassette-mode",
+        choices=_CASSETTE_MODES,
+        default="off",
+        help=(
+            "off: call the real services (default). record: call them and store every "
+            "response. replay: serve responses from the cassette only — no network, no "
+            "API key. auto: replay what is recorded, record what is not."
+        ),
+    )
+    parser.add_argument(
+        "--cassette",
+        default=None,
+        help=f"Cassette file (default: {default_cassette_path(default_name)}).",
+    )
+
+
+def _open_session(args: argparse.Namespace, default_name: str) -> CassetteSession | None:
+    """Build the cassette session for this invocation, or None when running live."""
+    if args.cassette_mode == "off":
+        return None
+    path = Path(args.cassette) if args.cassette else default_cassette_path(default_name)
+    return CassetteSession.open(path, CassetteMode(args.cassette_mode))
+
+
+def _report_session(session: CassetteSession | None) -> None:
+    if session is None:
+        return
+    print(session.summary())
+    saved = session.save()
+    if saved is not None:
+        print(f"cassette written: {saved}")
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -52,6 +108,7 @@ def _build_parser() -> argparse.ArgumentParser:
     run_p.add_argument("--out", default=None, help="Where to write the trajectory JSONL.")
     run_p.add_argument("--max-steps", type=int, default=config.DEFAULT_MAX_STEPS)
     run_p.add_argument("--max-cost", type=float, default=config.DEFAULT_MAX_COST_USD)
+    _add_cassette_args(run_p, "run")
 
     eval_p = sub.add_parser("eval", help="Run the evaluation harness over a tasks file.")
     eval_p.add_argument("--tasks", required=True, help="Path to a JSON array of eval tasks.")
@@ -61,6 +118,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Comma-separated model ids to compare.",
     )
     eval_p.add_argument("--out", default=None, help="Where to write the markdown results table.")
+    _add_cassette_args(eval_p, "eval")
     return parser
 
 
@@ -73,6 +131,18 @@ def _run(args: argparse.Namespace) -> int:
 
     on_step = print_step if args.verbose else None
     budget = Budget(max_steps=args.max_steps, max_cost_usd=args.max_cost)
+    session = _open_session(args, "run")
+    wiring = (
+        {}
+        if session is None
+        else {
+            "llm": session.llm(),
+            "fetcher": session.fetcher(),
+            "structurer": session.structurer(),
+            "extractor": session.extractor(),
+            "github": GitHubClient(cache=session.github_cache()),
+        }
+    )
 
     result = run_assessment(
         job_url=args.url,
@@ -81,6 +151,7 @@ def _run(args: argparse.Namespace) -> int:
         model=args.model,
         budget=budget,
         on_step=on_step,
+        **wiring,
     )
 
     out_path = (
@@ -94,6 +165,7 @@ def _run(args: argparse.Namespace) -> int:
     print()
     print(format_summary(result))
     print(f"\ntrajectory: {out_path}")
+    _report_session(session)
     return 0 if result.status is RunStatus.COMPLETED else 1
 
 
@@ -114,10 +186,37 @@ def _eval_table(aggregates: list[Aggregate]) -> Table:
     return table
 
 
+def _assess_fn_factory(session: CassetteSession):
+    """Bind the cassette's collaborators into the harness's per-model AssessFn factory.
+
+    The fetcher and GitHub client are shared across tasks (they hold no per-task state),
+    while the structurer is created per task — that is what keeps cost and call counts
+    attributable to a single task."""
+    fetcher = session.fetcher()
+    extractor = session.extractor()
+    github = GitHubClient(cache=session.github_cache())
+
+    def factory(model: str):
+        return pipeline_assess_fn(
+            model,
+            structurer_factory=session.structurer,
+            fetcher=fetcher,
+            github=github,
+            extractor=extractor,
+        )
+
+    return factory
+
+
 def _eval(args: argparse.Namespace) -> int:
     tasks = load_tasks(Path(args.tasks))
     models = [m.strip() for m in args.models.split(",") if m.strip()]
-    aggregates = run_models(tasks, models)
+    session = _open_session(args, "eval")
+    aggregates = (
+        run_models(tasks, models)
+        if session is None
+        else run_models(tasks, models, assess_fn_factory=_assess_fn_factory(session))
+    )
 
     out_path = (
         Path(args.out)
@@ -129,6 +228,7 @@ def _eval(args: argparse.Namespace) -> int:
 
     Console().print(_eval_table(aggregates))
     print(f"results (markdown): {out_path}")
+    _report_session(session)
     return 0
 
 
@@ -147,10 +247,20 @@ def _make_output_utf8_safe() -> None:
 
 def main(argv: list[str] | None = None) -> int:
     _make_output_utf8_safe()
+    # Pick up a local .env before anything can need a key. Harmless when there is none,
+    # and an already-exported variable still wins (see env.py).
+    load_dotenv()
     args = _build_parser().parse_args(argv)
-    if args.command == "eval":
-        return _eval(args)
-    return _run(args)
+    try:
+        if args.command == "eval":
+            return _eval(args)
+        return _run(args)
+    except CassetteMiss as exc:
+        # A replay miss is a harness problem, not a model problem: the prompts or the
+        # inputs moved on since the cassette was cut. Say so in one line and stop —
+        # silently reaching for the network here would defeat the whole mechanism.
+        print(f"cassette miss: {exc}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":
