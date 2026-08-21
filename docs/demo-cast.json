@@ -3,415 +3,421 @@
   "title": "apply-scout run — claude-opus-4-8",
   "frames": [
     {
-      "t": 5.938,
+      "t": 0.031,
       "text": "[0] model claude-opus-4-8 | 1256+171 tok | $0.0106 | 2 tool call(s)\n     I'll start by fetching the job posting and reading the CV in parallel.",
       "style": "cyan",
       "group": null
     },
     {
-      "t": 18.157,
+      "t": 0.047,
       "text": "    - fetch_job_posting -> ok: posting 'Senior AI Engineer' with 24 requirement(s)",
       "style": "dim",
       "group": "fetch_job_posting"
     },
     {
-      "t": 22.532,
+      "t": 0.047,
       "text": "    - read_cv -> ok: CV for candidate with 51 skill(s)",
       "style": "dim",
       "group": "read_cv"
     },
     {
-      "t": 30.704,
+      "t": 0.047,
       "text": "[3] model claude-opus-4-8 | 3041+813 tok | $0.0355 | 8 tool call(s)\n     Now I'll gather GitHub evidence for each requirement. Let me start with the core AI/ML skills.",
       "style": "cyan",
       "group": null
     },
     {
-      "t": 36.125,
+      "t": 0.047,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'LLM-powered applications using OpenAI, Anthropic, or Cohere APIs in production'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 36.141,
+      "t": 0.062,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'RAG pipelines (retrieval-augmented generation)'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 36.141,
+      "t": 0.078,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'chunking strategies, embedding models, vector database (Pinecone, Weaviate, pgvector)'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 36.157,
+      "t": 0.078,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Python for AI/ML workloads'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 36.157,
+      "t": 0.078,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'AI orchestration framework (LangChain, LlamaIndex, or equivalent)'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 36.157,
+      "t": 0.094,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'ML model serving infrastructure (REST or gRPC inference endpoints)'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 36.172,
+      "t": 0.094,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Input/output validation and latency budgeting'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 36.172,
+      "t": 0.094,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Monitoring for model serving infrastructure'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 46.454,
+      "t": 0.094,
       "text": "[12] model claude-opus-4-8 | 4586+1008 tok | $0.0481 | 10 tool call(s)\n     Several came back empty. Let me try search terms that align with the specific technologies mentioned in the CV, plus the remaining requirements.",
       "style": "cyan",
       "group": null
     },
     {
-      "t": 46.454,
+      "t": 0.094,
       "text": "    - github_evidence -> ok: 1 evidence item(s) for 'Anthropic API'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 46.469,
+      "t": 0.109,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'structured outputs validate-and-retry guardrails'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 46.469,
+      "t": 0.109,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'MLflow reproducible training pipelines'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 46.485,
+      "t": 0.125,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'transformer fine-tuning text classification'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 46.485,
+      "t": 0.125,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'REST API backend'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 46.485,
+      "t": 0.125,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'PostgreSQL relational database schema design'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 46.5,
+      "t": 0.14,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'async patterns concurrency'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 46.5,
+      "t": 0.14,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Cloud infrastructure AWS GCP Azure'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 46.516,
+      "t": 0.14,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'observability structured logging distributed tracing dashboards'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 46.547,
+      "t": 0.14,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'A/B testing hypothesis testing prompt evaluation'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 56.5,
+      "t": 0.156,
       "text": "[23] model claude-opus-4-8 | 6508+964 tok | $0.0566 | 10 tool call(s)\n     The profile README surfaced. Let me probe for specific project repos with simpler terms to find concrete evidence.",
       "style": "cyan",
       "group": null
     },
     {
-      "t": 56.5,
+      "t": 0.156,
       "text": "    - github_evidence -> ok: 3 evidence item(s) for 'agent'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 56.5,
+      "t": 0.156,
       "text": "    - github_evidence -> ok: 1 evidence item(s) for 'QLoRA fine-tuning'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 56.516,
+      "t": 0.172,
       "text": "    - github_evidence -> ok: 4 evidence item(s) for 'evaluation harness'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 56.516,
+      "t": 0.172,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Docker CI GitHub Actions'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 56.516,
+      "t": 0.187,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'SQLite ETL data engineering'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 56.532,
+      "t": 0.187,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'fintech financial services'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 56.532,
+      "t": 0.187,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Kafka Kinesis real-time streaming'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 56.532,
+      "t": 0.203,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'open-source AI tooling contributions'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 56.532,
+      "t": 0.203,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'technical writing blog talks'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 56.547,
+      "t": 0.203,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'model performance degradation monitoring drift'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 68.172,
+      "t": 0.203,
       "text": "[34] model claude-opus-4-8 | 9188+966 tok | $0.0701 | 8 tool call(s)\n     Good, I'm finding concrete repos now. Let me probe the remaining requirements against these repos and a few more terms.",
       "style": "cyan",
       "group": null
     },
     {
-      "t": 68.188,
+      "t": 0.203,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'latency budget token cost measurement'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 68.188,
+      "t": 0.219,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'MLOps drift detection monitoring'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 68.204,
+      "t": 0.219,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'embeddings vector search retrieval'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 68.204,
+      "t": 0.219,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'inference endpoint API serving model'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 68.204,
+      "t": 0.234,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Pydantic validation guardrails'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 68.219,
+      "t": 0.234,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'sentiment analysis HerBERT Polish text classification'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 68.219,
+      "t": 0.234,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'statistics A/B testing experiment'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 68.235,
+      "t": 0.25,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'database SQL project'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 78.344,
+      "t": 0.25,
       "text": "[43] model claude-opus-4-8 | 10800+935 tok | $0.0774 | 10 tool call(s)\n     The search appears to favor short/specific terms. Let me retry with single keywords.",
       "style": "cyan",
       "group": null
     },
     {
-      "t": 78.344,
+      "t": 0.25,
       "text": "    - github_evidence -> ok: 4 evidence item(s) for 'MLflow'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 78.344,
+      "t": 0.25,
       "text": "    - github_evidence -> ok: 5 evidence item(s) for 'drift'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 78.344,
+      "t": 0.25,
       "text": "    - github_evidence -> ok: 2 evidence item(s) for 'latency'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 78.344,
+      "t": 0.25,
       "text": "    - github_evidence -> ok: 1 evidence item(s) for 'guardrails'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 78.344,
+      "t": 0.281,
       "text": "    - github_evidence -> ok: 1 evidence item(s) for 'Pydantic'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 78.36,
+      "t": 0.281,
       "text": "    - github_evidence -> ok: 3 evidence item(s) for 'FastAPI'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 78.36,
+      "t": 0.281,
       "text": "    - github_evidence -> ok: 1 evidence item(s) for 'PostgreSQL'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 78.36,
+      "t": 0.281,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'async'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 78.36,
+      "t": 0.297,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'logging'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 78.375,
+      "t": 0.297,
       "text": "    - github_evidence -> ok: 3 evidence item(s) for 'Docker'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 89.938,
+      "t": 0.297,
       "text": "[54] model claude-opus-4-8 | 14745+1069 tok | $0.1004 | 10 tool call(s)\n     Rich evidence now. Let me check a few remaining gaps: vector/embeddings/RAG, cloud, tracing, streaming, and text classification.",
       "style": "cyan",
       "group": null
     },
     {
-      "t": 89.938,
+      "t": 0.297,
       "text": "    - github_evidence -> ok: 10 evidence item(s) for 'RAG'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 89.954,
+      "t": 0.312,
       "text": "    - github_evidence -> ok: 1 evidence item(s) for 'embedding'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 89.954,
+      "t": 0.312,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'pgvector'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 89.969,
+      "t": 0.328,
       "text": "    - github_evidence -> ok: 3 evidence item(s) for 'AWS'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 89.969,
+      "t": 0.328,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'tracing'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 89.985,
+      "t": 0.328,
       "text": "    - github_evidence -> ok: 1 evidence item(s) for 'LangChain'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 89.985,
+      "t": 0.328,
       "text": "    - github_evidence -> ok: 2 evidence item(s) for 'sentiment'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 90.0,
+      "t": 0.344,
       "text": "    - github_evidence -> ok: 4 evidence item(s) for 'SQLite'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 90.016,
+      "t": 0.344,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'token budget cost'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 90.016,
+      "t": 0.359,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'A/B testing'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 137.969,
+      "t": 0.359,
       "text": "[65] model claude-opus-4-8 | 18728+4096 tok | $0.1960 | 0 tool call(s)\n     I have gathered sufficient evidence across the candidate's repositories. Here is the match report.\n     \n     ---\n     \n     # Match Report — Senior AI Engineer @ Jeeves\n     \n     **Candidate:** CV `cv/candidate.md` · GitHub [`P0w3r223`](https://github.com/P0w3r223)\n     \n     A note on method: ratings are backed only by evidence actually retrieved. Where a search returned no hit — including the candidate's *own* apply-scout self-audit table, which explicitly records gaps — the requirement is rated `none`.\n     \n     ## Required requirements\n     \n     | # | Requirement | Rating | Evidence |\n     |---|-------------|--------|----------|\n     | 1 | Bachelor's degree (or equivalent practical experience) | **weak** | CV states \"BSc-level computer science coursework\" — coursework, not a conferred degree. No GitHub evidence. Could satisfy the \"equivalent practical experience\" clause via the project portfolio. |\n     | 2 | 5+ years professional software engineering | **none** | CV describes \"ten public projects,\" not dated professional employment. No evidence of years of professional experience. |\n     | 3 | 3+ years AI/ML in production | **none** | No production/professional timeline evidenced. Projects are public portfolio pieces, not dated production systems. |\n     | 4 | LLM apps using OpenAI/Anthropic/Cohere in production | **weak** | Anthropic API is used in a real from-scratch agent: [apply-scout](https://github.com/P0w3r223/apply-scout/blob/main/README.md) (\"tool loop with safety budgets and guardrails\"); [profile README](https://github.com/P0w3r223/P0w3r223/blob/main/README.md) lists \"Anthropic API.\" No evidence of *production* deployment/scale. |\n     | 5 | RAG pipelines | **none** | No RAG pipeline evidenced. apply-scout's own audit records \"0 evidence item(s) for 'RAG pipelines'\" ([apply-scout README](https://github.com/P0w3r223/apply-scout/blob/main/README.md)). token-budget references a \"studia-rag\" target but shows no pipeline. |\n     | 6 | Chunking, embedding models, vector DB (Pinecone/Weaviate/pgvector) | **none** | No evidence. Searches for embeddings/pgvector returned nothing; apply-scout audit confirms \"0 evidence\" for \"chunking, embeddings, vector DB.\" |\n     | 7 | Strong Python for AI/ML workloads | **strong** | Multiple Python ML projects: [pl-review-sense](https://github.com/P0w3r223/pl-review-sense/blob/main/README.md) (TF-IDF vs fine-tuning), [car-price-ml](https://github.com/P0w3r223/car-price-ml/blob/main/README.md), [mlops-car-price](https://github.com/P0w3r223/mlops-car-price/blob/main/README.md), [pl-jobs-lora](https://github.com/P0w3r223/pl-jobs-lora/blob/main/README.md) (QLoRA). |\n     | 8 | AI orchestration framework (LangChain/LlamaIndex/equivalent) | **weak** | [apply-scout](https://github.com/P0w3r223/apply-scout/blob/main/README.md) is \"a tool loop written from scratch (no LangChain).\" An equivalent was hand-built, but no LangChain/LlamaIndex experience is evidenced. |\n     | 9 | ML model serving (REST or gRPC inference endpoints) | **strong** | FastAPI `/predict` endpoints in [pl-review-sense](https://github.com/P0w3r223/pl-review-sense/blob/main/README.md) and [car-price-ml](https://github.com/P0w3r223/car-price-ml/blob/main/README.md) (\"FastAPI + Docker prediction service\"); service wired in [mlops-car-price](https://github.com/P0w3r223/mlops-car-price/blob/main/README.md). |\n     | 10 | Input/output validation and latency budgeting | **strong** | Validation via frozen [Pydantic](https://github.com/P0w3r223/doc-extract/blob/main/README.md) schema (`extra=\"forbid\"`, closed enums). Latency budgeting in [mlops-car-price](https://github.com/P0w3r223/mlops-car-price/blob/main/README.md) (\"deployment budget,\" p95) and [pl-jobs-lora](https://github.com/P0w3r223/pl-jobs-lora/blob/main/README.md) (\"accuracy × cost × latency\"). |\n     | 11 | Monitoring for model serving infrastructure | **weak** | [mlops-car-price](https://github.com/P0w3r223/mlops-car-price/blob/main/README.md) has \"drift monitoring on simulated production traffic\" and champion/challenger promotion — but on simulated traffic, not live serving-infra telemetry. |\n     | 12 | Backend fundamentals: REST APIs, relational databases | **strong** | FastAPI REST endpoints (above) + relational DB with ordered schema migrations in [it-job-radar](https://github.com/P0w3r223/it-job-radar/blob/main/README.md) (\"SQLite system of record… migrations.py\").",
       "style": "cyan",
       "group": null
     },
     {
-      "t": 137.969,
-      "text": "[done] finished (max_tokens)",
+      "t": 0.359,
+      "text": "[...] output cap reached; continuing (1/2)",
+      "style": "bold yellow",
+      "group": null
+    },
+    {
+      "t": 0.359,
+      "text": "[stop] stopped: max_cost",
+      "style": "bold yellow",
+      "group": null
+    },
+    {
+      "t": 0.359,
+      "text": "\nstatus: budget_stopped (breach: max_cost)\nsteps: 8 | tokens: 68852+10022 | cost: $0.5948",
       "style": "bold green",
       "group": null
     },
     {
-      "t": 137.969,
-      "text": "\nstatus: completed\nsteps: 8 | tokens: 68852+10022 | cost: $0.5948",
-      "style": "bold green",
-      "group": null
-    },
-    {
-      "t": 137.969,
+      "t": 0.359,
       "text": "--- report ---\nI have gathered sufficient evidence across the candidate's repositories. Here is the match report.\n\n---\n\n# Match Report — Senior AI Engineer @ Jeeves\n\n**Candidate:** CV `cv/candidate.md` · GitHub [`P0w3r223`](https://github.com/P0w3r223)\n\nA note on method: ratings are backed only by evidence actually retrieved. Where a search returned no hit — including the candidate's *own* apply-scout self-audit table, which explicitly records gaps — the requirement is rated `none`.\n\n## Required requirements\n\n| # | Requirement | Rating | Evidence |\n|---|-------------|--------|----------|\n... 12 more line(s) — full report above",
       "style": "",
       "group": null

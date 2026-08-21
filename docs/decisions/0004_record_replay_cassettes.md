@@ -80,9 +80,16 @@ when it crosses the network.
   Silently serving one live request would turn a free, reproducible evaluation back into a
   paid and unverifiable one, and the resulting table would be a blend of two runs with no
   marker saying so.
-- **The key hashes the whole request, system prompt and tool schemas included.** So editing
-  a prompt misses every entry it touches, and the project's "every prompt change ⇒ re-run
-  the harness" rule becomes a mechanism instead of a habit.
+- **The key hashes everything that crosses the seam — model, system prompt, messages and
+  tool schemas.** So editing a prompt misses every entry it touches, and the project's
+  "every prompt change ⇒ re-run the harness" rule becomes a mechanism instead of a habit.
+  It does *not* cover the per-request settings applied below the seam, inside the adapter:
+  `MAX_OUTPUT_TOKENS`, adaptive thinking and `effort` shape the response but are invisible
+  to the key. Changing one of them therefore replays answers recorded under the old value
+  instead of missing — the mirror image of the extraction bug above, and the reason the
+  demo's caption names the cap the recording was cut under. Folding them into the key is
+  the honest fix; it invalidates every entry, so it is bundled with the next re-record
+  rather than paid for on its own.
 - **Cost is replayed as captured at recording time.** Token counts and USD come out of the
   entry, so the cost column of an offline run stays a measurement rather than collapsing to
   zero — which is the whole point of the cheap-vs-strong comparison.

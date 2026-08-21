@@ -197,9 +197,15 @@ Honest and specific, because an agent that hides its failure modes is worse than
 - **A cassette is a snapshot, not a guarantee of current behaviour.** Replay proves what the models did
   on the recorded requests, not what they would do today. Re-record to make that claim.
 - **A long report can outgrow one response.** `MAX_OUTPUT_TOKENS` caps a single model reply at 4096
-  tokens, which a posting with two dozen requirements can exceed — the run then ends
-  `finished (max_tokens)` with the report truncated (visible in the demo above). The budget stop is
-  graceful, but the deliverable is partial; the fix is a continuation turn, not a bigger cap.
+  tokens, which a posting with two dozen requirements exceeds. The loop asks the model to continue
+  (up to `MAX_CONTINUATIONS`) and stitches the pieces into one report; if it runs out of
+  continuations the run ends `truncated`, never `completed`. What it cannot do is finish a report
+  the safety budget has no money left to pay for — as in the demo above, where the cost ceiling
+  stops the continuation and the deliverable stays partial.
+- **A budget can be overshot by one call.** Ceilings are checked *before* each model call, so a
+  single expensive reply can end a run above its limit ($0.5948 against a $0.50 ceiling in the
+  demo). The stop is still graceful and honest; it is a ceiling on starting work, not a hard cap on
+  spend.
 - **English/Polish postings assumed.** Other languages are untested.
 - **No application is ever submitted.** apply-scout drafts a report and a letter for a human to review
   and send — it does not act on the candidate's behalf.
@@ -218,10 +224,11 @@ synthetic candidate CV (`cv/candidate.md`) and the public `P0w3r223` GitHub:
 
 <img src="docs/demo.svg" alt="apply-scout run: the agent fetches the posting, reads the CV, probes GitHub for evidence, and prints a match report" width="876">
 
-Recorded 2026-08-21 on `claude-opus-4-8`: **8 model calls, 56 `github_evidence` probes, 68.9k+10.0k
-tokens, $0.5948, 138 s**. The picture is generated from the run, not re-enacted — pauses are
-compressed to keep it watchable and repeated probes are folded up with an explicit count
-(`... 7 more github_evidence call(s)`); nothing is otherwise edited or reordered.
+Recorded live on 2026-08-21 against `claude-opus-4-8` (**8 model calls, 56 `github_evidence` probes,
+68.9k+10.0k tokens, $0.5948, 138 s**), then **rendered from a replay of that recording** — which is
+why the steps are evenly paced: a replay has no thinking time to show. Repeated probes are folded up
+with an explicit count (`... 7 more github_evidence call(s)`) and one frame contributes at most six
+rows; nothing is edited or reordered.
 
 **Reproduce it yourself — offline, in under a second, with no API key:**
 
@@ -243,9 +250,12 @@ Three things the run shows, including one that is not flattering:
 - **It rates honestly.** Requirements with no retrieved evidence come back `none`, including
   "5+ years professional experience", which no repository can prove. It cites this project's *own*
   audit against itself rather than papering over the gap.
-- **It ran out of output budget.** The final report is cut off mid-table and the run ends
-  `finished (max_tokens)`: a 24-requirement report does not fit in `MAX_OUTPUT_TOKENS = 4096`. Left
-  in the recording rather than hidden — the trajectory in `eval/results/` records it the same way.
+- **Both safety mechanisms fire, and the run says so.** A 24-requirement report does not fit in one
+  reply (`MAX_OUTPUT_TOKENS = 4096`), so the loop asks the model to continue where it stopped —
+  `[...] output cap reached; continuing (1/2)`. That continuation would be the ninth model call, and
+  the run has already spent $0.5948 against a $0.50 ceiling, so the budget check stops it first. The
+  run ends **`budget_stopped (breach: max_cost)` with a partial report** — not `completed`. A
+  truncated deliverable is never reported as a finished one.
 
 ## License
 

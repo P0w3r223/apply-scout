@@ -4,18 +4,24 @@ with a partial report."""
 
 from __future__ import annotations
 
-from fakes import ScriptedLLM, final_turn, tool_use_turn
+from fakes import ScriptedLLM, final_turn, tool_use_turn, truncated_turn
 
 from apply_scout.agent import Agent, AgentConfig, RunStatus
 from apply_scout.budget import Budget, BudgetBreach
+from apply_scout.prompts import CONTINUE_INSTRUCTION
 from apply_scout.tools.mock import mock_tools
 from apply_scout.tools.registry import ToolRegistry
 from apply_scout.trajectory import StepKind
 
 
-def _agent(turns, *, budget: Budget | None = None) -> Agent:
+def _agent(turns, *, budget: Budget | None = None, max_continuations: int | None = None) -> Agent:
     llm = ScriptedLLM(turns)
-    cfg = AgentConfig(budget=budget) if budget is not None else None
+    overrides = {}
+    if budget is not None:
+        overrides["budget"] = budget
+    if max_continuations is not None:
+        overrides["max_continuations"] = max_continuations
+    cfg = AgentConfig(**overrides) if overrides else None
     return Agent(llm, ToolRegistry(mock_tools()), agent_config=cfg)
 
 
@@ -90,6 +96,77 @@ def test_unknown_tool_is_reported_not_fatal():
     tool_step = next(s for s in result.trajectory.steps if s.kind is StepKind.TOOL_RESULT)
     assert tool_step.tool_ok is False
     assert "Unknown tool" in tool_step.tool_summary
+
+
+def test_answer_cut_off_by_the_output_cap_is_continued_and_stitched():
+    agent = _agent(
+        [
+            truncated_turn("# Match Report\n| Python | strong |\n| SQL |"),
+            final_turn(" none |\n\nOverall: partial fit."),
+        ]
+    )
+    result = agent.run("Assess my fit")
+
+    assert result.status is RunStatus.COMPLETED
+    # One report, not the last fragment of one — and no seam between the pieces.
+    assert result.final_text == (
+        "# Match Report\n| Python | strong |\n| SQL | none |\n\nOverall: partial fit."
+    )
+    kinds = [s.kind for s in result.trajectory.steps]
+    assert kinds.count(StepKind.CONTINUATION) == 1
+    assert kinds[-1] is StepKind.FINAL
+
+
+def test_continuation_is_asked_for_in_a_user_turn():
+    """Prefilling the assistant's own turn is rejected by this model family, so the ask
+    to continue has to be a user message — assert the shape, not just the outcome."""
+    llm = ScriptedLLM([truncated_turn("cut off here"), final_turn(" and finished.")])
+    agent = Agent(llm, ToolRegistry(mock_tools()))
+    agent.run("Assess my fit")
+
+    messages = llm.requests[-1]["messages"]
+    ask = {"role": "user", "content": CONTINUE_INSTRUCTION}
+    assert ask in messages
+    # The truncated turn stays in the history — the continuation extends it rather than
+    # replacing it, which is what makes the stitched text continuous.
+    assert messages[messages.index(ask) - 1]["role"] == "assistant"
+
+
+def test_running_out_of_continuations_reports_truncated_not_completed():
+    agent = _agent([truncated_turn(f"piece {i} ") for i in range(4)], max_continuations=2)
+    result = agent.run("Assess my fit")
+
+    assert result.status is RunStatus.TRUNCATED  # never `completed` on a partial report
+    assert result.final_text == "piece 0 piece 1 piece 2 "  # every piece kept
+    assert result.steps == 3  # the first call plus two continuations
+    assert result.trajectory.steps[-1].note == "max_tokens"
+
+
+def test_a_continuation_still_obeys_the_step_budget():
+    agent = _agent(
+        [truncated_turn("partial ") for _ in range(4)],
+        budget=Budget(max_steps=2, max_tokens=10**9, max_cost_usd=10**9),
+        max_continuations=10,
+    )
+    result = agent.run("Assess my fit")
+
+    assert result.status is RunStatus.BUDGET_STOPPED
+    assert result.breach is BudgetBreach.STEPS
+    assert result.steps == 2
+    assert result.final_text == "partial partial "  # the pieces so far, not nothing
+
+
+def test_only_a_continuation_accretes_text():
+    """A continued answer is one answer. Text from an ordinary turn is not glued onto the
+    next one — otherwise the report would carry the model's earlier thinking-out-loud."""
+    agent = _agent(
+        [
+            tool_use_turn([("t1", "read_cv", {"path": "cv.md"})], text="checking the CV first"),
+            final_turn("FINAL REPORT"),
+        ]
+    )
+    result = agent.run("Assess my fit")
+    assert result.final_text == "FINAL REPORT"
 
 
 def test_trajectory_serializes_to_jsonl():
