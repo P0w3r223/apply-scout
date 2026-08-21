@@ -97,15 +97,30 @@ The harness scores each annotated task (see [`eval/tasks.example.json`](eval/tas
 the format, including edge cases: English postings, no salary range, JS-only pages, repos without a
 README) and writes a markdown table comparing two models:
 
-| Model | Tasks | Completed | Req coverage | Citation fidelity | Median LLM calls | Median cost |
-|---|---|---|---|---|---|---|
-| `claude-haiku-4-5` | 8 | 75% | 0.80 | 0.83 | 4 | $0.0291 |
-| `claude-opus-4-8` | 8 | 75% | 0.68 | 1.00 | 4 | $0.1827 |
+| Runner | Model | Tasks | Completed | Req coverage | Citation fidelity | Median LLM calls | Median cost |
+|---|---|---|---|---|---|---|---|
+| pipeline | `claude-haiku-4-5` | 8 | 75% | 0.80 | 0.83 | 4 | $0.0291 |
+| pipeline | `claude-opus-4-8` | 8 | 75% | 0.68 | 1.00 | 4 | $0.1827 |
+| **agent loop** | `claude-haiku-4-5` | 8 | 75% | 0.80 | **1.00** | 9.5 | $0.0963 |
 
 > Real numbers from `apply-scout eval` (2026-08-21) over 8 annotated live postings — 6 English and 2 Polish,
 > from Lever / Greenhouse / SmartRecruiters, plus one deliberately JavaScript-only page as an edge case.
 > Each row runs one model end-to-end. **Reproduce for free, with no API key:**
-> `apply-scout eval --tasks eval/tasks.json --models claude-haiku-4-5,claude-opus-4-8 --cassette-mode replay`.
+> `apply-scout eval --tasks eval/tasks.json --models claude-haiku-4-5,claude-opus-4-8 --cassette-mode replay`
+> (add `--runner agent --models claude-haiku-4-5` for the third row).
+
+**What the agent loop buys.** The third row is the from-scratch tool loop solving the same tasks and
+scored on the same axes — the claim in [ADR-0001](docs/decisions/0001_own_loop_vs_framework.md) finally
+measured instead of asserted. On the same model it costs **3.3× the pipeline** and makes 2.4× the calls,
+and buys exactly one thing: **citation fidelity, 0.83 → 1.00**. Coverage and completion are identical,
+which figures — both paths read the posting through the same tool.
+
+The interesting comparison is the diagonal. Grounded letters can be bought either by moving to the strong
+model in the pipeline ($0.1827) or by keeping the cheap model and giving it the loop ($0.0963) — **half
+the price, with better requirement coverage** (0.80 against Opus's 0.68). It is the agency that fixes the
+citations, not the model tier. The Opus × loop cell is deliberately unrecorded: it would cost ≈$4.7 to
+fill, and Opus already scores 1.00 on the one axis the loop was shown to move
+([ADR-0006](docs/decisions/0006_scoring_the_agent_loop.md)).
 
 **Why "Completed" is 75% and not 100%.** Two of the eight postings — The Athletic and HHAeXchange —
 now return **HTTP 404**: the ads were taken down between the first run (2026-07-27, when all eight
@@ -178,6 +193,15 @@ matching, and the money is better spent on the letter, where fabrication actuall
 exactly how `config.py` wires it in production — `STRUCTURE_MODEL` extracts cheaply, the agent model
 synthesises — so the two-model story is a lever, not only a benchmark.
 
+One caveat found while measuring the loop, and worth naming because it undercut this very section: cost
+was priced from the model id the **API returns**, which for Haiku is a dated snapshot
+(`claude-haiku-4-5-20251001`) absent from `PRICING`. `token_cost` silently returned 0.0, so the loop's
+whole cost column read `$0.00` — and `max_cost` could never fire, because a run that never spends
+anything cannot breach a spend ceiling. `price_for` now resolves the longest matching prefix and the
+recorded entries were re-priced from their captured token counts. **The first table this produced said
+the loop was 3.5× cheaper than the pipeline; it is 3.3× more expensive.** Measured cost is only as
+honest as the rate card lookup behind it.
+
 ## Limitations — what apply-scout can't do
 
 Honest and specific, because an agent that hides its failure modes is worse than one that names them:
@@ -205,16 +229,19 @@ Honest and specific, because an agent that hides its failure modes is worse than
   extending or refreshing it means new annotation and a new paid recording.
 - **A cassette is a snapshot, not a guarantee of current behaviour.** Replay proves what the models did
   on the recorded requests, not what they would do today. Re-record to make that claim.
-- **A long report can outgrow one response.** `MAX_OUTPUT_TOKENS` caps a single model reply at 4096
-  tokens, which a posting with two dozen requirements exceeds. The loop asks the model to continue
-  (up to `MAX_CONTINUATIONS`) and stitches the pieces into one report; if it runs out of
-  continuations the run ends `truncated`, never `completed`. What it cannot do is finish a report
-  the safety budget has no money left to pay for — as in the demo above, where the cost ceiling
-  stops the continuation and the deliverable stays partial.
-- **A budget can be overshot by one call.** Ceilings are checked *before* each model call, so a
-  single expensive reply can end a run above its limit ($0.5948 against a $0.50 ceiling in the
-  demo). The stop is still graceful and honest; it is a ceiling on starting work, not a hard cap on
-  spend.
+- **A long answer can outgrow one response.** `MAX_OUTPUT_TOKENS` caps a single reply at 16000 tokens.
+  A cut-off *sentence* is recoverable — the loop asks the model to continue and stitches the pieces,
+  and running out of `MAX_CONTINUATIONS` ends the run `truncated`, never `completed`. A cut-off
+  `submit_report` **tool call** is not: partial JSON has nothing to continue, so the run fails rather
+  than delivering half a report.
+- **A budget can be overshot by one call.** Ceilings are checked *before* each model call, so a single
+  expensive reply can end a run above its limit. The stop is graceful and honest; it is a ceiling on
+  starting work, not a hard cap on spend. The demo run spends $0.5374 against a $0.50 default ceiling
+  for exactly this reason.
+- **Only the cheap model has been measured in the loop.** The third eval row is
+  `claude-haiku-4-5`; the Opus × loop cell would cost ≈$4.7 to record and is deliberately empty
+  ([ADR-0006](docs/decisions/0006_scoring_the_agent_loop.md)). Read the loop-vs-pipeline comparison as
+  established for one model, not two.
 - **English/Polish postings assumed.** Other languages are untested.
 - **No application is ever submitted.** apply-scout drafts a report and a letter for a human to review
   and send — it does not act on the candidate's behalf.
@@ -226,6 +253,7 @@ Honest and specific, because an agent that hides its failure modes is worse than
 - [ADR-0003 — structured outputs with our own validate-and-retry, and a deterministic guardrail](docs/decisions/0003_structured_outputs_and_guardrail.md)
 - [ADR-0004 — record/replay cassettes at our own seams, not at the HTTP layer](docs/decisions/0004_record_replay_cassettes.md)
 - [ADR-0005 — requirement coverage, not requirement F1](docs/decisions/0005_requirement_coverage_not_f1.md)
+- [ADR-0006 — score the agent loop on the same axes as the pipeline](docs/decisions/0006_scoring_the_agent_loop.md)
 
 ## Demo
 
@@ -234,8 +262,8 @@ synthetic candidate CV (`cv/candidate.md`) and the public `P0w3r223` GitHub:
 
 <img src="docs/demo.svg" alt="apply-scout run: the agent fetches the posting, reads the CV, probes GitHub for evidence, and prints a match report" width="876">
 
-Recorded live on 2026-08-21 against `claude-opus-4-8` (**8 model calls, 56 `github_evidence` probes,
-68.9k+10.0k tokens, $0.5948, 138 s**), then **rendered from a replay of that recording** — which is
+Recorded live on 2026-08-21 against `claude-opus-4-8` (**5 model calls, 37 `github_evidence` probes,
+53.7k+10.8k tokens, $0.5374, 133 s**), then **rendered from a replay of that recording** — which is
 why the steps are evenly paced: a replay has no thinking time to show. Repeated probes are folded up
 with an explicit count (`... 7 more github_evidence call(s)`) and one frame contributes at most six
 rows; nothing is edited or reordered.
@@ -248,24 +276,24 @@ python scripts/demo.py capture --url https://jobs.lever.co/tryjeeves/2f00206f-60
 python scripts/demo.py render
 ```
 
-The replay reproduces the recorded stream **character for character** — 0.4 s instead of 138 s, $0
-instead of $0.59 — because every external seam of that run is committed in
+The replay reproduces the recorded stream **character for character** — under a second instead of 133 s,
+$0 instead of $0.54 — because every external seam of that run is committed in
 `eval/cassettes/run.jsonl` (see [ADR-0004](docs/decisions/0004_record_replay_cassettes.md)).
 
-Three things the run shows, including one that is not flattering:
+Three things the run shows:
 
-- **It self-corrects.** The first 26 probes use long requirement phrases and return nothing; the agent
-  notices ("the search appears to favor short/specific terms"), retries with single keywords —
-  `MLflow`, `drift`, `FastAPI`, `RAG` — and starts hitting real repos.
-- **It rates honestly.** Requirements with no retrieved evidence come back `none`, including
-  "5+ years professional experience", which no repository can prove. It cites this project's *own*
-  audit against itself rather than papering over the gap.
-- **Both safety mechanisms fire, and the run says so.** A 24-requirement report does not fit in one
-  reply (`MAX_OUTPUT_TOKENS = 4096`), so the loop asks the model to continue where it stopped —
-  `[...] output cap reached; continuing (1/2)`. That continuation would be the ninth model call, and
-  the run has already spent $0.5948 against a $0.50 ceiling, so the budget check stops it first. The
-  run ends **`budget_stopped (breach: max_cost)` with a partial report** — not `completed`. A
-  truncated deliverable is never reported as a finished one.
+- **It finishes by calling a tool, not by talking.** The last step is
+  `submit_report -> ok: submitted: 29 rating(s), 5 letter sentence(s)` — the deliverable arrives as a
+  validated `MatchReport` + `CoverLetterDraft`, which is what lets the harness score this loop on the
+  same axes as the pipeline ([ADR-0006](docs/decisions/0006_scoring_the_agent_loop.md)).
+- **It rates honestly, and audits its own evidence.** Requirements with no retrieved evidence come back
+  `none` — including "5+ years professional experience", which no repository can prove. It also throws
+  out its own hits: the `Go` probes matched repos, but the agent noticed every snippet was the English
+  word "go/goes" in prose rather than the language, and rated the requirement `none` anyway.
+- **It says what it could not verify.** The closing summary flags that the CV lists skills the
+  repository search never surfaced as citable evidence, and that those were rated `none` for lack of
+  *retrievable proof* rather than lack of skill. That distinction is the whole point of the evidence
+  standard, and the agent draws it unprompted.
 
 ## License
 

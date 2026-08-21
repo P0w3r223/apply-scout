@@ -59,12 +59,20 @@ DEFAULT_MAX_STEPS = 12  # one step == one model call (plus the tools it triggers
 DEFAULT_MAX_TOKENS = 200_000  # cumulative input + output tokens across the run
 DEFAULT_MAX_COST_USD = 0.50  # cumulative USD across the run
 
+# Ceilings for an agent run *inside the eval harness*. Deliberately looser than the
+# defaults: a budget stop yields no deliverable and therefore scores as not-completed, so
+# a tight ceiling would report the budget as a model failure. The harness measures what the
+# loop does when allowed to finish; graceful stopping is tested directly, not benchmarked.
+EVAL_AGENT_MAX_STEPS = 24
+EVAL_AGENT_MAX_COST_USD = 1.00
+
 # --- Model request settings --------------------------------------------------
-# Per-response output cap (an enforced ceiling the model is not aware of), distinct
-# from the run-wide DEFAULT_MAX_TOKENS budget above. A long report does not fit in one
-# reply at this cap — the loop stitches the pieces together instead of raising it (see
-# MAX_CONTINUATIONS), which keeps each recorded turn small and the cost per call legible.
-MAX_OUTPUT_TOKENS = 4096
+# Per-response output cap (an enforced ceiling the model is not aware of), distinct from
+# the run-wide DEFAULT_MAX_TOKENS budget above. Raised from 4096 when the deliverable moved
+# into a `submit_report` tool call: a cut-off sentence can be continued, a cut-off tool_use
+# block is unparseable JSON and cannot. 16k is the practical ceiling for a non-streaming
+# request — beyond it the SDK's HTTP timeout becomes the real limit.
+MAX_OUTPUT_TOKENS = 16_000
 # How many times a run may ask the model to continue an answer the cap cut off. Bounded
 # like every other ceiling here: running out of continuations ends the run as `truncated`,
 # never as `completed` — a partial deliverable must not be reported as a finished one.
@@ -95,12 +103,30 @@ GITHUB_MAX_REPOS = 30  # cap README scans per lookup — rate-limit friendly
 CACHE_DIR = PROJECT_ROOT / ".cache"
 
 
+def price_for(model: str) -> ModelPrice | None:
+    """The rate card for a model id, tolerating the dated snapshot the API echoes back.
+
+    A request for `claude-haiku-4-5` comes back as `claude-haiku-4-5-20251001`, and callers
+    that price the *response* rather than the request would otherwise find no entry. That is
+    not hypothetical: it silently zeroed the agent loop's whole cost column, and with it the
+    `max_cost` ceiling, which cannot stop a run whose spend always reads as $0."""
+    exact = PRICING.get(model)
+    if exact is not None:
+        return exact
+    matches = [key for key in PRICING if model.startswith(key)]
+    if not matches:
+        return None
+    return PRICING[max(matches, key=len)]  # longest prefix wins
+
+
 def token_cost(input_tokens: int, output_tokens: int, model: str) -> float:
     """USD cost of a call, from the per-model base rates above.
 
     Single source of truth for cost accounting (the budget tracker and the trajectory
-    both use it). An unknown model costs 0.0 — reported by the harness, never guessed."""
-    price = PRICING.get(model)
+    both use it). A model with no rate card costs 0.0 — the alternative is guessing a
+    price, and a guessed cost in a table whose whole point is measured cost is worse
+    than a visible zero."""
+    price = price_for(model)
     if price is None:
         return 0.0
     return (

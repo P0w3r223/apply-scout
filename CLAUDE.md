@@ -45,7 +45,8 @@ src/apply_scout/
     fetch_job_posting.py  # real: fetch + extract + structure -> JobPosting
     read_cv.py            # real: read file + structure -> CVProfile
     github_evidence.py    # real: find_evidence (pure) + GitHub-backed tool -> Evidence[]
-    real.py               # real_tools() factory (all three tools live)
+    submit_report.py      # terminal tool: the deliverable arrives as a contract, not prose
+    real.py               # real_tools() factory (all four tools live)
     mock.py               # stand-ins matching the real tools' contracts (used by the loop tests)
 scripts/
   demo.py         # capture (a real run -> docs/demo-cast.json) and render the README demo
@@ -155,14 +156,21 @@ python scripts/demo.py render      # docs/demo-cast.json -> docs/demo.svg
 10. **Truthful completion.** ✅ A reply stopped by `max_tokens` used to be
    reported as `completed` with the report cut off mid-table. The loop now asks for the rest in a
    user turn and stitches the pieces; out of continuations it returns the new `RunStatus.TRUNCATED`.
-   On the recorded demo the continuation is what the cost ceiling stops, so the run ends
-   `budget_stopped (breach: max_cost)` — both safety mechanisms visible, and no false success.
-11. **A metric that means something (this milestone).** ✅ `requirement_f1` scored an exact set
+   Covered by tests rather than by the demo — a cut-off `submit_report` call is unparseable JSON and
+   cannot be continued at all, which is why milestone 12 raised `MAX_OUTPUT_TOKENS`.
+11. **A metric that means something.** ✅ `requirement_f1` scored an exact set
    match against an annotation that lists only the load-bearing skills, so extracting a posting
    thoroughly *lowered* the score — a flawless extraction could not have beaten 0.68 on this task
    set. Replaced by `requirement_coverage` (recall, containment matching); precision is not
    reported because no honest denominator exists here (ADR-0005). Re-scoring cost $0: the metric
    is a pure function of the recorded assessments, so the cassette recomputed the table offline.
+12. **The loop, finally measured (this milestone).** ✅ `submit_report` makes the loop finish with a
+   validated `MatchReport` + `CoverLetterDraft`, so `agent_assess_fn` scores it on the same axes as
+   the pipeline (`apply-scout eval --runner agent`). Result: on `claude-haiku-4-5` the loop costs
+   3.3× the pipeline and buys citation fidelity 0.83 → 1.00 — grounded letters at half the price of
+   switching to Opus (ADR-0006). Surfaced a live bug: cost was priced from the API's *response* model
+   id, a dated snapshot missing from `PRICING`, so the loop billed $0.00 and `max_cost` could never
+   fire. `price_for` prefix-matches now; cassette entries were re-priced from recorded tokens.
 
 ## What not to do
 
