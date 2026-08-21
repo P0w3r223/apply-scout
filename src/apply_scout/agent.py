@@ -134,6 +134,19 @@ class Agent:
             # No tool calls -> the model is done; that is the normal exit.
             if response.stop_reason != "tool_use" or not response.tool_calls:
                 truncated = response.stop_reason == "max_tokens"
+                if truncated and response.tool_calls:
+                    # The cap landed inside a tool_use block. Asking for a continuation here
+                    # would append a user turn after an unanswered tool_use — a request the
+                    # API rejects outright, losing the trajectory and the money already spent.
+                    # Partial JSON has nothing to continue, so stop and say so.
+                    record(
+                        TrajectoryStep(
+                            index=step_index,
+                            kind=StepKind.FINAL,
+                            note="max_tokens inside a tool call — nothing to continue",
+                        )
+                    )
+                    return self._result(RunStatus.TRUNCATED, "".join(answer), traj, tracker, None)
                 if truncated and continuations < self.cfg.max_continuations:
                     # The answer is unfinished, not the run. Ask for the rest in a *user*
                     # turn — prefilling the assistant's own turn is rejected by this model

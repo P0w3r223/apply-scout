@@ -97,11 +97,16 @@ The harness scores each annotated task (see [`eval/tasks.example.json`](eval/tas
 the format, including edge cases: English postings, no salary range, JS-only pages, repos without a
 README) and writes a markdown table comparing two models:
 
-| Runner | Model | Tasks | Completed | Req coverage | Citation fidelity | Median LLM calls | Median cost |
-|---|---|---|---|---|---|---|---|
-| pipeline | `claude-haiku-4-5` | 8 | 75% | 0.80 | 0.83 | 4 | $0.0291 |
-| pipeline | `claude-opus-4-8` | 8 | 75% | 0.68 | 1.00 | 4 | $0.1827 |
-| **agent loop** | `claude-haiku-4-5` | 8 | 75% | 0.80 | **1.00** | 9.5 | $0.0963 |
+| Runner | Model | Tasks | Completed | Req coverage | Citation fidelity | Cited | Median LLM calls | Median cost |
+|---|---|---|---|---|---|---|---|---|
+| pipeline | `claude-haiku-4-5` | 8 | 75% | 0.76 (5) | 0.75 (4) | 0.29 | 4 | $0.0291 |
+| pipeline | `claude-opus-4-8` | 8 | 75% | 0.62 (5) | 1.00 (1) | 0.11 | 4 | $0.1827 |
+| **agent loop** | `claude-haiku-4-5` | 8 | 75% | 0.76 (5) | **1.00 (5)** | **0.74** | 9.5 | $0.0963 |
+
+> The bracketed number is **how many tasks the mean is actually over** — a task with no
+> annotation has no coverage to measure, and a letter that cites nothing has no fidelity.
+> Both used to be scored 1.00, which is why an earlier version of this table read 0.80 / 0.68
+> and gave Opus a headline 1.00 it had not earned.
 
 > Real numbers from `apply-scout eval` (2026-08-21) over 8 annotated live postings — 6 English and 2 Polish,
 > from Lever / Greenhouse / SmartRecruiters, plus one deliberately JavaScript-only page as an edge case.
@@ -112,14 +117,21 @@ README) and writes a markdown table comparing two models:
 **What the agent loop buys.** The third row is the from-scratch tool loop solving the same tasks and
 scored on the same axes — the claim in [ADR-0001](docs/decisions/0001_own_loop_vs_framework.md) finally
 measured instead of asserted. On the same model it costs **3.3× the pipeline** and makes 2.4× the calls,
-and buys exactly one thing: **citation fidelity, 0.83 → 1.00**. Coverage and completion are identical,
-which figures — both paths read the posting through the same tool.
+and buys the one thing the whole evidence standard exists for: **letters that actually cite, and whose
+citations hold up**.
 
-The interesting comparison is the diagonal. Grounded letters can be bought either by moving to the strong
-model in the pipeline ($0.1827) or by keeping the cheap model and giving it the loop ($0.0963) — **half
-the price, with better requirement coverage** (0.80 against Opus's 0.68). It is the agency that fixes the
-citations, not the model tier. The Opus × loop cell is deliberately unrecorded: it would cost ≈$4.7 to
-fill, and Opus already scores 1.00 on the one axis the loop was shown to move
+Read the two citation columns together — separately, each one lies. Opus's pipeline letters score a
+perfect 1.00 fidelity **on a single task**, because in five of six they cite nothing at all: only 11% of
+their sentences carry a link, so there is almost nothing for the guardrail to catch. The loop cites in
+**74%** of its sentences and every one of them is grounded, across five tasks. A model that promises
+nothing checkable cannot be caught fabricating, which is why fidelity without its denominator is not a
+result — and why the pipeline-Opus row is not the "buy the strong model for the letter" story it looks
+like.
+
+So the diagonal is the finding: grounded, *substantiated* letters cost **$0.0963** (cheap model, loop)
+against **$0.1827** for the strong model in the pipeline — half the price, better coverage (0.76 against
+0.62), and seven times the citation rate. It is the agency that grounds the letter, not the model tier.
+The Opus × loop cell is deliberately unrecorded: ≈$4.7 to fill
 ([ADR-0006](docs/decisions/0006_scoring_the_agent_loop.md)).
 
 **Why "Completed" is 75% and not 100%.** Two of the eight postings — The Athletic and HHAeXchange —
@@ -133,18 +145,23 @@ recorded rather than merely reported — see **Reproducibility** below.
 - **Completed** — did the run produce a report + letter without a fatal error. Catches brittleness on
   edge-case postings.
 - **Req coverage** — the fraction of the human-annotated skills that appear somewhere in the extracted
-  requirements. Measures how well the posting was actually understood, not just fetched. It is recall
-  and nothing else, on purpose: the annotation lists the five to ten skills a human judged
-  load-bearing, never all two dozen requirements in the posting, so there is no denominator that
-  would make precision mean anything — see [ADR-0005](docs/decisions/0005_requirement_coverage_not_f1.md).
-  This column previously reported an exact-match F1 (0.33 / 0.23); on this task set a *flawless*
-  extraction could not have scored above 0.68 under that metric, because every correctly extracted
-  requirement the annotator had not listed counted against it.
+  requirements, over the tasks that *have* an annotation (the bracketed count). Measures how well the
+  posting was actually understood, not just fetched. It is recall and nothing else, on purpose: the
+  annotation lists the five to ten skills a human judged load-bearing, never all two dozen requirements
+  in the posting, so there is no denominator that would make precision mean anything — see
+  [ADR-0005](docs/decisions/0005_requirement_coverage_not_f1.md). This column previously reported an
+  exact-match F1 (0.33 / 0.23); on this task set a *flawless* extraction could not have scored above
+  0.68 under that metric, because every correctly extracted requirement the annotator had not listed
+  counted against it.
 - **Citation fidelity** — of the letter's sentences that cite evidence, the fraction whose citation is
-  a real link from the report. The anti-hallucination guardrail computes this deterministically; a
-  low number means the model was inventing citations. **Haiku scores 0.83 here and Opus 1.00** — the
-  guardrail caught and removed fabricated citations from the cheap model's letters. This is the metric
-  earning its keep: the gap is invisible to a human skim of the output.
+  a real link from the report. The anti-hallucination guardrail computes this deterministically; a low
+  number means the model was inventing citations. **Never read it without the next column**: a letter
+  that cites nothing scores no fidelity at all (`n/a`), and one that cites once and gets it right scores
+  1.00 — the same as one that cites forty times and gets them all right.
+- **Cited** — of everything the letter wrote, the fraction of sentences that cite anything. This is the
+  denominator fidelity throws away. Opus's pipeline letters sit at **0.11**: they make claims and back
+  almost none of them, which is how they reach a 1.00 fidelity over a single task. The loop sits at
+  **0.74**.
 - **Median LLM calls / cost** — the price of a task, per model. This is the "cheaper model enough?"
   question made quantitative.
 
@@ -186,12 +203,13 @@ Each eval row runs one model end-to-end, and every model call's token usage flow
 `token_cost()` helper, so per-task cost is measured, not estimated. For this task set the result is
 unambiguous: **`claude-opus-4-8` costs ≈6× more per task than `claude-haiku-4-5` ($0.1827 vs $0.0291)
 and does not buy a better match report** — identical completion (75%, both blocked by the same two dead
-URLs) and *lower* requirement coverage (0.68 vs 0.80). The one place the strong model does win is
-**citation fidelity — 1.00 against Haiku's 0.83**: Haiku invents citations that the guardrail then has
-to strip. So the honest reading is a split decision: **Haiku is the better default for extraction and
-matching, and the money is better spent on the letter, where fabrication actually shows up.** That is
-exactly how `config.py` wires it in production — `STRUCTURE_MODEL` extracts cheaply, the agent model
-synthesises — so the two-model story is a lever, not only a benchmark.
+URLs) and *lower* requirement coverage (0.62 vs 0.76).
+
+It does not buy a better letter either, which took a metric fix to see. The strong model's 1.00 citation
+fidelity is over **one task**; in the other five its letters cite nothing at all (an 0.11 citation rate),
+and a letter that promises nothing checkable cannot be caught fabricating. What actually produces
+grounded letters on this task set is **giving the cheap model the agent loop** — 0.74 cited, 1.00
+fidelity across five tasks, at $0.0963. Spend the money on agency, not on the tier.
 
 One caveat found while measuring the loop, and worth naming because it undercut this very section: cost
 was priced from the model id the **API returns**, which for Haiku is a dated snapshot
@@ -208,9 +226,9 @@ Honest and specific, because an agent that hides its failure modes is worse than
 
 - **JavaScript-only postings.** `fetch_job_posting` fetches static HTML with no headless browser, so a
   client-rendered page yields only its pre-hydration shell. In the eval, the deliberately JavaScript-only
-  Ashby posting still *completed* on both models — the pipeline is robust to thin input rather than
-  crashing — but there was almost no text to read, so any requirements reported for such a page are
-  unreliable.
+  Ashby posting still *completed* on every runner — robustness to thin input rather than crashing — but
+  there was almost no text to read, so anything reported for such a page is unreliable, and the agent
+  loop went further and invented requirements outright (see below).
 - **Evidence is repo + README only.** `github_evidence` matches a requirement against repo metadata
   and README text — not full code search. A skill demonstrated only deep in a source file, with no
   mention in the README, is missed (rated `none`, honestly).
@@ -221,6 +239,12 @@ Honest and specific, because an agent that hides its failure modes is worse than
   into far too many requirements would still score well. The task set has no exhaustive annotation to
   support a precision metric, and inventing one from a partial annotation is what the old F1 did
   wrong ([ADR-0005](docs/decisions/0005_requirement_coverage_not_f1.md)).
+- **Nothing catches a *fabricated posting*.** On the JavaScript-only page the loop could not read the
+  ad, said so in its summary — and then rated ten requirements taken from the **candidate's own CV**,
+  all `strong`, with a letter citing its own invented report. The guardrail passed it, because the
+  citations really do point at the report; only the report was fiction. That task now scores `n/a`
+  rather than a perfect row, but the underlying gap is real: **the guardrail checks the letter against
+  the report, and nothing checks the report against the posting.**
 - **The guardrail checks citations, not truth.** It removes sentences citing links absent from the
   report; it does not fact-check a grounded claim's phrasing. It bounds hallucinated *citations*, not
   every possible overstatement.

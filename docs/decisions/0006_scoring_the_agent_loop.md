@@ -54,20 +54,29 @@ model failure — the harness measures what the loop does when allowed to finish
 
 ## What it found
 
-| Runner | Model | Completed | Req coverage | Citation fidelity | Median calls | Median cost |
-|---|---|---|---|---|---|---|
-| pipeline | `claude-haiku-4-5` | 75% | 0.80 | 0.83 | 4 | $0.0291 |
-| pipeline | `claude-opus-4-8` | 75% | 0.68 | 1.00 | 4 | $0.1827 |
-| **agent loop** | `claude-haiku-4-5` | 75% | 0.80 | **1.00** | 9.5 | $0.0963 |
+| Runner | Model | Completed | Req coverage | Citation fidelity | Cited | Median calls | Median cost |
+|---|---|---|---|---|---|---|---|
+| pipeline | `claude-haiku-4-5` | 75% | 0.76 (5) | 0.75 (4) | 0.29 | 4 | $0.0291 |
+| pipeline | `claude-opus-4-8` | 75% | 0.62 (5) | 1.00 (1) | 0.11 | 4 | $0.1827 |
+| **agent loop** | `claude-haiku-4-5` | 75% | 0.76 (5) | **1.00 (5)** | **0.74** | 9.5 | $0.0963 |
 
-On the same model, the loop costs **3.3× the pipeline** and makes 2.4× the calls, and buys
-exactly one thing: **citation fidelity, 0.83 → 1.00**. Coverage and completion are
-identical — unsurprising, since both paths reach the posting through the same tool.
+On the same model, the loop costs **3.3× the pipeline** and makes 2.4× the calls. Coverage
+and completion are identical — unsurprising, since both paths reach the posting through the
+same tool. What it buys is the letter.
 
-The useful comparison is the diagonal. Grounded letters can be had either by moving to the
-strong model in the pipeline ($0.1827) or by keeping the cheap model and giving it the loop
-($0.0963) — **half the price, with better requirement coverage** (0.80 against Opus's 0.68).
-The agency is what fixes the citations, not the model tier.
+Read the citation columns together; separately each one lies. Opus's perfect fidelity is
+over **one task**: in five of six its letters cite nothing at all, so 89% of its sentences
+carry no link and there is almost nothing for the guardrail to catch. The loop cites in
+**74%** of its sentences and every citation holds, across five tasks. It is the only
+configuration measured here that both makes checkable claims and gets them right.
+
+So the diagonal is the finding: grounded, substantiated letters cost **$0.0963** (cheap model,
+loop) against **$0.1827** (strong model, pipeline) — half the price, better coverage, seven
+times the citation rate. The agency grounds the letter, not the model tier.
+
+> These numbers are the corrected ones. The first version of this ADR published
+> 0.80 / 0.68 / 0.80 coverage and read Opus's 1.00 as a win, because both metrics returned
+> their best score when they had no data to score. See the amendment in ADR-0005.
 
 ## Consequences
 
@@ -86,6 +95,18 @@ The agency is what fixes the citations, not the model tier.
   answer "does the loop help the strong model too?", and the strong model already scores
   1.00 on citation fidelity — the one axis the loop was shown to move. The question is open,
   and cheap to answer later if the answer starts to matter.
+- **Measuring the loop also showed what the guardrail cannot see.** On the JavaScript-only
+  page the loop could not read the ad, said so in its summary — and then rated ten
+  requirements lifted from the *candidate's own CV*, all `strong`, with a letter citing its
+  own invented report. Every citation was valid, because the report it cited was fiction.
+  The guardrail checks the letter against the report; nothing checks the report against the
+  posting. That task now scores `n/a` instead of a perfect row, but the gap it exposed is
+  real and is named in the README's limitations rather than fixed by the metric change.
+- **A truncated `submit_report` had to be made to fail properly.** The cap can land inside
+  the tool_use block, and the continuation path would then append a user turn after an
+  unanswered tool call — a request the API rejects, losing the trajectory and the spend.
+  The loop now stops as `truncated` instead. Raising `MAX_OUTPUT_TOKENS` made this less
+  likely; it did not make it impossible.
 - **Two runners now share one prompt and one toolset.** `apply-scout run` finishes through
   `submit_report` exactly as the eval does, so the thing measured is the thing shipped. The
   cost is that changing either invalidates the run cassette; the demo was re-recorded.

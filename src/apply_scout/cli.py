@@ -38,6 +38,7 @@ from apply_scout.evaluation import (
     Aggregate,
     agent_assess_fn,
     format_comparison,
+    format_score,
     load_tasks,
     pipeline_assess_fn,
     run_models,
@@ -178,12 +179,27 @@ def _run(args: argparse.Namespace) -> int:
         print(format_report(submit.submitted.report, submit.submitted.letter))
     print(f"\ntrajectory: {out_path}")
     _report_session(session)
+    if submit.submitted is None:
+        # A run can end `completed` — the model stopped calling tools — and still have
+        # submitted nothing, which is what both dead-URL tasks do: it gives up in prose.
+        # The deliverable is the point, so that is a failure exit however the loop ended.
+        print("no report was submitted", file=sys.stderr)
+        return 1
     return 0 if result.status is RunStatus.COMPLETED else 1
 
 
 def _eval_table(aggregates: list[Aggregate]) -> Table:
     table = Table(title="Evaluation — model comparison")
-    columns = ("Model", "Tasks", "Completed", "Req cov.", "Citation", "Med. calls", "Med. cost")
+    columns = (
+        "Model",
+        "Tasks",
+        "Completed",
+        "Req cov.",
+        "Citation",
+        "Cited",
+        "Med. calls",
+        "Med. cost",
+    )
     for column in columns:
         table.add_column(column)
     for a in aggregates:
@@ -191,8 +207,9 @@ def _eval_table(aggregates: list[Aggregate]) -> Table:
             a.model,
             str(a.n_tasks),
             f"{a.completion_rate:.0%}",
-            f"{a.mean_requirement_coverage:.2f}",
-            f"{a.mean_citation_fidelity:.2f}",
+            format_score(a.mean_requirement_coverage, a.scored_coverage),
+            format_score(a.mean_citation_fidelity, a.scored_fidelity),
+            format_score(a.mean_citation_rate),
             f"{a.median_llm_calls:g}",
             f"${a.median_cost_usd:.4f}",
         )
