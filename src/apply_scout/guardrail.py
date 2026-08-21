@@ -19,6 +19,7 @@ was actually fetched. It is a measurement, not a filter — nothing is removed o
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from apply_scout.contracts import CoverLetterDraft, JobPosting, LetterSentence, MatchReport
@@ -74,8 +75,8 @@ def guardrail_letter(letter: CoverLetterDraft, report: MatchReport) -> Guardrail
     )
 
 
-def _traces_to(requirement: str, posting: JobPosting) -> bool:
-    """Whether a rated requirement can be found in the posting that was fetched.
+def _traces_to(requirement: str, sources: tuple[str, ...]) -> bool:
+    """Whether a rated requirement can be found in anything the run actually fetched.
 
     Matched both ways round because the two sides are written by different authors: the
     pipeline copies the posting's own wording, while the loop paraphrases ("Python" rated
@@ -83,22 +84,29 @@ def _traces_to(requirement: str, posting: JobPosting) -> bool:
     would score the phrasing rather than the provenance.
     """
     return any(
-        mentions(candidate.text, requirement) or mentions(requirement, candidate.text)
-        for candidate in posting.requirements
+        mentions(source, requirement) or mentions(requirement, source) for source in sources
     )
 
 
-def requirement_grounding(report: MatchReport, posting: JobPosting | None) -> float | None:
-    """Of the requirements the report rates, the fraction traceable to the fetched posting.
+def requirement_grounding(
+    report: MatchReport, postings: Sequence[JobPosting]
+) -> float | None:
+    """Of the requirements the report rates, the fraction traceable to a fetched posting.
 
-    `None` only when the report rates nothing — there is no claim to ground, and scoring
-    an empty report is scoring nothing.
+    `postings` is everything `fetch_job_posting` returned during the run, and a requirement
+    counts as grounded if it appears in **any** of them. The union rather than the newest:
+    the loop re-fetches, and a retry that structures to fewer requirements than the first
+    attempt would otherwise convict a faithful report of fabricating the difference. What
+    the metric asks is whether the model read this somewhere, not which read it kept.
 
-    **A report that rates requirements with no posting behind it scores 0.0, not `n/a`.**
-    That is the failure this metric exists for: on the JavaScript-only page `fetch_job_posting`
-    returns an error (no readable text), so the loop never held a posting at all — and rated
-    ten requirements anyway. Calling that "not applicable" would let the exact case the
-    metric was built to catch slip out of the mean.
+    `None` only when the report rates nothing — there is no claim to ground, and scoring an
+    empty report is scoring nothing.
+
+    **A report that rates requirements with nothing fetched behind it scores 0.0, not `n/a`.**
+    That is the failure this metric exists for: on the JavaScript-only page an earlier
+    recording of the loop held no usable posting and rated ten requirements anyway. Calling
+    that "not applicable" would let the exact case the metric was built to catch slip out of
+    the mean.
 
     Matching is `matching.mentions`, which is crude: a fabricated requirement that happens
     to echo the posting's wording counts as grounded. This bounds *untraceable* claims, in
@@ -107,6 +115,9 @@ def requirement_grounding(report: MatchReport, posting: JobPosting | None) -> fl
     rated = [assessment.requirement.text for assessment in report.assessments]
     if not rated:
         return None
-    if posting is None or not posting.requirements:
+    sources = tuple(
+        requirement.text for posting in postings for requirement in posting.requirements
+    )
+    if not sources:
         return 0.0
-    return sum(_traces_to(requirement, posting) for requirement in rated) / len(rated)
+    return sum(_traces_to(requirement, sources) for requirement in rated) / len(rated)

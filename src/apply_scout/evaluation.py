@@ -144,9 +144,9 @@ def evaluate_task(
         name=task.name,
         completed=True,
         requirement_coverage=requirement_coverage(extracted, list(task.expected_requirements)),
-        # Scored against the *fetched* posting, never `assessment.posting` — on the agent
+        # Scored against the *fetched* postings, never `assessment.posting` — on the agent
         # path that one is rebuilt from the report, and a report always grounds itself.
-        requirement_grounding=requirement_grounding(assessment.report, assessment.source_posting),
+        requirement_grounding=requirement_grounding(assessment.report, assessment.source_postings),
         citation_fidelity=citation_fidelity(assessment),
         citation_rate=citation_rate(assessment),
         llm_calls=llm_calls,
@@ -311,18 +311,20 @@ def agent_assess_fn(
         max_tokens=config.EVAL_AGENT_MAX_TOKENS,
         max_cost_usd=config.EVAL_AGENT_MAX_COST_USD,
     )
+    # Resolved once, not per task: this fetcher is handed both to our own fetch tool and to
+    # the toolset, so a live run opens one client and its connection pool for the whole
+    # evaluation instead of two per task, none of which anything closes.
+    fetcher = fetcher or HttpFetcher()
 
     def run(task: EvalTask) -> tuple[Assessment | None, float, int]:
         structurer = structurer_factory()
         submit = SubmitReport()
-        # Ours rather than the toolset's, so the posting the loop actually read can be
+        # Ours rather than the toolset's, so the postings the loop actually read can be
         # recovered afterwards — the report has to be checked against something the report
         # did not write. Built with the same collaborators the run gets, and left on the
         # structuring model the toolset would have chosen, so nothing about the requests
         # changes: a different model here would miss every recorded cassette entry.
-        fetch = FetchJobPosting(
-            fetcher=fetcher or HttpFetcher(), structurer=structurer, extractor=extractor
-        )
+        fetch = FetchJobPosting(fetcher=fetcher, structurer=structurer, extractor=extractor)
         result = run_assessment(
             job_url=task.job_url,
             cv_path=task.cv_path,
@@ -362,10 +364,10 @@ def agent_assess_fn(
             report=report,
             letter=guard.filtered,
             guardrail=guard,
-            # The independent side of the grounding check. `None` when the loop submitted a
+            # The independent side of the grounding check. Empty when the loop submitted a
             # report without ever successfully fetching the ad — which is exactly the run
             # the metric was added for, not a gap in the data.
-            source_posting=fetch.fetched,
+            source_postings=fetch.postings,
         )
         return assessment, cost, calls
 

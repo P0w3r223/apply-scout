@@ -123,8 +123,8 @@ def test_a_report_submitted_without_reading_the_ad_scores_zero_grounding():
     assessment, _, _ = assess(task)
 
     assert assessment is not None
-    assert assessment.source_posting is None  # nothing was ever fetched to rate against
-    assert requirement_grounding(assessment.report, assessment.source_posting) == 0.0
+    assert assessment.source_postings == ()  # nothing was ever fetched to rate against
+    assert requirement_grounding(assessment.report, assessment.source_postings) == 0.0
 
 
 def test_grounding_is_scored_against_the_fetched_posting_not_the_report():
@@ -153,11 +153,11 @@ def test_grounding_is_scored_against_the_fetched_posting_not_the_report():
     assessment, _, _ = assess(task)
 
     assert assessment is not None
-    assert assessment.source_posting is not None
+    assert len(assessment.source_postings) == 1
     # Python traces to the ad, Kubernetes does not: half the report is untraceable.
-    assert requirement_grounding(assessment.report, assessment.source_posting) == 0.5
+    assert requirement_grounding(assessment.report, assessment.source_postings) == 0.5
     # And the self-derived posting agrees with the report about everything, as it must.
-    assert requirement_grounding(assessment.report, assessment.posting) == 1.0
+    assert requirement_grounding(assessment.report, (assessment.posting,)) == 1.0
 
 
 def test_a_run_that_never_submits_scores_as_not_completed():

@@ -197,9 +197,10 @@ python scripts/demo.py render      # docs/demo-cast.json -> docs/demo.svg
    against the report and **nothing checked the report against the posting** — the hole an earlier
    recording fell straight into (ten requirements lifted from the candidate's CV on a page the loop
    could not read, every citation valid). `guardrail.requirement_grounding` scores what a report rates
-   against the posting `fetch_job_posting` actually returned — captured on the tool instance
-   (`FetchJobPosting.fetched`, the `SubmitReport.submitted` idiom), carried as `Assessment.source_posting`
-   so it is never the report's own account of itself, and published as **Report grounded**. A report
+   against the postings `fetch_job_posting` actually returned — captured on the tool instance
+   (`FetchJobPosting.postings`, the `SubmitReport.submitted` idiom), carried as the **required**
+   `Assessment.source_postings` so it is never the report's own account of itself and never silently
+   unwired, matched against *every* fetch because the loop retries, and published as **Report grounded**. A report
    rating requirements with **no** posting behind it scores 0.0, not `n/a`: that case *is* the
    measurement (ADR-0008). Cost **$0** — a pure function of recorded assessments, tool schemas and
    prompts untouched, so both tables re-scored offline (0 recorded). **It reads 1.00 everywhere:** the

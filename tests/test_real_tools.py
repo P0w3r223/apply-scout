@@ -55,12 +55,29 @@ def test_fetch_job_posting_keeps_what_it_returned():
     tool = FetchJobPosting(
         fetcher=_fetcher(POSTING_HTML), structurer=ScriptedStructurer([POSTING_JSON])
     )
-    assert tool.fetched is None  # nothing fetched yet is a state, not an absence of one
+    assert tool.postings == ()  # nothing fetched yet is a state, not an absence of one
 
     tool.run({"url": "https://real.example/job"})
-    assert tool.fetched is not None
-    assert tool.fetched.url == "https://real.example/job"  # the corrected URL, not the echo
-    assert [r.text for r in tool.fetched.requirements] == ["Python", "FastAPI"]
+    assert len(tool.postings) == 1
+    assert tool.postings[0].url == "https://real.example/job"  # the corrected URL, not the echo
+    assert [r.text for r in tool.postings[0].requirements] == ["Python", "FastAPI"]
+
+
+def test_a_re_fetch_does_not_discard_the_earlier_posting():
+    """The loop re-fetches — the JavaScript-only task calls this tool twice. Keeping only the
+    newest would let a retry that structures to *fewer* requirements erase what the model had
+    already read, and the grounding check would then convict a faithful report of inventing
+    the difference."""
+    thin = '{"url": "https://real.example/job", "title": "Junior Python Developer"}'
+    tool = FetchJobPosting(
+        fetcher=_fetcher(POSTING_HTML),
+        structurer=ScriptedStructurer([POSTING_JSON, thin]),
+    )
+    tool.run({"url": "https://real.example/job"})
+    tool.run({"url": "https://real.example/job"})
+
+    assert len(tool.postings) == 2
+    assert [len(p.requirements) for p in tool.postings] == [2, 0]
 
 
 def test_a_failed_fetch_keeps_no_posting():
@@ -70,7 +87,7 @@ def test_a_failed_fetch_keeps_no_posting():
         fetcher=_fetcher("<html><body></body></html>"), structurer=ScriptedStructurer([])
     )
     assert not tool.run({"url": "https://real.example/job"}).ok
-    assert tool.fetched is None
+    assert tool.postings == ()
 
 
 def test_fetch_job_posting_unstructurable_text_is_error():

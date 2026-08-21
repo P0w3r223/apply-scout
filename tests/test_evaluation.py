@@ -47,6 +47,7 @@ def _assessment(*, requirements, letter_sentences, removed, unsupported_before=0
         report=MatchReport(job_title="X", job_url="https://x"),
         letter=letter,
         guardrail=guard,
+        source_postings=(posting,),
     )
 
 
@@ -155,7 +156,7 @@ def test_evaluate_task_grounds_the_report_in_the_fetched_posting():
         report=report,
         letter=letter,
         guardrail=guard,
-        source_posting=posting,
+        source_postings=(posting,),
     )
 
     metrics = evaluate_task(_task(["Python"]), assessment, cost_usd=0.01, llm_calls=2)

@@ -41,17 +41,27 @@ Add `guardrail.requirement_grounding(report, posting)`: of the requirements a re
 the fraction that trace back to the posting `fetch_job_posting` actually returned. Publish it
 as a column beside coverage. Four consequences, each deliberate:
 
-**1. Scored against the fetched posting, carried separately from the claimed one.**
-`Assessment` gains `source_posting`, distinct from `posting`. On the pipeline path they are
-the same object; on the agent path `posting` is the report's own account of itself and
-`source_posting` is what the tool returned. Reusing one field would have made the metric
-unfalsifiable on exactly the runner it was written for.
+**1. Scored against the fetched postings, carried separately from the claimed one.**
+`Assessment` gains `source_postings`, distinct from `posting`. On the pipeline path they hold
+the same document; on the agent path `posting` is the report's own account of itself and
+`source_postings` is what the tool returned. Reusing one field would have made the metric
+unfalsifiable on exactly the runner it was written for. The field is **required**, with no
+default: "nothing fetched" is this metric's fabrication verdict, so a default would let a
+caller who merely forgot to wire it up score a clean report 0.00 — a metric convicting a run
+of the plumbing's omission.
 
-**2. The posting is captured on the tool instance, not read from the trajectory.**
-`FetchJobPosting.fetched` holds the last posting it returned, and callers who need it pass in
-their own instance — the same arrangement `SubmitReport.submitted` already uses. The
-trajectory stores only a log-safe `tool_summary`, by design, so nothing downstream can
-reconstruct the posting from there.
+**2. The postings are captured on the tool instance, not read from the trajectory.**
+`FetchJobPosting.postings` accumulates every posting the tool returned, and callers who need
+them pass in their own instance — the same arrangement `SubmitReport.submitted` already uses.
+The trajectory stores only a log-safe `tool_summary`, by design, so nothing downstream can
+reconstruct a posting from there.
+
+**Every posting, not the newest.** The loop re-fetches: `zapier-ai-ml-js-only-edge` calls the
+tool twice in the committed recording. If a retry structures to *fewer* requirements than the
+first attempt, keeping only the last would erase what the model had already read and score a
+faithful report 0.00 — the maximum fabrication verdict for a correct run. A requirement counts
+as grounded if it appears in **any** posting the run fetched: the question is whether the model
+read this somewhere, not which read it kept.
 
 **3. A report with no posting behind it scores 0.0, not `n/a`.**
 This is the one judgement call in the metric, and it runs against

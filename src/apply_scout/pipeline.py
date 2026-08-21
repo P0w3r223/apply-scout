@@ -37,12 +37,15 @@ class Assessment:
     report: MatchReport
     letter: CoverLetterDraft  # already guardrailed
     guardrail: GuardrailResult
-    # What `fetch_job_posting` actually returned, when anything did. Separate from `posting`
-    # because the two are not the same claim: on the agent path `posting` is reconstructed
-    # from the report itself (see `evaluation.agent_assess_fn`), so checking a report against
-    # it would ask a document to confirm itself. `None` means no posting was ever fetched —
-    # a fact about the run, not missing data.
-    source_posting: JobPosting | None = None
+    # Everything `fetch_job_posting` returned during the run. Separate from `posting` because
+    # the two are not the same claim: on the agent path `posting` is reconstructed from the
+    # report itself (see `evaluation.agent_assess_fn`), so checking a report against it would
+    # ask a document to confirm itself.
+    #
+    # Required, deliberately: `requirement_grounding` reads "nothing fetched" as its
+    # fabrication verdict, so a default would let a caller who merely forgot to wire this up
+    # score a clean report 0.00. An empty tuple has to be something a caller *states*.
+    source_postings: tuple[JobPosting, ...]
 
 
 def _tool_json(tool: PydanticTool, raw_input: dict, model_cls: type) -> object:
@@ -108,8 +111,8 @@ def assess(
         report=report,
         letter=guard.filtered,
         guardrail=guard,
-        # Here the two are the same object: the pipeline rates the posting it fetched, by
-        # construction. Recording it anyway is what lets the grounding metric be read as a
-        # control — a pipeline row below 1.00 means synthesis invented a requirement.
-        source_posting=posting,
+        # One fetch, by construction: the pipeline rates the posting it fetched. Recording it
+        # anyway is what lets the grounding metric be read as a control — a pipeline row below
+        # 1.00 means synthesis invented a requirement.
+        source_postings=(posting,),
     )
