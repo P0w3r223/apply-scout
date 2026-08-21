@@ -7,6 +7,11 @@ outbound seam the system has (`LLMClient`, `Structurer`, `Fetcher`, and the GitH
 response `Cache`) gets a wrapper here that writes what came back to a JSONL cassette and
 can serve it again later with no network and no API key.
 
+`Extractor` is wrapped too, though it never leaves the machine: its output depends on the
+installed trafilatura and libxml2, so re-running it during a replay makes the offline run
+a function of the environment rather than of the recording. Everything the structuring
+request is keyed on has to come out of the cassette, not out of the local venv.
+
 Three modes:
 
 - `record` — always call upstream and store the response.
@@ -38,7 +43,7 @@ from pathlib import Path
 from pydantic import BaseModel, ConfigDict
 
 from apply_scout import config
-from apply_scout.fetch import Fetcher, FetchError, HttpFetcher
+from apply_scout.fetch import Extractor, Fetcher, FetchError, HttpFetcher, MainTextExtractor
 from apply_scout.llm import AnthropicLLM, LLMClient, LLMResponse, ToolCall, Usage
 from apply_scout.structuring import AnthropicStructurer, Structurer
 
@@ -55,6 +60,7 @@ class CassetteKind(StrEnum):
     LLM = "llm"
     STRUCTURE = "structure"
     HTTP = "http"
+    EXTRACT = "extract"
     GITHUB = "github"
 
 
@@ -412,6 +418,38 @@ class CassetteFetcher:
         return entry.payload["html"]
 
 
+class CassetteExtractor:
+    """An `Extractor` that records what a page extracted *to*, not merely what it served.
+
+    Recording the HTML alone is not enough to make a replay reproducible: extraction runs
+    locally, and trafilatura's output moves between its own versions and libxml2 builds. A
+    CI runner with a newer trafilatura extracted two of eight recorded pages differently,
+    which changed the structuring request keyed off that text and missed every entry behind
+    it. With this seam recorded, replay never calls the extractor at all, so the offline run
+    depends on the recorded page rather than on the environment reading it."""
+
+    def __init__(
+        self, cassette: Cassette, mode: CassetteMode, inner: Extractor | None = None
+    ) -> None:
+        self._seam = _Seam(cassette, mode)
+        self._inner = inner
+
+    @property
+    def live(self) -> bool:
+        return self._inner is not None
+
+    def extract(self, html: str, url: str = "") -> str:
+        def call() -> Recorded:
+            if self._inner is None:
+                raise CassetteMiss("recording an extraction needs a live extractor")
+            return {"text": self._inner.extract(html, url)}, 0, 0, 0.0
+
+        # Keyed on the markup alone: the same page extracts to the same text whatever URL
+        # served it, and the URL is carried as the label so the file stays browsable.
+        entry = self._seam.resolve(CassetteKind.EXTRACT, {"html": html}, url, call)
+        return entry.payload["text"]
+
+
 class CassetteCache:
     """The GitHub client's response cache, backed by the cassette.
 
@@ -486,6 +524,11 @@ class CassetteSession:
         if inner is None and not self._offline:
             inner = HttpFetcher()
         return CassetteFetcher(self.cassette, self.mode, inner)
+
+    def extractor(self, inner: Extractor | None = None) -> CassetteExtractor:
+        if inner is None and not self._offline:
+            inner = MainTextExtractor()
+        return CassetteExtractor(self.cassette, self.mode, inner)
 
     def github_cache(self) -> CassetteCache:
         return CassetteCache(self.cassette, self.mode)

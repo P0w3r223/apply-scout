@@ -139,6 +139,7 @@ def _run(args: argparse.Namespace) -> int:
             "llm": session.llm(),
             "fetcher": session.fetcher(),
             "structurer": session.structurer(),
+            "extractor": session.extractor(),
             "github": GitHubClient(cache=session.github_cache()),
         }
     )
@@ -192,11 +193,16 @@ def _assess_fn_factory(session: CassetteSession):
     while the structurer is created per task — that is what keeps cost and call counts
     attributable to a single task."""
     fetcher = session.fetcher()
+    extractor = session.extractor()
     github = GitHubClient(cache=session.github_cache())
 
     def factory(model: str):
         return pipeline_assess_fn(
-            model, structurer_factory=session.structurer, fetcher=fetcher, github=github
+            model,
+            structurer_factory=session.structurer,
+            fetcher=fetcher,
+            github=github,
+            extractor=extractor,
         )
 
     return factory

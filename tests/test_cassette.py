@@ -18,6 +18,7 @@ from apply_scout import config
 from apply_scout.cassette import (
     Cassette,
     CassetteCache,
+    CassetteExtractor,
     CassetteFetcher,
     CassetteKind,
     CassetteLLM,
@@ -252,6 +253,58 @@ def test_a_failed_fetch_is_recorded_and_re_raised_on_replay():
         CassetteFetcher(cassette, CassetteMode.REPLAY).get("https://gone")
 
 
+# --- the extraction seam ------------------------------------------------------
+
+
+class StubExtractor:
+    """Stands in for trafilatura, so a test can change what extraction returns."""
+
+    def __init__(self, text: str) -> None:
+        self._text = text
+        self.calls = 0
+
+    def extract(self, html: str, url: str = "") -> str:
+        self.calls += 1
+        return self._text
+
+
+def test_extraction_replays_the_text_the_recording_produced():
+    """Extraction is local but not reproducible: trafilatura's output moves between its
+    own versions and libxml2 builds. A replay that re-ran it would key the structuring
+    request off different text and miss every entry behind it — so the text is recorded."""
+    cassette = Cassette()
+    recorder = StubExtractor("what the recording environment extracted")
+    CassetteExtractor(cassette, CassetteMode.RECORD, recorder).extract(POSTING_HTML, "https://job")
+
+    # A newer library that would extract the same page differently is never consulted.
+    upgraded = StubExtractor("what a newer trafilatura extracts")
+    replayed = CassetteExtractor(cassette, CassetteMode.REPLAY, upgraded).extract(
+        POSTING_HTML, "https://job"
+    )
+
+    assert replayed == "what the recording environment extracted"
+    assert upgraded.calls == 0
+
+
+def test_an_unrecorded_page_cannot_be_extracted_on_replay():
+    cassette = Cassette()
+    with pytest.raises(CassetteMiss):
+        CassetteExtractor(cassette, CassetteMode.REPLAY).extract("<html>new</html>", "https://job")
+
+
+def test_extraction_is_keyed_on_the_markup_not_the_url():
+    """The same page extracts to the same text whatever URL served it; the URL is only a
+    label, so a redirect or a mirror must not cost a second recording."""
+    cassette = Cassette()
+    inner = StubExtractor("text")
+    seam = CassetteExtractor(cassette, CassetteMode.RECORD, inner)
+    seam.extract(POSTING_HTML, "https://job")
+    seam.extract(POSTING_HTML, "https://mirror/job")
+
+    assert inner.calls == 1
+    assert len(cassette) == 1
+
+
 # --- the GitHub seam ----------------------------------------------------------
 
 
@@ -481,4 +534,5 @@ def _assess_through_with(session, structurer, cv_file, *, fetcher, offline: bool
         fetcher=session.fetcher(fetcher),
         structurer=structurer,
         github=github,
+        extractor=session.extractor(),
     )

@@ -56,7 +56,9 @@ safety budgets and a trajectory-evaluation harness.</p>
   disappear, and every re-run costs money. An evaluation nobody can re-run is a claim rather than a
   measurement. So every outbound seam — the model transport, the structuring calls, the HTTP fetch and
   the GitHub API — records what came back into a cassette committed to the repository, and serves it
-  again on replay.</p>
+  again on replay. Main-text extraction is recorded as well, although it never leaves the machine: the
+  extraction library's output shifts between its own versions, so a replay that re-ran it would derive
+  different text from the same recorded page and miss every entry keyed on it.</p>
   <ul>
     <li><strong>The table above reproduces offline</strong> with
     <code>--cassette-mode replay</code>: no network, no API key, no cost. Continuous integration
@@ -69,7 +71,7 @@ safety budgets and a trajectory-evaluation harness.</p>
     whole request, system prompt included — so "change a prompt, re-run the harness" is enforced by the
     machinery instead of by memory.</li>
   </ul>
-  <p class="sub">Recording the whole eight-posting, two-model table cost $0.88 and produced 62 entries.
+  <p class="sub">Recording the whole eight-posting, two-model table cost $0.88 and produced 68 entries.
   Every reproduction since has been free.</p>
 </div>
 

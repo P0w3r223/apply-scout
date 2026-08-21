@@ -53,6 +53,27 @@ this project:
   instrumentation is possible without fighting a framework; the same argument applies to
   not adding a transport-level dependency to get it.
 
+### The extraction seam — recorded even though it never leaves the machine
+
+The first CI run of the replay job failed where every local run passed. The cassette stored
+each posting's raw HTML, but `extract_main_text` (trafilatura) still ran live on the
+runner — and trafilatura 2.2.0 extracts two of the eight recorded pages differently from
+2.1.0, the version that produced the recording. Different text means a different
+structuring request, which means a different key, which means `CassetteMiss` on every
+entry behind it.
+
+Pinning the extraction stack was rejected: it would freeze an application dependency for
+the benefit of the evaluation, and it would not even be sufficient — lxml ships different
+libxml2 builds per platform, so a Linux runner and a Windows laptop can diverge on
+identical versions. Instead `Extractor` became an injected dependency like every other
+collaborator, and the cassette records its output keyed on the markup. **Replay now never
+runs the extractor at all**, so the offline result is a function of the recorded page
+rather than of the environment reading it.
+
+The general rule this exposed: *everything a replayed request is keyed on must come out of
+the cassette*. A seam is worth recording when its output is not reproducible, not only
+when it crosses the network.
+
 ### Consequential details, each deliberate
 
 - **A miss under `replay` raises `CassetteMiss` — it never falls back to the network.**
@@ -75,7 +96,7 @@ this project:
 
 - The published table reproduces offline, at no cost and with no key:
   `apply-scout eval --tasks eval/tasks.json --models claude-haiku-4-5,claude-opus-4-8
-  --cassette-mode replay`. Recording it cost $0.88 and produced 62 entries; every
+  --cassette-mode replay`. Recording it cost $0.88 and produced 68 entries; every
   reproduction since has been free.
 - The repository carries a ~1.5 MB data artifact of third-party responses, including raw
   posting HTML. That is the price of reproducibility, and it is paid once per re-record.
