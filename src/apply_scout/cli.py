@@ -41,19 +41,12 @@ from apply_scout.evaluation import (
     pipeline_assess_fn,
     run_models,
 )
-from apply_scout.formatting import format_step, format_summary
+from apply_scout.formatting import format_step, format_summary, step_style
 from apply_scout.github import GitHubClient
 from apply_scout.runner import run_assessment
-from apply_scout.trajectory import StepKind, TrajectoryStep
+from apply_scout.trajectory import TrajectoryStep
 
 _CASSETTE_MODES = ("off", *(mode.value for mode in CassetteMode))
-
-_STEP_STYLE = {
-    StepKind.MODEL_CALL: "cyan",
-    StepKind.TOOL_RESULT: "dim",
-    StepKind.FINAL: "bold green",
-    StepKind.BUDGET_STOP: "bold yellow",
-}
 
 
 def _add_cassette_args(parser: argparse.ArgumentParser, default_name: str) -> None:
@@ -126,8 +119,7 @@ def _run(args: argparse.Namespace) -> int:
     console = Console()
 
     def print_step(step: TrajectoryStep) -> None:
-        style = "red" if step.kind is StepKind.TOOL_RESULT and step.tool_ok is False else None
-        console.print(format_step(step), style=style or _STEP_STYLE.get(step.kind), markup=False)
+        console.print(format_step(step), style=step_style(step), markup=False)
 
     on_step = print_step if args.verbose else None
     budget = Budget(max_steps=args.max_steps, max_cost_usd=args.max_cost)

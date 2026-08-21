@@ -37,7 +37,8 @@ package-dir = { "" = "src" }
 packages = ["apply_scout", "apply_scout.tools"]
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
+# "scripts" so the demo renderer (not part of the shipped package) is testable too.
+pythonpath = ["src", "scripts"]
 testpaths = ["tests"]
 addopts = "-q"
 

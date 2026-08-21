@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from apply_scout.agent import AgentResult, RunStatus
 from apply_scout.budget import BudgetBreach
-from apply_scout.formatting import format_step, format_summary
+from apply_scout.formatting import format_step, format_summary, step_style
 from apply_scout.trajectory import StepKind, TrajectoryLogger, TrajectoryStep
 
 
@@ -37,6 +37,14 @@ def test_format_tool_result():
     assert "read_cv" in out
     assert "ok" in out
     assert "CV with 5 skills" in out
+
+
+def test_a_failed_tool_call_outranks_its_step_kind():
+    ok = TrajectoryStep(index=1, kind=StepKind.TOOL_RESULT, tool_name="read_cv", tool_ok=True)
+    failed = TrajectoryStep(index=2, kind=StepKind.TOOL_RESULT, tool_name="read_cv", tool_ok=False)
+    assert step_style(ok) == "dim"
+    assert step_style(failed) == "red"
+    assert step_style(TrajectoryStep(index=3, kind=StepKind.FINAL)) == "bold green"
 
 
 def test_format_summary_shows_status_totals_and_report():

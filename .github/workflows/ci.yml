@@ -57,3 +57,17 @@ jobs:
           else
             echo "No cassette committed yet — record one with --cassette-mode record."
           fi
+      - name: Replay the recorded demo run
+        # The README's demo claims a specific stream of steps. Replay the run behind it and
+        # fail if a single printed line has moved: the picture must stay an artifact of a
+        # reproducible run, not a screenshot nobody can check.
+        run: |
+          if [ -f eval/cassettes/run.jsonl ]; then
+            python scripts/demo.py capture \
+              --url https://jobs.lever.co/tryjeeves/2f00206f-6091-4eed-8b5f-1325afdbfe30 \
+              --cv cv/candidate.md --github-user P0w3r223 \
+              --cassette-mode replay --cast "$RUNNER_TEMP/replay-cast.json" \
+              --expect docs/demo-cast.json
+          else
+            echo "No demo cassette committed yet."
+          fi
