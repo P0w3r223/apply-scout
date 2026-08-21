@@ -12,7 +12,6 @@ Assessment, so the scoring is deterministic and unit-tested with hand-built resu
 from __future__ import annotations
 
 import json
-import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -23,13 +22,15 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 from apply_scout import config
 from apply_scout.budget import Budget
 from apply_scout.contracts import CVProfile, JobPosting
-from apply_scout.fetch import Extractor, Fetcher
+from apply_scout.fetch import Extractor, Fetcher, HttpFetcher
 from apply_scout.github import GitHubClient
-from apply_scout.guardrail import guardrail_letter
+from apply_scout.guardrail import guardrail_letter, requirement_grounding
 from apply_scout.llm import LLMClient
+from apply_scout.matching import mentions
 from apply_scout.pipeline import Assessment, PipelineError, assess
 from apply_scout.runner import run_assessment
 from apply_scout.structuring import AnthropicStructurer, Structurer
+from apply_scout.tools.fetch_job_posting import FetchJobPosting
 from apply_scout.tools.submit_report import SubmitReport
 
 
@@ -55,6 +56,7 @@ class TaskMetrics:
     name: str
     completed: bool
     requirement_coverage: float | None
+    requirement_grounding: float | None
     citation_fidelity: float | None
     citation_rate: float | None
     llm_calls: int
@@ -67,11 +69,13 @@ class Aggregate:
     n_tasks: int
     completion_rate: float
     mean_requirement_coverage: float | None
+    mean_requirement_grounding: float | None
     mean_citation_fidelity: float | None
     mean_citation_rate: float | None
     # How many tasks each mean is actually over — a 1.00 from one task is not a 1.00
     # from six, and the table has no business hiding which it is.
     scored_coverage: int
+    scored_grounding: int
     scored_fidelity: int
     median_llm_calls: float
     median_cost_usd: float
@@ -79,33 +83,6 @@ class Aggregate:
 
 # Runs one task, returning (assessment or None if it failed, cost_usd, llm_calls).
 AssessFn = Callable[[EvalTask], "tuple[Assessment | None, float, int]"]
-
-
-def _tokens(text: str) -> list[str]:
-    """Lowercased word tokens, with a trailing plural `s` folded away.
-
-    Deliberately crude: it exists to stop `embeddings` and `embedding models` counting
-    as different skills, not to do linguistics. Anything cleverer would need its own
-    tests to justify, and a metric nobody can re-derive by hand is worse than a blunt one.
-    """
-    words = re.split(r"[^a-z0-9+#]+", text.lower())
-    return [w[:-1] if len(w) > 3 and w.endswith("s") else w for w in words if w]
-
-
-def mentions(requirement_text: str, expected: str) -> bool:
-    """Whether one extracted requirement names the annotated skill.
-
-    Containment, not equality: an annotation says `PyTorch` while a posting says
-    "experience with PyTorch or TensorFlow in production". Those are the same finding,
-    and scoring them as a miss measures the annotation format rather than the extraction.
-    Tokens must appear consecutively, so `vector databases` does not match a requirement
-    that merely happens to contain both words far apart.
-    """
-    want = _tokens(expected)
-    if not want:
-        return False
-    got = _tokens(requirement_text)
-    return any(got[i : i + len(want)] == want for i in range(len(got) - len(want) + 1))
 
 
 def requirement_coverage(extracted: list[str], expected: list[str]) -> float | None:
@@ -167,6 +144,9 @@ def evaluate_task(
         name=task.name,
         completed=True,
         requirement_coverage=requirement_coverage(extracted, list(task.expected_requirements)),
+        # Scored against the *fetched* postings, never `assessment.posting` — on the agent
+        # path that one is rebuilt from the report, and a report always grounds itself.
+        requirement_grounding=requirement_grounding(assessment.report, assessment.source_postings),
         citation_fidelity=citation_fidelity(assessment),
         citation_rate=citation_rate(assessment),
         llm_calls=llm_calls,
@@ -188,6 +168,7 @@ def run_evaluation(tasks: list[EvalTask], assess_fn: AssessFn) -> list[TaskMetri
                     # zero would drag the mean as if it had been measured and found bad.
                     # Failure is already reported by the completion rate.
                     requirement_coverage=None,
+                    requirement_grounding=None,
                     citation_fidelity=None,
                     citation_rate=None,
                     llm_calls=llm_calls,
@@ -202,6 +183,7 @@ def run_evaluation(tasks: list[EvalTask], assess_fn: AssessFn) -> list[TaskMetri
 def aggregate(model: str, metrics: list[TaskMetrics]) -> Aggregate:
     completed = [m for m in metrics if m.completed]
     coverage = [m.requirement_coverage for m in completed if m.requirement_coverage is not None]
+    grounding = [m.requirement_grounding for m in completed if m.requirement_grounding is not None]
     fidelity = [m.citation_fidelity for m in completed if m.citation_fidelity is not None]
     rate = [m.citation_rate for m in completed if m.citation_rate is not None]
     return Aggregate(
@@ -209,9 +191,11 @@ def aggregate(model: str, metrics: list[TaskMetrics]) -> Aggregate:
         n_tasks=len(metrics),
         completion_rate=(len(completed) / len(metrics)) if metrics else 0.0,
         mean_requirement_coverage=mean(coverage) if coverage else None,
+        mean_requirement_grounding=mean(grounding) if grounding else None,
         mean_citation_fidelity=mean(fidelity) if fidelity else None,
         mean_citation_rate=mean(rate) if rate else None,
         scored_coverage=len(coverage),
+        scored_grounding=len(grounding),
         scored_fidelity=len(fidelity),
         median_llm_calls=median(m.llm_calls for m in completed) if completed else 0.0,
         median_cost_usd=median(m.cost_usd for m in completed) if completed else 0.0,
@@ -230,15 +214,20 @@ def format_comparison(aggregates: list[Aggregate]) -> str:
 
     Both citation columns are printed together on purpose: fidelity says how many cited
     claims were grounded, and the rate says how many claims were cited at all. Fidelity
-    alone reads best for a letter that promises nothing checkable."""
+    alone reads best for a letter that promises nothing checkable.
+
+    `Report grounded` sits next to coverage for the same reason: coverage says how much of
+    the posting was found, grounding how much of the report came from the posting at all.
+    A run can score well on the first while inventing its way to the second."""
     header = (
-        "| Model | Tasks | Completed | Req coverage | Citation fidelity | Cited "
-        "| Median LLM calls | Median cost |\n"
-        "|---|---|---|---|---|---|---|---|\n"
+        "| Model | Tasks | Completed | Req coverage | Report grounded | Citation fidelity "
+        "| Cited | Median LLM calls | Median cost |\n"
+        "|---|---|---|---|---|---|---|---|---|\n"
     )
     rows = "".join(
         f"| {a.model} | {a.n_tasks} | {a.completion_rate:.0%} "
         f"| {format_score(a.mean_requirement_coverage, a.scored_coverage)} "
+        f"| {format_score(a.mean_requirement_grounding, a.scored_grounding)} "
         f"| {format_score(a.mean_citation_fidelity, a.scored_fidelity)} "
         f"| {format_score(a.mean_citation_rate)} "
         f"| {a.median_llm_calls:g} | ${a.median_cost_usd:.4f} |\n"
@@ -322,10 +311,20 @@ def agent_assess_fn(
         max_tokens=config.EVAL_AGENT_MAX_TOKENS,
         max_cost_usd=config.EVAL_AGENT_MAX_COST_USD,
     )
+    # Resolved once, not per task: this fetcher is handed both to our own fetch tool and to
+    # the toolset, so a live run opens one client and its connection pool for the whole
+    # evaluation instead of two per task, none of which anything closes.
+    fetcher = fetcher or HttpFetcher()
 
     def run(task: EvalTask) -> tuple[Assessment | None, float, int]:
         structurer = structurer_factory()
         submit = SubmitReport()
+        # Ours rather than the toolset's, so the postings the loop actually read can be
+        # recovered afterwards — the report has to be checked against something the report
+        # did not write. Built with the same collaborators the run gets, and left on the
+        # structuring model the toolset would have chosen, so nothing about the requests
+        # changes: a different model here would miss every recorded cassette entry.
+        fetch = FetchJobPosting(fetcher=fetcher, structurer=structurer, extractor=extractor)
         result = run_assessment(
             job_url=task.job_url,
             cv_path=task.cv_path,
@@ -338,6 +337,7 @@ def agent_assess_fn(
             github=github,
             extractor=extractor,
             submit=submit,
+            fetch=fetch,
         )
         cost = result.cost_usd + float(getattr(structurer, "cost_usd", 0.0) or 0.0)
         calls = result.steps + int(getattr(structurer, "calls", 0) or 0)
@@ -364,6 +364,10 @@ def agent_assess_fn(
             report=report,
             letter=guard.filtered,
             guardrail=guard,
+            # The independent side of the grounding check. Empty when the loop submitted a
+            # report without ever successfully fetching the ad — which is exactly the run
+            # the metric was added for, not a gap in the data.
+            source_postings=fetch.postings,
         )
         return assessment, cost, calls
 

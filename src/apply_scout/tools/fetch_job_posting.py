@@ -48,6 +48,17 @@ class FetchJobPosting(PydanticTool):
         self._extractor = extractor or MainTextExtractor()
         self._model = model
         self._max_attempts = max_attempts
+        # Every posting this tool returned, in order, for a caller that needs to check a
+        # deliverable against its source (see `guardrail.requirement_grounding`). The
+        # trajectory only keeps a log-safe summary, so nothing downstream can recover them
+        # from there — and a run where this stays empty is a run that never read the ad,
+        # which is itself the finding. Same idiom as `SubmitReport.submitted`.
+        #
+        # All of them, not the last one: the loop re-fetches (the JavaScript-only task calls
+        # this tool twice), and if a retry structures to *fewer* requirements than the first
+        # attempt, keeping only the newest would score a faithful report against a document
+        # the model had already superseded — a maximum fabrication verdict for a correct run.
+        self.postings: tuple[JobPosting, ...] = ()
 
     def _run(self, data: FetchJobPostingInput) -> ToolResult:  # type: ignore[override]
         try:
@@ -73,6 +84,7 @@ class FetchJobPosting(PydanticTool):
 
         # Trust our own URL over whatever the model echoed back.
         posting = posting.model_copy(update={"url": data.url})
+        self.postings += (posting,)
         return ToolResult.success(
             posting.model_dump_json(),
             summary=f"posting '{posting.title}' with {len(posting.requirements)} requirement(s)",

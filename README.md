@@ -10,9 +10,9 @@ with links) and a **cover-letter draft built only from facts it can cite**. It r
 tool loop written from scratch — no agent framework — so that safety budgets, a
 machine-readable trajectory log, and a proper evaluation are possible.
 
-> Status: **complete (milestones 1–8) — published, with a real evaluation that anyone can re-run.**
+> Status: **complete — published, with a real evaluation that anyone can re-run.**
 > The full agent, the three real tools, the structured deliverables, the measured anti-hallucination
-> guardrail, and the evaluation harness are built and tested (124 tests, no network or key required).
+> guardrail, and the evaluation harness are built and tested (178 tests, no network or key required).
 > The table under **Evaluation** comes from a real paid run over 8 annotated postings on two models —
 > and every external response is **recorded to a committed cassette**, so `--cassette-mode replay`
 > reproduces that exact table offline, with no API key and at no cost. CI does this on every
@@ -47,6 +47,7 @@ flowchart LR
   CVP --> SYN
   EV --> SYN
   SYN --> MR[MatchReport] --> CL[cover letter] --> G[guardrail] --> OUT[report + guarded letter]
+  JP -.->|checked against| G
 ```
 
 Two orchestration paths share the same tools and contracts:
@@ -97,11 +98,11 @@ The harness scores each annotated task (see [`eval/tasks.example.json`](eval/tas
 the format, including edge cases: English postings, no salary range, JS-only pages, repos without a
 README) and writes a markdown table comparing two models:
 
-| Runner | Model | Tasks | Completed | Req coverage | Citation fidelity | Cited | Median LLM calls | Median cost |
-|---|---|---|---|---|---|---|---|---|
-| pipeline | `claude-haiku-4-5` | 8 | 75% | 0.76 (5) | 0.75 (4) | 0.29 | 4 | $0.0291 |
-| pipeline | `claude-opus-4-8` | 8 | 75% | 0.62 (5) | 1.00 (1) | 0.11 | 4 | $0.1827 |
-| **agent loop** | `claude-haiku-4-5` | 8 | 62% | 0.76 (5) | **1.00 (4)** | **0.45** | 8 | $0.0592 |
+| Runner | Model | Tasks | Completed | Req coverage | Report grounded | Citation fidelity | Cited | Median LLM calls | Median cost |
+|---|---|---|---|---|---|---|---|---|---|
+| pipeline | `claude-haiku-4-5` | 8 | 75% | 0.76 (5) | 1.00 (5) | 0.75 (4) | 0.29 | 4 | $0.0291 |
+| pipeline | `claude-opus-4-8` | 8 | 75% | 0.62 (5) | 1.00 (5) | 1.00 (1) | 0.11 | 4 | $0.1827 |
+| **agent loop** | `claude-haiku-4-5` | 8 | 62% | 0.76 (5) | 1.00 (5) | **1.00 (4)** | **0.45** | 8 | $0.0592 |
 
 > The bracketed number is **how many tasks the mean is actually over** — a task with no
 > annotation has no coverage to measure, and a letter that cites nothing has no fidelity.
@@ -164,6 +165,15 @@ recorded rather than merely reported — see **Reproducibility** below.
   exact-match F1 (0.33 / 0.23); on this task set a *flawless* extraction could not have scored above
   0.68 under that metric, because every correctly extracted requirement the annotator had not listed
   counted against it.
+- **Report grounded** — of the requirements a report rates, the fraction that trace back to the posting
+  that was actually fetched. Checked deterministically, against the posting object `fetch_job_posting`
+  returned — never against the report's own list, which would ask a document to confirm itself. It
+  closes the hole the citation columns cannot see: a letter can cite its report perfectly while the
+  *report* was invented, which is what an earlier recording of the JavaScript-only task did (ten
+  requirements lifted from the candidate's own CV, every citation valid). **A report that rates
+  requirements with no posting behind it scores 0.00, not `n/a`** — calling the fabrication case
+  "not applicable" would drop the one run the metric exists for. It reads 1.00 everywhere in this
+  recording; see the limitations for what that does and does not prove.
 - **Citation fidelity** — of the letter's sentences that cite evidence, the fraction whose citation is
   a real link from the report. The anti-hallucination guardrail computes this deterministically; a low
   number means the model was inventing citations. **Never read it without the next column**: a letter
@@ -172,7 +182,7 @@ recorded rather than merely reported — see **Reproducibility** below.
 - **Cited** — of everything the letter wrote, the fraction of sentences that cite anything. This is the
   denominator fidelity throws away. Opus's pipeline letters sit at **0.11**: they make claims and back
   almost none of them, which is how they reach a 1.00 fidelity over a single task. The loop sits at
-  **0.74**.
+  **0.45**.
 - **Median LLM calls / cost** — the price of a task, per model. This is the "cheaper model enough?"
   question made quantitative.
 
@@ -268,12 +278,40 @@ Honest and specific, because an agent that hides its failure modes is worse than
   into far too many requirements would still score well. The task set has no exhaustive annotation to
   support a precision metric, and inventing one from a partial annotation is what the old F1 did
   wrong ([ADR-0005](docs/decisions/0005_requirement_coverage_not_f1.md)).
-- **Nothing catches a *fabricated posting*.** On the JavaScript-only page the loop could not read the
-  ad, said so in its summary — and then rated ten requirements taken from the **candidate's own CV**,
-  all `strong`, with a letter citing its own invented report. The guardrail passed it, because the
-  citations really do point at the report; only the report was fiction. That task now scores `n/a`
-  rather than a perfect row, but the underlying gap is real: **the guardrail checks the letter against
-  the report, and nothing checks the report against the posting.**
+- **A fabricated posting is now measured — but this recording does not contain one.** The gap was real:
+  on the JavaScript-only page an earlier recording of the loop could not read the ad, said so in its
+  summary, and then rated ten requirements taken from the **candidate's own CV**, all `strong`, with a
+  letter citing its own invented report. The guardrail passed it, because those citations really did
+  point at the report; only the report was fiction. **Report grounded** closes that blind spot by
+  scoring the report against the posting `fetch_job_posting` returned. Two honest caveats: the column
+  reads **1.00 on every completed task here**, so it is a control that fired nowhere rather than a catch
+  — and the very run it was built from is **no longer in the cassette**, because re-recording the loop
+  for the caching measurement produced a different reply, in which it refuses to assess rather than
+  inventing (that is the same re-record that moved completion 75% → 62%). The unit tests pin the
+  behaviour the task set no longer exercises.
+- **An unreadable posting comes back as a *success*.** On the JavaScript-only page the extractor does
+  find some text, so `fetch_job_posting` returns a valid `JobPosting` titled "Job Posting" with **zero
+  requirements** rather than an error — and the model is told "posting 'Job Posting' with 0
+  requirement(s)". That is an invitation to fill the gap from the CV, which is exactly what the earlier
+  recording did. Turning it into a tool error would change the text the model reads, and every cassette
+  entry is keyed on the conversation, so the fix costs a full re-record — deliberately not bundled into
+  the change that added the measurement.
+- **The metric bounds untraceable claims, not false ones.** Matching is the same crude token containment
+  used by coverage, so a fabricated requirement that happens to echo the posting's wording counts as
+  grounded. It is the report-level analogue of the citation check: it proves provenance, not truth.
+- **Report grounded has exactly one firing mode, and that is now measured too.** Scored at three
+  strictness levels — exact token equality, one-directional containment, and the symmetric containment
+  that ships — every completed task reads 1.00 under **all three**, with the rated-requirement count
+  equal to the posting's on every task (19/19, 21/21, 12/12, 19/19, 1/1). Both runners copy the
+  requirement list **verbatim**: neither paraphrases, neither adds. So the column can only fall when a
+  report rates requirements the posting never yielded — a real and worthwhile guard, but not the general
+  "is this report grounded" check the name suggests.
+- **Nothing yet checks the report's *evidence* against the tools.** One level down, the same question has
+  room to fail and does: on `konux-senior-data-scientist` the loop's report cites
+  `https://github.com/P0w3r223/P0w3r223` among 29 evidence links, and that string appears in the cassette
+  only inside model output — never in a GitHub response. `citation_fidelity` cannot see it, because it
+  scores the letter against the report and the URL *is* in the report. Here the letter happened not to
+  cite it, so nothing was removed; the report still links to a repository no tool ever returned.
 - **The guardrail checks citations, not truth.** It removes sentences citing links absent from the
   report; it does not fact-check a grounded claim's phrasing. It bounds hallucinated *citations*, not
   every possible overstatement.
@@ -308,6 +346,7 @@ Honest and specific, because an agent that hides its failure modes is worse than
 - [ADR-0005 — requirement coverage, not requirement F1](docs/decisions/0005_requirement_coverage_not_f1.md)
 - [ADR-0006 — score the agent loop on the same axes as the pipeline](docs/decisions/0006_scoring_the_agent_loop.md)
 - [ADR-0007 — prompt caching at the top level, so the cassettes survive it](docs/decisions/0007_prompt_caching.md)
+- [ADR-0008 — ground the report in the posting, and measure it before enforcing it](docs/decisions/0008_grounding_the_report.md)
 
 ## Demo
 
