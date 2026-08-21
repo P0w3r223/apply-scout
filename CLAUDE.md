@@ -187,8 +187,10 @@ python scripts/demo.py render      # docs/demo-cast.json -> docs/demo.svg
    byte-identical, so no cassette entry is invalidated (verified: 0 recorded, tables byte-identical).
    `Usage` gained cache counters and `token_cost` prices them at 0.10× / 1.25×, because with caching
    on the API's `input_tokens` is the *uncached remainder* and charging for that alone would
-   under-report the bill. No saving is published yet — replayed usage has no cache counters, so
-   showing it needs a paid re-record (ADR-0007).
+   under-report the bill. **Measured** by re-recording only the model turns for $0.73: 53% of the
+   loop's prompt tokens came from cache, **26% saved** ($0.3994 → $0.2950), 16% on the shorter demo,
+   and 0% on the task where the loop gave up after one call. Re-recording also moved the loop's
+   completion 75% → 62% with no code change — eight tasks is a small sample (ADR-0007).
 
 ## What not to do
 
