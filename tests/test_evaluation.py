@@ -48,6 +48,7 @@ def _assessment(*, requirements, letter_sentences, removed, unsupported_before=0
         letter=letter,
         guardrail=guard,
         source_postings=(posting,),
+        source_evidence=(),
     )
 
 
@@ -157,6 +158,7 @@ def test_evaluate_task_grounds_the_report_in_the_fetched_posting():
         letter=letter,
         guardrail=guard,
         source_postings=(posting,),
+        source_evidence=(),
     )
 
     metrics = evaluate_task(_task(["Python"]), assessment, cost_usd=0.01, llm_calls=2)
@@ -177,6 +179,7 @@ def _metrics(name, completed, coverage, grounding, fidelity, rate, calls, cost) 
         completed=completed,
         requirement_coverage=coverage,
         requirement_grounding=grounding,
+        evidence_grounding=None,
         citation_fidelity=fidelity,
         citation_rate=rate,
         llm_calls=calls,
@@ -213,10 +216,12 @@ def _aggregate(**overrides) -> Aggregate:
         completion_rate=1.0,
         mean_requirement_coverage=0.90,
         mean_requirement_grounding=0.85,
+        mean_evidence_grounding=0.70,
         mean_citation_fidelity=0.95,
         mean_citation_rate=0.80,
         scored_coverage=2,
         scored_grounding=2,
+        scored_evidence=2,
         scored_fidelity=2,
         median_llm_calls=4,
         median_cost_usd=0.012,

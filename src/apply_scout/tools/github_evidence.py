@@ -94,6 +94,12 @@ class GithubEvidence(PydanticTool):
     def __init__(self, *, client: GitHubClient, max_repos: int = config.GITHUB_MAX_REPOS) -> None:
         self._client = client
         self._max_repos = max_repos
+        # Every piece of evidence this tool ever handed back, for a caller that needs to check
+        # a report's citations against what was actually retrieved (see
+        # `guardrail.evidence_grounding`). Same idiom as `FetchJobPosting.postings` and
+        # `SubmitReport.submitted`: the trajectory keeps only a log-safe count, so this is the
+        # only way to recover what the model was given.
+        self.returned: tuple[Evidence, ...] = ()
 
     def _run(self, data: GithubEvidenceInput) -> ToolResult:  # type: ignore[override]
         try:
@@ -114,6 +120,7 @@ class GithubEvidence(PydanticTool):
                 readmes[repo.full_name] = None  # a repo README we couldn't read is just "no README"
 
         evidence = find_evidence(data.requirement, repos, readmes)
+        self.returned += tuple(evidence)
         payload = {"evidence": [e.model_dump(mode="json") for e in evidence]}
         found = sum(1 for e in evidence if e.kind is not EvidenceKind.NONE)
         return ToolResult.success(

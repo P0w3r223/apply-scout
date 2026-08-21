@@ -103,7 +103,7 @@ def test_verbose_passes_on_step_callback(tmp_path, monkeypatch):
 def test_eval_writes_markdown_table_and_prints(tmp_path, monkeypatch, capsys):
     from apply_scout.evaluation import Aggregate
 
-    fake = [Aggregate("good", 1, 1.0, 1.0, 1.0, 1.0, 1.0, 1, 1, 1, 4, 0.01)]
+    fake = [Aggregate("good", 1, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1, 1, 1, 1, 4, 0.01)]
     monkeypatch.setattr(cli, "run_models", lambda tasks, models, **kwargs: fake)
     tasks_file = tmp_path / "tasks.json"
     tasks_file.write_text(
@@ -172,7 +172,7 @@ def test_eval_replay_swaps_in_a_cassette_backed_assess_factory(tmp_path, monkeyp
 
     def stub(tasks, models, **kwargs):
         captured.update(kwargs)
-        return [Aggregate("m", 1, 1.0, 1.0, 1.0, 1.0, 1.0, 1, 1, 1, 4, 0.01)]
+        return [Aggregate("m", 1, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1, 1, 1, 1, 4, 0.01)]
 
     monkeypatch.setattr(cli, "run_models", stub)
     tasks_file = tmp_path / "tasks.json"
