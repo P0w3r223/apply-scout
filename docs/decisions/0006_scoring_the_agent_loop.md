@@ -64,6 +64,13 @@ On the same model, the loop costs **3.3× the pipeline** and makes 2.4× the cal
 and completion are identical — unsurprising, since both paths reach the posting through the
 same tool. What it buys is the letter.
 
+> **Figures superseded — the decision is not.** The table above is the recording this ADR was
+> written against (2026-08-21, before prompt caching). Re-recording the loop for the caching
+> measurement ([ADR 0007](0007_prompt_caching.md)) moved it to $0.0592 cached / $0.0741
+> uncached, median 8 calls, completion 62%, cited 0.45 — so the ratio is **2.5× on a
+> like-for-like basis**, not 3.3×, and the call ratio is 2.0×, not 2.4×. The ordering the
+> decision rests on survived; the decimals did not. README carries the current numbers.
+
 Read the citation columns together; separately each one lies. Opus's perfect fidelity is
 over **one task**: in five of six its letters cite nothing at all, so 89% of its sentences
 carry no link and there is almost nothing for the guardrail to catch. The loop cites in
