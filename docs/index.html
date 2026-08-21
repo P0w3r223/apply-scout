@@ -33,11 +33,12 @@ safety budgets and a trajectory-evaluation harness.</p>
   <h2>One run, as it happened</h2>
   <img src="demo.svg" width="876" style="width: 100%; height: auto; border-radius: 8px;"
        alt="apply-scout run: the agent fetches the posting, reads the CV, probes GitHub for evidence, and prints a match report">
-  <p class="sub">A real run against a live posting on 2026-08-21: 8 model calls, 56 evidence probes,
-  $0.5948, 138 seconds. Generated from the recording rather than re-enacted — pauses are compressed
-  and repeated probes are folded up with a count. It ends mid-table on purpose: a 24-requirement
-  report exceeds the 4096-token cap on one reply, and the recording keeps that rather than hiding it.
-  The whole run replays from a committed cassette in 0.4 seconds, offline and without an API key.</p>
+  <p class="sub">A real run against a live posting on 2026-08-21: 5 model calls, 37 evidence probes,
+  $0.5374, 133 seconds. Generated from the recording rather than re-enacted. It ends by calling
+  <code>submit_report</code> with a validated match report and cover letter — the deliverable is a
+  contract, not prose, which is what lets the harness score this loop on the same axes as the
+  pipeline. The whole run replays from a committed cassette in under a second, offline and without an
+  API key.</p>
 </div>
 
 <div class="card">
@@ -45,10 +46,16 @@ safety budgets and a trajectory-evaluation harness.</p>
   <p>The harness runs each model end-to-end over the task set and records every metric from the
   logged trajectory. Cost is measured through a single token-accounting helper, not estimated.</p>
   <table>
-    <tr><th>Model</th><th>Tasks</th><th>Completed</th><th>Req coverage</th><th>Citation fidelity</th><th>Median calls</th><th>Median cost</th></tr>
-    <tr><td>claude-haiku-4-5</td><td>8</td><td>75%</td><td>0.80</td><td>0.83</td><td>4</td><td><strong>$0.0291</strong></td></tr>
-    <tr><td>claude-opus-4-8</td><td>8</td><td>75%</td><td>0.68</td><td>1.00</td><td>4</td><td>$0.1827</td></tr>
+    <tr><th>Runner</th><th>Model</th><th>Completed</th><th>Req coverage</th><th>Citation fidelity</th><th>Median calls</th><th>Median cost</th></tr>
+    <tr><td>pipeline</td><td>claude-haiku-4-5</td><td>75%</td><td>0.80</td><td>0.83</td><td>4</td><td><strong>$0.0291</strong></td></tr>
+    <tr><td>pipeline</td><td>claude-opus-4-8</td><td>75%</td><td>0.68</td><td>1.00</td><td>4</td><td>$0.1827</td></tr>
+    <tr><td><strong>agent loop</strong></td><td>claude-haiku-4-5</td><td>75%</td><td>0.80</td><td><strong>1.00</strong></td><td>9.5</td><td>$0.0963</td></tr>
   </table>
+  <p class="sub">The third row is the from-scratch tool loop solving the same tasks, scored on the same
+  axes. On the same model it costs 3.3&times; the pipeline and makes 2.4&times; the calls, and buys
+  exactly one thing: citation fidelity, 0.83 &rarr; 1.00. The useful comparison is the diagonal —
+  grounded letters cost either $0.1827 (strong model, pipeline) or $0.0963 (cheap model, loop): half the
+  price, with better coverage. It is the agency that fixes the citations, not the model tier.</p>
   <p class="sub">On this task set the strong model costs roughly six times more per task and does not
   buy a better match report: the same completion and lower requirement coverage. Where it does win is
   citation fidelity — 1.00 against 0.83 — because the cheaper model invents citations that the

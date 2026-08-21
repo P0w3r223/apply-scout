@@ -36,14 +36,17 @@ from apply_scout.cassette import (
 from apply_scout.env import load_dotenv
 from apply_scout.evaluation import (
     Aggregate,
+    agent_assess_fn,
     format_comparison,
     load_tasks,
     pipeline_assess_fn,
     run_models,
 )
-from apply_scout.formatting import format_step, format_summary, step_style
+from apply_scout.formatting import format_report, format_step, format_summary, step_style
 from apply_scout.github import GitHubClient
+from apply_scout.llm import AnthropicLLM
 from apply_scout.runner import run_assessment
+from apply_scout.tools.submit_report import SubmitReport
 from apply_scout.trajectory import TrajectoryStep
 
 _CASSETTE_MODES = ("off", *(mode.value for mode in CassetteMode))
@@ -111,6 +114,16 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Comma-separated model ids to compare.",
     )
     eval_p.add_argument("--out", default=None, help="Where to write the markdown results table.")
+    eval_p.add_argument(
+        "--runner",
+        choices=("pipeline", "agent"),
+        default="pipeline",
+        help=(
+            "pipeline: the deterministic gather-synthesize-guard path (default). "
+            "agent: the from-scratch tool loop, finishing through submit_report. Same "
+            "tasks, same metrics — this is the loop-vs-pipeline comparison."
+        ),
+    )
     _add_cassette_args(eval_p, "eval")
     return parser
 
@@ -136,6 +149,9 @@ def _run(args: argparse.Namespace) -> int:
         }
     )
 
+    # Held by us rather than the toolset, so the finished deliverable can be printed:
+    # the agent submits a contract now, not prose (tools/submit_report.py).
+    submit = SubmitReport()
     result = run_assessment(
         job_url=args.url,
         cv_path=args.cv,
@@ -143,6 +159,7 @@ def _run(args: argparse.Namespace) -> int:
         model=args.model,
         budget=budget,
         on_step=on_step,
+        submit=submit,
         **wiring,
     )
 
@@ -156,6 +173,9 @@ def _run(args: argparse.Namespace) -> int:
     # Plain print for the summary + path so they're copy-pasteable and unwrapped.
     print()
     print(format_summary(result))
+    if submit.submitted is not None:
+        print()
+        print(format_report(submit.submitted.report, submit.submitted.letter))
     print(f"\ntrajectory: {out_path}")
     _report_session(session)
     return 0 if result.status is RunStatus.COMPLETED else 1
@@ -179,24 +199,27 @@ def _eval_table(aggregates: list[Aggregate]) -> Table:
     return table
 
 
-def _assess_fn_factory(session: CassetteSession):
-    """Bind the cassette's collaborators into the harness's per-model AssessFn factory.
+def _assess_fn_factory(session: CassetteSession | None, runner: str):
+    """Bind the chosen runner — and the cassette's collaborators, if any — into the
+    harness's per-model AssessFn factory.
 
     The fetcher and GitHub client are shared across tasks (they hold no per-task state),
     while the structurer is created per task — that is what keeps cost and call counts
     attributable to a single task."""
-    fetcher = session.fetcher()
-    extractor = session.extractor()
-    github = GitHubClient(cache=session.github_cache())
+    wiring: dict = {}
+    if session is not None:
+        wiring = {
+            "structurer_factory": session.structurer,
+            "fetcher": session.fetcher(),
+            "extractor": session.extractor(),
+            "github": GitHubClient(cache=session.github_cache()),
+        }
 
     def factory(model: str):
-        return pipeline_assess_fn(
-            model,
-            structurer_factory=session.structurer,
-            fetcher=fetcher,
-            github=github,
-            extractor=extractor,
-        )
+        if runner == "agent":
+            llm_factory = session.llm if session is not None else AnthropicLLM
+            return agent_assess_fn(model, llm_factory=llm_factory, **wiring)
+        return pipeline_assess_fn(model, **wiring)
 
     return factory
 
@@ -205,10 +228,8 @@ def _eval(args: argparse.Namespace) -> int:
     tasks = load_tasks(Path(args.tasks))
     models = [m.strip() for m in args.models.split(",") if m.strip()]
     session = _open_session(args, "eval")
-    aggregates = (
-        run_models(tasks, models)
-        if session is None
-        else run_models(tasks, models, assess_fn_factory=_assess_fn_factory(session))
+    aggregates = run_models(
+        tasks, models, assess_fn_factory=_assess_fn_factory(session, args.runner)
     )
 
     out_path = (
