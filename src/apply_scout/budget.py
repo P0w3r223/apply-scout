@@ -52,10 +52,27 @@ class BudgetTracker:
     def record_step(self) -> None:
         self.steps += 1
 
-    def record_usage(self, input_tokens: int, output_tokens: int, model: str) -> None:
-        self.input_tokens += input_tokens
+    def record_usage(
+        self,
+        input_tokens: int,
+        output_tokens: int,
+        model: str,
+        *,
+        cache_read_tokens: int = 0,
+        cache_write_tokens: int = 0,
+    ) -> None:
+        """Account for one model call. Cached tokens are counted and priced too — they are
+        cheaper, not free, and a ceiling that ignored them would stop bounding the spend it
+        exists to bound."""
+        self.input_tokens += input_tokens + cache_read_tokens + cache_write_tokens
         self.output_tokens += output_tokens
-        self.cost_usd += config.token_cost(input_tokens, output_tokens, model)
+        self.cost_usd += config.token_cost(
+            input_tokens,
+            output_tokens,
+            model,
+            cache_read_tokens=cache_read_tokens,
+            cache_write_tokens=cache_write_tokens,
+        )
 
     def breach(self) -> BudgetBreach | None:
         """Return the first ceiling that is met or exceeded, else None.

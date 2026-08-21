@@ -26,10 +26,23 @@ class ToolCall:
 
 @dataclass(frozen=True)
 class Usage:
-    """Token usage for a single model call."""
+    """Token usage for a single model call.
+
+    `input_tokens` is the *uncached* remainder once prompt caching is on — the cached
+    tokens are reported separately and priced differently, so cost accounting needs all
+    three. The cache fields default to zero, which is both what an uncached call reports
+    and what a cassette entry recorded before caching existed."""
 
     input_tokens: int
     output_tokens: int
+    cache_read_tokens: int = 0
+    cache_write_tokens: int = 0
+
+    @property
+    def prompt_tokens(self) -> int:
+        """Everything the model read this call, cached or not — the size of the prompt,
+        as distinct from what was billed at full rate."""
+        return self.input_tokens + self.cache_read_tokens + self.cache_write_tokens
 
 
 @dataclass(frozen=True)
@@ -92,6 +105,13 @@ class AnthropicLLM:
             "system": system,
             "messages": messages,
             "tools": tools,
+            # Top-level auto-caching: the API caches the last cacheable block, which in a
+            # tool loop is the newest turn — so each step reads the conversation so far
+            # from cache instead of paying full rate to re-send it. Deliberately the
+            # top-level form rather than per-block `cache_control`: it leaves `system`,
+            # `messages` and `tools` byte-identical, so the cassette key is unchanged and
+            # every recorded run still replays.
+            "cache_control": {"type": "ephemeral"},
         }
         # Adaptive thinking + effort are the Opus / Sonnet-5-tier controls; Haiku 4.5
         # rejects them with a 400, so send them only for models that support them.
@@ -112,7 +132,14 @@ class AnthropicLLM:
             stop_reason=response.stop_reason,
             text="".join(text_parts),
             tool_calls=tuple(tool_calls),
-            usage=Usage(response.usage.input_tokens, response.usage.output_tokens),
+            usage=Usage(
+                response.usage.input_tokens,
+                response.usage.output_tokens,
+                # Absent on providers or models that never cache; treat as "nothing cached"
+                # rather than assuming the fields are there.
+                getattr(response.usage, "cache_read_input_tokens", 0) or 0,
+                getattr(response.usage, "cache_creation_input_tokens", 0) or 0,
+            ),
             model=response.model,
             raw_content=raw_content,
         )

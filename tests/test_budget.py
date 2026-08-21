@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from apply_scout import config
 from apply_scout.budget import Budget, BudgetBreach, BudgetTracker
 
@@ -67,3 +69,28 @@ def test_only_a_dated_suffix_is_treated_as_the_same_model():
     assert config.price_for(f"{config.MODEL_STRONG}-20260101") is strong
     assert config.price_for(f"{config.MODEL_STRONG}-turbo") is None
     assert config.price_for(f"{config.MODEL_STRONG}x") is None
+
+
+def test_cached_tokens_are_cheaper_but_not_free():
+    """A cache read bills at a tenth of the input rate and a write at 1.25x. Treating
+    either as free would make a run look cheaper than the invoice."""
+    plain = config.token_cost(1_000_000, 0, config.MODEL_STRONG)
+    read = config.token_cost(0, 0, config.MODEL_STRONG, cache_read_tokens=1_000_000)
+    write = config.token_cost(0, 0, config.MODEL_STRONG, cache_write_tokens=1_000_000)
+
+    assert read == pytest.approx(plain * 0.10)
+    assert write == pytest.approx(plain * 1.25)
+    assert read > 0  # cheaper, never free
+
+
+def test_a_budget_counts_cached_tokens_too():
+    """With caching on, the API reports `input_tokens` as the *uncached remainder*. A
+    tracker that ignored the rest would stop bounding the spend it exists to bound."""
+    tracker = BudgetTracker(Budget(max_steps=99, max_tokens=10**9, max_cost_usd=10**9))
+    tracker.record_usage(100, 50, config.MODEL_STRONG, cache_read_tokens=20_000)
+
+    assert tracker.input_tokens == 20_100  # the whole prompt, not just what was billed full
+    assert tracker.cost_usd == pytest.approx(
+        config.token_cost(100, 50, config.MODEL_STRONG, cache_read_tokens=20_000)
+    )
+    assert tracker.cost_usd > config.token_cost(100, 50, config.MODEL_STRONG)

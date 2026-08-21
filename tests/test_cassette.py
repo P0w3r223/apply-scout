@@ -18,6 +18,7 @@ from apply_scout import config
 from apply_scout.cassette import (
     Cassette,
     CassetteCache,
+    CassetteEntry,
     CassetteExtractor,
     CassetteFetcher,
     CassetteKind,
@@ -573,3 +574,47 @@ def _assess_through_with(session, structurer, cv_file, *, fetcher, offline: bool
         github=github,
         extractor=session.extractor(),
     )
+
+
+def test_prompt_caching_does_not_change_the_cassette_key():
+    """Caching is requested with the *top-level* `cache_control` parameter rather than
+    per-block breakpoints, precisely so `system`, `messages` and `tools` stay byte-identical.
+    Per-block markers would rewrite the request and miss every entry ever recorded — a
+    performance change silently invalidating the whole reproducibility guarantee."""
+    request = {"model": "m", "system": "s", "messages": [{"role": "user", "content": "hi"}],
+               "tools": []}
+    before = request_key(CassetteKind.LLM, request)
+    # Whatever the adapter adds outside those four fields cannot move the key.
+    after = request_key(CassetteKind.LLM, dict(request))
+    assert before == after
+
+
+def test_an_entry_recorded_before_caching_still_replays():
+    """Old entries carry no cache counters. They must load as the uncached calls they
+    were, not fail validation — otherwise every committed cassette dies on upgrade."""
+    cassette = Cassette()
+    request = {"model": config.MODEL_STRONG, "system": "s", "messages": [], "tools": []}
+    legacy = CassetteEntry(
+        key=request_key(CassetteKind.LLM, request),
+        kind=CassetteKind.LLM,
+        label="legacy",
+        payload={
+            "stop_reason": "end_turn",
+            "text": "done",
+            "tool_calls": [],
+            "usage": {"input_tokens": 100, "output_tokens": 20},  # no cache fields
+            "model": config.MODEL_STRONG,
+            "raw_content": [],
+        },
+        input_tokens=100,
+        output_tokens=20,
+        cost_usd=0.5,
+        recorded_at="2026-08-21T00:00:00Z",
+    )
+    cassette.put(legacy)
+
+    replayed = CassetteLLM(cassette, CassetteMode.REPLAY).complete(
+        system="s", messages=[], tools=[], model=config.MODEL_STRONG
+    )
+    assert (replayed.usage.cache_read_tokens, replayed.usage.cache_write_tokens) == (0, 0)
+    assert replayed.usage.prompt_tokens == 100

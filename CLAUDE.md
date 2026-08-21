@@ -171,7 +171,7 @@ python scripts/demo.py render      # docs/demo-cast.json -> docs/demo.svg
    citation right — grounded letters at half the price of switching to Opus (ADR-0006). Surfaced a
    live bug: cost was priced from the API's *response* model id, a dated snapshot missing from
    `PRICING`, so the loop billed $0.00 and `max_cost` could never fire.
-13. **Metrics that can say "not applicable" (this milestone).** ✅ A code review caught both metrics
+13. **Metrics that can say "not applicable".** ✅ A code review caught both metrics
    returning their *best* score when they had no data: an unannotated task scored 1.00 coverage, and
    a letter citing nothing scored 1.00 fidelity. The published table therefore read 0.80/0.68 and
    credited Opus with a headline it had not earned — five of its six letters cite nothing at all.
@@ -181,6 +181,14 @@ python scripts/demo.py render      # docs/demo-cast.json -> docs/demo.svg
    `truncated`; `run` exits non-zero when nothing was submitted; the structurer seam re-derives cost
    from recorded tokens so the rate card is never frozen in the artifact; CI diffs the replayed
    tables against `eval/expected/` instead of only printing them.
+14. **Prompt caching (this milestone).** ✅ The loop re-sends the conversation every step and
+   ~65% of its cost is input tokens, so requests carry a **top-level** `cache_control` — chosen
+   over per-block breakpoints precisely because it leaves `{model, system, messages, tools}`
+   byte-identical, so no cassette entry is invalidated (verified: 0 recorded, tables byte-identical).
+   `Usage` gained cache counters and `token_cost` prices them at 0.10× / 1.25×, because with caching
+   on the API's `input_tokens` is the *uncached remainder* and charging for that alone would
+   under-report the bill. No saving is published yet — replayed usage has no cache counters, so
+   showing it needs a paid re-record (ADR-0007).
 
 ## What not to do
 
