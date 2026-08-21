@@ -33,8 +33,8 @@ safety budgets and a trajectory-evaluation harness.</p>
   <h2>One run, as it happened</h2>
   <img src="demo.svg" width="876" style="width: 100%; height: auto; border-radius: 8px;"
        alt="apply-scout run: the agent fetches the posting, reads the CV, probes GitHub for evidence, and prints a match report">
-  <p class="sub">A real run against a live posting on 2026-08-21: 5 model calls, 37 evidence probes,
-  $0.5374, 133 seconds. Generated from the recording rather than re-enacted. It ends by calling
+  <p class="sub">A real run against a live posting on 2026-08-21: 5 model calls, 33 evidence probes,
+  $0.4368 with prompt caching ($0.5195 without), 125 seconds. Generated from the recording rather than re-enacted. It ends by calling
   <code>submit_report</code> with a validated match report and cover letter — the deliverable is a
   contract, not prose, which is what lets the harness score this loop on the same axes as the
   pipeline. The whole run replays from a committed cassette in under a second, offline and without an
@@ -49,19 +49,28 @@ safety budgets and a trajectory-evaluation harness.</p>
     <tr><th>Runner</th><th>Model</th><th>Completed</th><th>Req coverage</th><th>Citation fidelity</th><th>Cited</th><th>Median calls</th><th>Median cost</th></tr>
     <tr><td>pipeline</td><td>claude-haiku-4-5</td><td>75%</td><td>0.76 (5)</td><td>0.75 (4)</td><td>0.29</td><td>4</td><td><strong>$0.0291</strong></td></tr>
     <tr><td>pipeline</td><td>claude-opus-4-8</td><td>75%</td><td>0.62 (5)</td><td>1.00 (1)</td><td>0.11</td><td>4</td><td>$0.1827</td></tr>
-    <tr><td><strong>agent loop</strong></td><td>claude-haiku-4-5</td><td>75%</td><td>0.76 (5)</td><td><strong>1.00 (5)</strong></td><td><strong>0.74</strong></td><td>9.5</td><td>$0.0963</td></tr>
+    <tr><td><strong>agent loop</strong></td><td>claude-haiku-4-5</td><td>62%</td><td>0.76 (5)</td><td><strong>1.00 (4)</strong></td><td><strong>0.45</strong></td><td>8</td><td>$0.0592</td></tr>
   </table>
+  <p class="sub">The loop row is recorded with prompt caching and the pipeline rows are not: on the
+  same basis its median task costs $0.0741. It is also a fresh sample — re-recording it moved
+  completion from 75% to 62% and the citation rate from 0.74 to 0.45 with no code change. Eight tasks
+  is a small sample and it wobbles; what survived both runs is the ordering, not the decimals.</p>
   <p class="sub">The bracketed number is how many tasks the mean is actually over: a task with no
   annotation has no coverage to measure, and a letter that cites nothing has no fidelity. Read the two
   citation columns together — separately each one lies. The strong model's perfect 1.00 rests on a
   single task, because in five of six its letters cite nothing at all (11% of sentences carry a link),
   and a letter that promises nothing checkable cannot be caught fabricating.</p>
   <p class="sub">The third row is the from-scratch tool loop solving the same tasks on the same axes. It
-  costs 3.3&times; the pipeline on the same model and makes 2.4&times; the calls, and it is the only
-  configuration here that both cites (74% of sentences) and gets every citation right, across five
-  tasks. Grounded, substantiated letters therefore cost $0.0963 with the cheap model in the loop against
-  $0.1827 for the strong model in the pipeline — half the price, better coverage, seven times the
-  citation rate. It is the agency that grounds the letter, not the model tier.</p>
+  costs about 2.5&times; the pipeline on the same model and basis, and it is the only configuration here
+  that both cites (45% of sentences) and gets every citation right. Grounded, substantiated letters
+  therefore cost $0.0592 with the cheap model in the loop against $0.1827 for the strong model in the
+  pipeline — a third of the price, better coverage, four times the citation rate. It is the agency that
+  grounds the letter, not the model tier.</p>
+  <p class="sub">Prompt caching, measured inside each recorded run by pricing the same prompts as if
+  nothing had been cached: the 38-turn eval loop saved <strong>26%</strong> ($0.3994 &rarr; $0.2950) and
+  the 5-turn demo <strong>16%</strong> ($0.5195 &rarr; $0.4368). Per task the saving ran from 36% down to
+  nothing — the Reddit task saved 0%, because the loop gave up after one call and nothing was ever
+  re-sent. Caching pays for turns over a growing prefix.</p>
   <p class="sub">On this task set the strong model costs roughly six times more per task and does not
   buy a better match report: the same completion and lower requirement coverage. It does not buy a
   better letter either — that took a metric fix to see, since its headline fidelity came from letters
