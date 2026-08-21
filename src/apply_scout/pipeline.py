@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 from apply_scout import config
 from apply_scout.contracts import CoverLetterDraft, CVProfile, Evidence, JobPosting, MatchReport
-from apply_scout.fetch import HttpFetcher
+from apply_scout.fetch import Extractor, Fetcher, HttpFetcher
 from apply_scout.github import DiskCache, GitHubClient
 from apply_scout.guardrail import GuardrailResult, guardrail_letter
 from apply_scout.structuring import AnthropicStructurer, Structurer
@@ -51,9 +51,10 @@ def assess(
     job_url: str,
     cv_path: str,
     github_user: str,
-    fetcher: HttpFetcher | None = None,
+    fetcher: Fetcher | None = None,
     structurer: Structurer | None = None,
     github: GitHubClient | None = None,
+    extractor: Extractor | None = None,
     model: str = config.DEFAULT_MODEL,
     structure_model: str = config.STRUCTURE_MODEL,
     max_attempts: int = config.STRUCTURE_MAX_ATTEMPTS,
@@ -68,8 +69,8 @@ def assess(
 
     posting: JobPosting = _tool_json(  # type: ignore[assignment]
         FetchJobPosting(
-            fetcher=fetcher, structurer=structurer, model=structure_model,
-            max_attempts=max_attempts,
+            fetcher=fetcher, structurer=structurer, extractor=extractor,
+            model=structure_model, max_attempts=max_attempts,
         ),
         {"url": job_url},
         JobPosting,

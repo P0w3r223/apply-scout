@@ -48,6 +48,21 @@ def _strip_unsupported(node: object) -> object:
     return node
 
 
+def normalize_newlines(text: str) -> str:
+    """Collapse CRLF / CR to LF before the text becomes a request.
+
+    A line-ending convention belongs to the filesystem a file was checked out on, not to
+    its content, and the cassette keys every request by hash — so the same document read
+    on Windows and on Linux has to produce identical bytes here.
+
+    Today it already does: `Path.read_text` applies universal newlines, so nothing
+    reaches this function with a CR in it. This is a guard on that invariant rather than
+    a fix for an observed break — a future reader that opens with `newline=""`, or takes
+    text from somewhere other than a text-mode file read, would silently make cassettes
+    platform-specific, and the failure would look like an unexplained replay miss."""
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
 def structure(
     content: str,
     model_cls: type[_T],
@@ -60,6 +75,7 @@ def structure(
     """Extract `content` into an instance of `model_cls`, retrying on invalid output.
 
     Raises `StructuringError` if no attempt produces a valid instance."""
+    content = normalize_newlines(content)
     schema = _strip_unsupported(model_cls.model_json_schema())
     last_error: ValidationError | None = None
 
@@ -92,8 +108,12 @@ class AnthropicStructurer:
 
     def __init__(self, client: object | None = None) -> None:
         self._client = client
-        # Accumulated across calls, so the eval harness can report per-task cost.
+        # Accumulated across calls, so the eval harness can report per-task cost. Tokens
+        # are tracked alongside the cost because a recording wrapper reads a single call's
+        # usage as the delta across these counters.
         self.calls = 0
+        self.input_tokens = 0
+        self.output_tokens = 0
         self.cost_usd = 0.0
 
     def _ensure_client(self) -> object:
@@ -115,6 +135,8 @@ class AnthropicStructurer:
             output_config={"format": {"type": "json_schema", "schema": schema}},
         )
         self.calls += 1
+        self.input_tokens += response.usage.input_tokens
+        self.output_tokens += response.usage.output_tokens
         self.cost_usd += config.token_cost(
             response.usage.input_tokens, response.usage.output_tokens, model
         )

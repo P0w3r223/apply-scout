@@ -17,6 +17,9 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EVAL_DIR = PROJECT_ROOT / "eval"
 RESULTS_DIR = EVAL_DIR / "results"  # trajectory JSONL + metric tables land here
+# Recorded LLM / HTTP / GitHub responses. Unlike RESULTS_DIR these are *committed*:
+# they are what lets the evaluation replay offline, in CI, with no API key.
+CASSETTE_DIR = EVAL_DIR / "cassettes"
 
 # --- Models ------------------------------------------------------------------
 # Exact model IDs (no date suffixes). The cheap/strong split is the whole point of
