@@ -209,6 +209,17 @@ python scripts/demo.py render      # docs/demo-cast.json -> docs/demo.svg
    deliberately unfixed here: an unreadable page still yields *some* text, so the tool returns a valid
    `JobPosting` with **zero requirements** instead of an error — fixing that changes the conversation
    the cassette is keyed on and costs a full re-record.
+16. **Evidence grounding (this milestone).** ✅ Last unchecked link of the chain: tool retrieves evidence
+   → report cites it → letter cites the report. `citation_fidelity` scores only the last hop, so a
+   fabricated URL that reaches the *report* becomes a valid citation target and launders itself into a
+   perfect fidelity. `guardrail.evidence_grounding` scores the report's links against what
+   `github_evidence` returned (`GithubEvidence.returned` → required `Assessment.source_evidence`),
+   published as **Evidence grounded**. **Compared at repository level (`repo_of` → `owner/name`), never
+   by URL string** — the tool returns a README's `html_url` while a report may cite the repo root, and
+   treating those as two sources produced a false positive that was published and then retracted
+   (ADR-0009). Reads 1.00 across the recording; cost $0. Deliberately *not* changed: per-requirement
+   tightening of the letter check — measured first, and the one apparent cross-requirement citation
+   turned out to be a correct multi-skill sentence, so the tightening would convict accurate writing.
 
 ## What not to do
 

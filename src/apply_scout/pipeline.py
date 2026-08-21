@@ -46,6 +46,10 @@ class Assessment:
     # fabrication verdict, so a default would let a caller who merely forgot to wire this up
     # score a clean report 0.00. An empty tuple has to be something a caller *states*.
     source_postings: tuple[JobPosting, ...]
+    # Everything `github_evidence` handed back during the run. Required for the same reason:
+    # `evidence_grounding` reads "nothing retrieved" as its fabrication verdict, so this must
+    # be stated rather than defaulted.
+    source_evidence: tuple[Evidence, ...]
 
 
 def _tool_json(tool: PydanticTool, raw_input: dict, model_cls: type) -> object:
@@ -115,4 +119,6 @@ def assess(
         # anyway is what lets the grounding metric be read as a control — a pipeline row below
         # 1.00 means synthesis invented a requirement.
         source_postings=(posting,),
+        # The evidence the tool retrieved, before synthesis had a chance to reshape it.
+        source_evidence=tuple(evidence),
     )
