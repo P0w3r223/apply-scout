@@ -37,7 +37,7 @@ src/apply_scout/
   guardrail.py    # deterministic anti-hallucination guardrail + unsupported-fraction measurement
   pipeline.py     # assess(): deterministic gather -> synthesize -> guard; produces the deliverables
   evaluation.py   # the eval harness: metrics (requirement F1, citation fidelity), aggregate, table
-  cassette.py     # record/replay of every external seam (LLM, structurer, fetch, GitHub) -> offline eval
+  cassette.py     # record/replay of every external seam (LLM, structurer, fetch, extract, GitHub)
   env.py          # loads the gitignored .env into the environment (exported vars win)
   tools/
     base.py               # Tool contract: Pydantic input schema, run(); errors return as structured results
@@ -126,8 +126,10 @@ apply-scout eval --tasks eval/tasks.json --models claude-haiku-4-5,claude-opus-4
    (LLM, structurer, HTTP fetch, GitHub) records to a committed JSONL cassette and replays
    with no network, no key and no cost. `--cassette-mode {off,record,replay,auto}` on both
    subcommands; a CI job replays the evaluation on every push. The 8-posting × 2-model
-   cassette is recorded and committed (62 entries, $0.88); replay reproduces the published
-   table byte-for-byte. `env.py` loads `.env` so a real run needs no shell setup.
+   cassette is recorded and committed (68 entries, $0.88); replay reproduces the published
+   table byte-for-byte. Main-text extraction is a recorded seam too — trafilatura's output
+   differs between versions, so re-running it on replay changes the structuring key and
+   misses. `env.py` loads `.env` so a real run needs no shell setup.
 
 ## What not to do
 

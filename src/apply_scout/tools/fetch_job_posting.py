@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 from apply_scout import config
 from apply_scout.contracts import JobPosting
-from apply_scout.fetch import Fetcher, FetchError, extract_main_text
+from apply_scout.fetch import Extractor, Fetcher, FetchError, MainTextExtractor
 from apply_scout.structuring import Structurer, StructuringError, structure
 from apply_scout.tools.base import PydanticTool, ToolResult
 
@@ -39,11 +39,13 @@ class FetchJobPosting(PydanticTool):
         *,
         fetcher: Fetcher,
         structurer: Structurer,
+        extractor: Extractor | None = None,
         model: str = config.STRUCTURE_MODEL,
         max_attempts: int = config.STRUCTURE_MAX_ATTEMPTS,
     ) -> None:
         self._fetcher = fetcher
         self._structurer = structurer
+        self._extractor = extractor or MainTextExtractor()
         self._model = model
         self._max_attempts = max_attempts
 
@@ -53,7 +55,7 @@ class FetchJobPosting(PydanticTool):
         except FetchError as exc:
             return ToolResult.error(f"Could not fetch the posting: {exc}")
 
-        text = extract_main_text(html)[: config.STRUCTURE_MAX_CHARS]
+        text = self._extractor.extract(html, data.url)[: config.STRUCTURE_MAX_CHARS]
         if not text:
             return ToolResult.error("The page had no readable text — it may require JavaScript.")
 

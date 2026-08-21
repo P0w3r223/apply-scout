@@ -31,6 +31,31 @@ class Fetcher(Protocol):
     def get(self, url: str) -> str: ...
 
 
+@runtime_checkable
+class Extractor(Protocol):
+    """HTML in, readable main text out — the seam between fetching and structuring.
+
+    Split out from `extract_main_text` as an injectable dependency because extraction is
+    not as reproducible as it looks: trafilatura's output shifts between its own versions
+    and between libxml2 builds, so the same recorded HTML yields different text on another
+    machine. A replay that re-ran extraction locally would key its structuring request off
+    that different text and miss every recorded entry — which is exactly what a CI runner
+    with a newer trafilatura did. Recording this seam makes the offline run depend on the
+    page, not on the environment that reads it."""
+
+    def extract(self, html: str, url: str = "") -> str: ...
+
+
+class MainTextExtractor:
+    """The production extractor: trafilatura, with the stdlib fallback behind it.
+
+    `url` is accepted for the recorder's benefit (it labels the entry) and ignored here —
+    extraction depends on the markup alone."""
+
+    def extract(self, html: str, url: str = "") -> str:
+        return extract_main_text(html)
+
+
 class HttpFetcher:
     """Fetches a URL and returns its HTML text.
 

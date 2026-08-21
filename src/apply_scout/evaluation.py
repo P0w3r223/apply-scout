@@ -19,7 +19,7 @@ from statistics import mean, median
 
 from pydantic import BaseModel, ConfigDict
 
-from apply_scout.fetch import Fetcher
+from apply_scout.fetch import Extractor, Fetcher
 from apply_scout.github import GitHubClient
 from apply_scout.pipeline import Assessment, PipelineError, assess
 from apply_scout.structuring import AnthropicStructurer, Structurer
@@ -170,6 +170,7 @@ def pipeline_assess_fn(
     structurer_factory: Callable[[], Structurer] = AnthropicStructurer,
     fetcher: Fetcher | None = None,
     github: GitHubClient | None = None,
+    extractor: Extractor | None = None,
 ) -> AssessFn:
     """The production AssessFn: run the real pipeline per task, reporting cost + calls.
 
@@ -189,6 +190,7 @@ def pipeline_assess_fn(
                 fetcher=fetcher,
                 structurer=structurer,
                 github=github,
+                extractor=extractor,
                 model=model,
                 structure_model=model,  # uniform model for a head-to-head comparison
             )

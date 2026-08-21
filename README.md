@@ -12,7 +12,7 @@ machine-readable trajectory log, and a proper evaluation are possible.
 
 > Status: **complete (milestones 1–8) — published, with a real evaluation that anyone can re-run.**
 > The full agent, the three real tools, the structured deliverables, the measured anti-hallucination
-> guardrail, and the evaluation harness are built and tested (121 tests, no network or key required).
+> guardrail, and the evaluation harness are built and tested (124 tests, no network or key required).
 > The table under **Evaluation** comes from a real paid run over 8 annotated postings on two models —
 > and every external response is **recorded to a committed cassette**, so `--cassette-mode replay`
 > reproduces that exact table offline, with no API key and at no cost. CI does this on every push.
@@ -65,7 +65,7 @@ no API key** — which is exactly how the tests drive it.
 ```bash
 python -m venv .venv
 .venv/Scripts/python -m pip install -e ".[dev]"   # Windows
-pytest        # 121 tests, all under fakes — no ANTHROPIC_API_KEY needed
+pytest        # 124 tests, all under fakes — no ANTHROPIC_API_KEY needed
 ruff check .
 ```
 
@@ -136,7 +136,11 @@ re-run is a claim, not a measurement.
 
 So every outbound seam — the model transport, the structuring calls, the HTTP fetch, and the GitHub API
 — is wrapped by [`cassette.py`](src/apply_scout/cassette.py), which records what came back into a
-**committed** JSONL cassette ([`eval/cassettes/`](eval/cassettes/)) and serves it again on replay:
+**committed** JSONL cassette ([`eval/cassettes/`](eval/cassettes/)) and serves it again on replay.
+Main-text extraction is recorded too, even though it never leaves the machine: trafilatura's output
+shifts between its own versions and libxml2 builds, so a replay that re-ran it would key its
+structuring request off different text and miss every entry behind it — which is exactly what CI
+caught on a runner with a newer trafilatura.
 
 ```bash
 apply-scout eval --tasks eval/tasks.json --models claude-haiku-4-5,claude-opus-4-8 \
@@ -152,8 +156,8 @@ apply-scout eval --tasks eval/tasks.json --models claude-haiku-4-5,claude-opus-4
   the machinery instead of by memory.
 - **CI replays it on every push**, which turns the published table into a regression test.
 
-Recording the whole 8-posting × 2-model table cost **$0.88** and produced 62 entries (40 structuring
-calls, 8 pages, 14 GitHub responses). Every reproduction since has been free.
+Recording the whole 8-posting × 2-model table cost **$0.88** and produced 68 entries (40 structuring
+calls, 8 pages, 6 extractions, 14 GitHub responses). Every reproduction since has been free.
 
 ## Cost analysis
 
