@@ -7,7 +7,9 @@ from apply_scout.contracts import (
     CVProfile,
     JobPosting,
     LetterSentence,
+    MatchAssessment,
     MatchReport,
+    Rating,
     Requirement,
 )
 from apply_scout.evaluation import (
@@ -45,6 +47,7 @@ def _assessment(*, requirements, letter_sentences, removed, unsupported_before=0
         report=MatchReport(job_title="X", job_url="https://x"),
         letter=letter,
         guardrail=guard,
+        source_postings=(posting,),
     )
 
 
@@ -131,19 +134,63 @@ def test_evaluate_task_scores_a_completed_run():
     assert metrics.cost_usd == 0.01
 
 
+def test_evaluate_task_grounds_the_report_in_the_fetched_posting():
+    """Coverage and grounding read different documents on purpose: coverage asks how much of
+    the annotation the run found, grounding asks whether what it rated came from the ad."""
+    posting = JobPosting(url="https://x", title="X", requirements=(Requirement(text="Python"),))
+    report = MatchReport(
+        job_title="X",
+        job_url="https://x",
+        assessments=(
+            MatchAssessment(requirement=Requirement(text="Python"), rating=Rating.STRONG),
+            MatchAssessment(requirement=Requirement(text="Erlang"), rating=Rating.NONE),
+        ),
+    )
+    letter = CoverLetterDraft()
+    guard = GuardrailResult(
+        filtered=letter, removed=(), unsupported_before=0.0, unsupported_after=0.0
+    )
+    assessment = Assessment(
+        posting=posting,
+        cv=CVProfile(),
+        report=report,
+        letter=letter,
+        guardrail=guard,
+        source_postings=(posting,),
+    )
+
+    metrics = evaluate_task(_task(["Python"]), assessment, cost_usd=0.01, llm_calls=2)
+    assert metrics.requirement_coverage == 1.0  # the annotated skill was extracted
+    assert metrics.requirement_grounding == 0.5  # but half the report is not in the ad
+
+
 def test_run_evaluation_marks_failures_not_completed():
     metrics = run_evaluation([_task(["Python"])], lambda t: (None, 0.02, 1))
     assert metrics[0].completed is False
     assert metrics[0].cost_usd == 0.02
 
 
+def _metrics(name, completed, coverage, grounding, fidelity, rate, calls, cost) -> TaskMetrics:
+    """Keyword-built, so a new metric column cannot silently shift an old assertion."""
+    return TaskMetrics(
+        name=name,
+        completed=completed,
+        requirement_coverage=coverage,
+        requirement_grounding=grounding,
+        citation_fidelity=fidelity,
+        citation_rate=rate,
+        llm_calls=calls,
+        cost_usd=cost,
+    )
+
+
 def test_aggregate_uses_completed_only_and_medians():
     metrics = [
-        TaskMetrics("a", True, 1.0, 1.0, 1.0, 4, 0.01),
-        TaskMetrics("b", True, 0.5, 0.8, 0.5, 6, 0.03),
-        TaskMetrics("c", False, None, None, None, 1, 0.005),
+        _metrics("a", True, 1.0, 1.0, 1.0, 1.0, 4, 0.01),
+        _metrics("b", True, 0.5, 0.5, 0.8, 0.5, 6, 0.03),
+        _metrics("c", False, None, None, None, None, 1, 0.005),
         # Completed, but nothing to score: no annotation and an uncited letter.
-        TaskMetrics("d", True, None, None, 0.0, 2, 0.02),
+        _metrics("d", True, None, None, None, 0.0, 2, 0.02),
     ]
     agg = aggregate("m", metrics)
     assert agg.n_tasks == 4
@@ -153,18 +200,47 @@ def test_aggregate_uses_completed_only_and_medians():
     assert agg.mean_citation_fidelity == 0.9
     assert agg.scored_fidelity == 2
     assert agg.mean_citation_rate == 0.5  # includes task d: it wrote a letter, cited nothing
+    assert agg.mean_requirement_grounding == 0.75
+    assert agg.scored_grounding == 2
     assert agg.median_llm_calls == 4  # median of [4, 6, 2]
     assert agg.median_cost_usd == 0.02  # median of [0.01, 0.03, 0.02]
 
 
+def _aggregate(**overrides) -> Aggregate:
+    defaults = dict(
+        model="claude-haiku-4-5",
+        n_tasks=2,
+        completion_rate=1.0,
+        mean_requirement_coverage=0.90,
+        mean_requirement_grounding=0.85,
+        mean_citation_fidelity=0.95,
+        mean_citation_rate=0.80,
+        scored_coverage=2,
+        scored_grounding=2,
+        scored_fidelity=2,
+        median_llm_calls=4,
+        median_cost_usd=0.012,
+    )
+    return Aggregate(**{**defaults, **overrides})
+
+
 def test_format_comparison_is_markdown():
-    agg = Aggregate("claude-haiku-4-5", 2, 1.0, 0.90, 0.95, 0.80, 2, 2, 4, 0.012)
-    table = format_comparison([agg])
+    table = format_comparison([_aggregate()])
     assert "| Model |" in table
     assert "claude-haiku-4-5" in table
     assert "100%" in table
     assert "0.90" in table
     assert "$0.0120" in table
+
+
+def test_grounding_has_its_own_column_and_says_n_a_when_unscored():
+    """A column nobody can find is a metric nobody reads — and an empty one must not
+    borrow the neighbouring number."""
+    table = format_comparison([_aggregate(mean_requirement_grounding=None, scored_grounding=0)])
+    header, _separator, row = table.splitlines()
+    assert "Report grounded" in header
+    assert header.count("|") == row.count("|")  # the row still lines up under the header
+    assert "n/a" in row
 
 
 def test_two_model_comparison_makes_regression_visible():
