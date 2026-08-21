@@ -10,10 +10,12 @@ with links) and a **cover-letter draft built only from facts it can cite**. It r
 tool loop written from scratch — no agent framework — so that safety budgets, a
 machine-readable trajectory log, and a proper evaluation are possible.
 
-> Status: **complete (milestones 1–7) — published, with a real evaluation.** The full agent, the three
-> real tools, the structured deliverables, the measured anti-hallucination guardrail, and the evaluation
-> harness are built and tested (73 tests, no network or key required). The table under **Evaluation** is
-> populated from a real paid run over 8 annotated postings on two models.
+> Status: **complete (milestones 1–8) — published, with a real evaluation that anyone can re-run.**
+> The full agent, the three real tools, the structured deliverables, the measured anti-hallucination
+> guardrail, and the evaluation harness are built and tested (121 tests, no network or key required).
+> The table under **Evaluation** comes from a real paid run over 8 annotated postings on two models —
+> and every external response is **recorded to a committed cassette**, so `--cassette-mode replay`
+> reproduces that exact table offline, with no API key and at no cost. CI does this on every push.
 
 ## Why it's built this way
 
@@ -63,7 +65,7 @@ no API key** — which is exactly how the tests drive it.
 ```bash
 python -m venv .venv
 .venv/Scripts/python -m pip install -e ".[dev]"   # Windows
-pytest        # 73 tests, all under fakes — no ANTHROPIC_API_KEY needed
+pytest        # 121 tests, all under fakes — no ANTHROPIC_API_KEY needed
 ruff check .
 ```
 
@@ -71,6 +73,9 @@ ruff check .
 
 Real runs read `ANTHROPIC_API_KEY` from the environment (and optionally `GITHUB_TOKEN` for a higher
 GitHub rate limit).
+
+Copy `.env.example` to `.env` and fill it in — the CLI loads it at startup, and an already-exported
+variable wins.
 
 ```bash
 # Assess fit for one posting (agent loop): streams each step, writes the trajectory JSONL.
@@ -80,6 +85,11 @@ apply-scout run --url <posting-url> --cv path/to/cv.md --github-user <user> --ve
 apply-scout eval --tasks eval/tasks.json --models claude-haiku-4-5,claude-opus-4-8
 ```
 
+Both subcommands accept `--cassette-mode {off,record,replay,auto}` (and `--cassette PATH`):
+`record` calls the real services and stores every response, `replay` serves them back with **no network
+and no key**, and `auto` replays what is recorded while recording what is not — so extending a task set
+only pays for the new tasks. See [Reproducibility](#reproducibility--record-once-replay-forever).
+
 ## Evaluation
 
 The harness scores each annotated task (see [`eval/tasks.example.json`](eval/tasks.example.json) for
@@ -88,13 +98,19 @@ README) and writes a markdown table comparing two models:
 
 | Model | Tasks | Completed | Req F1 | Citation fidelity | Median LLM calls | Median cost |
 |---|---|---|---|---|---|---|
-| `claude-haiku-4-5` | 8 | 100% | 0.31 | 1.00 | 4 | $0.0273 |
-| `claude-opus-4-8` | 8 | 100% | 0.25 | 1.00 | 4 | $0.1995 |
+| `claude-haiku-4-5` | 8 | 75% | 0.33 | 0.83 | 4 | $0.0291 |
+| `claude-opus-4-8` | 8 | 75% | 0.23 | 1.00 | 4 | $0.1827 |
 
-> Real numbers from `apply-scout eval` (2026-07-27) over 8 annotated live postings — 6 English and 2 Polish,
+> Real numbers from `apply-scout eval` (2026-08-21) over 8 annotated live postings — 6 English and 2 Polish,
 > from Lever / Greenhouse / SmartRecruiters, plus one deliberately JavaScript-only page as an edge case.
-> Each row runs one model end-to-end. Reproduce with
-> `apply-scout eval --tasks eval/tasks.json --models claude-haiku-4-5,claude-opus-4-8` (needs an `ANTHROPIC_API_KEY`).
+> Each row runs one model end-to-end. **Reproduce for free, with no API key:**
+> `apply-scout eval --tasks eval/tasks.json --models claude-haiku-4-5,claude-opus-4-8 --cassette-mode replay`.
+
+**Why "Completed" is 75% and not 100%.** Two of the eight postings — The Athletic and HHAeXchange —
+now return **HTTP 404**: the ads were taken down between the first run (2026-07-27, when all eight
+resolved) and this one. Nothing in the pipeline regressed; the *web* changed underneath the task set.
+That is precisely the failure this milestone set out to fix, and it is the reason the numbers above are
+recorded rather than merely reported — see **Reproducibility** below.
 
 **What each metric means (and why):**
 
@@ -106,20 +122,51 @@ README) and writes a markdown table comparing two models:
   extraction quality, not as a failure to read the posting.
 - **Citation fidelity** — of the letter's sentences that cite evidence, the fraction whose citation is
   a real link from the report. The anti-hallucination guardrail computes this deterministically; a
-  low number means the model was inventing citations.
+  low number means the model was inventing citations. **Haiku scores 0.83 here and Opus 1.00** — the
+  guardrail caught and removed fabricated citations from the cheap model's letters. This is the metric
+  earning its keep: the gap is invisible to a human skim of the output.
 - **Median LLM calls / cost** — the price of a task, per model. This is the "cheaper model enough?"
   question made quantitative.
+
+## Reproducibility — record once, replay forever
+
+The evaluation runs against live job postings and a paid API. Both decay: ads get taken down (two of
+these eight already have), and re-running the numbers costs money every time. An evaluation nobody can
+re-run is a claim, not a measurement.
+
+So every outbound seam — the model transport, the structuring calls, the HTTP fetch, and the GitHub API
+— is wrapped by [`cassette.py`](src/apply_scout/cassette.py), which records what came back into a
+**committed** JSONL cassette ([`eval/cassettes/`](eval/cassettes/)) and serves it again on replay:
+
+```bash
+apply-scout eval --tasks eval/tasks.json --models claude-haiku-4-5,claude-opus-4-8 \
+  --cassette-mode replay      # no network, no ANTHROPIC_API_KEY, $0.00
+```
+
+- **Replay never falls back to the network.** An unrecorded request raises `CassetteMiss` and stops the
+  run. Quietly serving it live would turn a reproducible evaluation back into a paid, unverifiable one.
+- **Cost survives the offline path.** Token counts and USD are replayed from what was captured *at
+  recording time*, so the cost column above is real measurement, not a zero.
+- **A prompt edit invalidates exactly what it touches.** The cassette key hashes the whole request,
+  system prompt included — so the project's "change a prompt ⇒ re-run the harness" rule is enforced by
+  the machinery instead of by memory.
+- **CI replays it on every push**, which turns the published table into a regression test.
+
+Recording the whole 8-posting × 2-model table cost **$0.88** and produced 62 entries (40 structuring
+calls, 8 pages, 14 GitHub responses). Every reproduction since has been free.
 
 ## Cost analysis
 
 Each eval row runs one model end-to-end, and every model call's token usage flows through one
 `token_cost()` helper, so per-task cost is measured, not estimated. For this task set the result is
-unambiguous: **`claude-opus-4-8` costs ≈7× more per task than `claude-haiku-4-5` ($0.1995 vs $0.0273)
-while scoring no better** — identical completion (100%) and citation fidelity (1.00), and a slightly
-*lower* requirement-F1 (0.25 vs 0.31). For extracting and matching job postings at this size, **Haiku is
-not just enough — it is the better default.** (In production, `run` and the pipeline split by role via
-`STRUCTURE_MODEL` in `config.py` — the cheap model extracts, the strong model synthesises — so the
-two-model story is a lever, not only a benchmark.)
+unambiguous: **`claude-opus-4-8` costs ≈6× more per task than `claude-haiku-4-5` ($0.1827 vs $0.0291)
+and does not buy a better match report** — identical completion (75%, both blocked by the same two dead
+URLs) and a *lower* requirement-F1 (0.23 vs 0.33). The one place the strong model does win is
+**citation fidelity — 1.00 against Haiku's 0.83**: Haiku invents citations that the guardrail then has
+to strip. So the honest reading is a split decision: **Haiku is the better default for extraction and
+matching, and the money is better spent on the letter, where fabrication actually shows up.** That is
+exactly how `config.py` wires it in production — `STRUCTURE_MODEL` extracts cheaply, the agent model
+synthesises — so the two-model story is a lever, not only a benchmark.
 
 ## Limitations — what apply-scout can't do
 
@@ -138,6 +185,11 @@ Honest and specific, because an agent that hides its failure modes is worse than
 - **The guardrail checks citations, not truth.** It removes sentences citing links absent from the
   report; it does not fact-check a grounded claim's phrasing. It bounds hallucinated *citations*, not
   every possible overstatement.
+- **The live task set decays.** Job ads are removed; two of these eight 404 within a month of being
+  annotated. The cassette makes past results reproducible, but it cannot keep the *task set* fresh —
+  extending or refreshing it means new annotation and a new paid recording.
+- **A cassette is a snapshot, not a guarantee of current behaviour.** Replay proves what the models did
+  on the recorded requests, not what they would do today. Re-record to make that claim.
 - **English/Polish postings assumed.** Other languages are untested.
 - **No application is ever submitted.** apply-scout drafts a report and a letter for a human to review
   and send — it does not act on the candidate's behalf.
@@ -147,6 +199,7 @@ Honest and specific, because an agent that hides its failure modes is worse than
 - [ADR-0001 — a from-scratch tool loop, not a framework](docs/decisions/0001_own_loop_vs_framework.md)
 - [ADR-0002 — a deterministic pipeline alongside the agent loop](docs/decisions/0002_pipeline_vs_agent_loop.md)
 - [ADR-0003 — structured outputs with our own validate-and-retry, and a deterministic guardrail](docs/decisions/0003_structured_outputs_and_guardrail.md)
+- [ADR-0004 — record/replay cassettes at our own seams, not at the HTTP layer](docs/decisions/0004_record_replay_cassettes.md)
 
 ## Demo
 

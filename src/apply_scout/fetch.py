@@ -10,6 +10,7 @@ LLM structuring that follows.
 from __future__ import annotations
 
 from html.parser import HTMLParser
+from typing import Protocol, runtime_checkable
 
 import httpx
 
@@ -18,6 +19,16 @@ from apply_scout import config
 
 class FetchError(Exception):
     """Raised when a URL cannot be fetched into usable HTML (network, status, type)."""
+
+
+@runtime_checkable
+class Fetcher(Protocol):
+    """What the posting tool needs from the network: a URL in, HTML out.
+
+    Narrow on purpose — it is the seam a recording/replaying wrapper substitutes for, so
+    the same tool code runs live or entirely offline."""
+
+    def get(self, url: str) -> str: ...
 
 
 class HttpFetcher:

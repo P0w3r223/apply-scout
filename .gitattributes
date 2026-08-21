@@ -1,0 +1,11 @@
+# Recorded cassettes are data artifacts, not source. Never let line-ending conversion
+# touch them: a replay compares hashes of the requests they encode, and a checkout that
+# rewrote their bytes would be a silent, platform-dependent corruption.
+eval/cassettes/*.jsonl -text
+
+# The evaluation reads these as input, and their content ends up in the hashed request.
+# Python's text-mode reads already normalize newlines, so this is belt-and-braces: it
+# keeps the working tree matching the repo under any local core.autocrlf, so a diff shows
+# real edits rather than a whole-file line-ending churn.
+cv/*.md text eol=lf
+eval/*.json text eol=lf

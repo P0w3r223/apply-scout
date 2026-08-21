@@ -29,3 +29,31 @@ jobs:
         # (tests/fakes.py) — no network and no ANTHROPIC_API_KEY are needed,
         # so a failure here is a real change in behaviour, not a flaky call.
         run: pytest
+
+  replay:
+    # Re-runs the real evaluation from the committed cassette: the same postings,
+    # the same model responses, no network and no API key. This is what makes the
+    # published numbers reproducible by anyone rather than taken on trust.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Replay the evaluation from the cassette
+        # Until the first cassette is recorded there is nothing to replay; say so
+        # out loud rather than passing a job that silently did nothing.
+        run: |
+          if [ -f eval/cassettes/eval.jsonl ]; then
+            apply-scout eval --tasks eval/tasks.json \
+              --models claude-haiku-4-5,claude-opus-4-8 \
+              --cassette-mode replay --out eval/results/replay.md
+            cat eval/results/replay.md
+          else
+            echo "No cassette committed yet — record one with --cassette-mode record."
+          fi

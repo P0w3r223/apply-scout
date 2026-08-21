@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 from apply_scout import config
 from apply_scout.contracts import JobPosting
-from apply_scout.fetch import FetchError, HttpFetcher, extract_main_text
+from apply_scout.fetch import Fetcher, FetchError, extract_main_text
 from apply_scout.structuring import Structurer, StructuringError, structure
 from apply_scout.tools.base import PydanticTool, ToolResult
 
@@ -37,7 +37,7 @@ class FetchJobPosting(PydanticTool):
     def __init__(
         self,
         *,
-        fetcher: HttpFetcher,
+        fetcher: Fetcher,
         structurer: Structurer,
         model: str = config.STRUCTURE_MODEL,
         max_attempts: int = config.STRUCTURE_MAX_ATTEMPTS,
