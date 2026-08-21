@@ -213,7 +213,7 @@ def _eval_table(aggregates: list[Aggregate]) -> Table:
             format_score(a.mean_requirement_grounding, a.scored_grounding),
             format_score(a.mean_evidence_grounding, a.scored_evidence),
             format_score(a.mean_citation_fidelity, a.scored_fidelity),
-            format_score(a.mean_citation_rate),
+            format_score(a.mean_citation_rate, a.scored_rate),
             f"{a.median_llm_calls:g}",
             f"${a.median_cost_usd:.4f}",
         )
