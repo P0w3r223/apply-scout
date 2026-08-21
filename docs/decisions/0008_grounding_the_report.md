@@ -83,6 +83,25 @@ is currently a control that fired nowhere. The unit tests pin the behaviour the 
 longer exercises, and the README says all of this rather than presenting a clean 1.00 as
 evidence of safety.
 
+**And measuring *why* it reads 1.00 bounds what it can ever be worth.** Checked against the
+recording at three strictness levels — exact token equality, one-directional containment, and
+the symmetric containment that ships — every completed task scores 1.00 under **all three**,
+with the number of rated requirements equal to the number in the fetched posting on every task
+(19/19, 21/21, 12/12, 19/19, 1/1). Both runners copy the requirement list **verbatim**; neither
+paraphrases and neither adds. So this metric has exactly one firing mode: *a report that rates
+requirements when the posting yielded none*. It is worth publishing as that specific guard, and
+it is not the general "is the report grounded" measurement its name suggests.
+
+**The same question one level down does fire.** Every `Evidence` in a report should be one the
+`github_evidence` tool actually returned, and nothing checks that: `citation_fidelity` scores
+the letter against the report, so an invented URL that reaches the *report* is a valid citation
+target. Instrumenting the tool over the recording found one — on `konux-senior-data-scientist`
+the loop's report carries `https://github.com/P0w3r223/P0w3r223` among 29 evidence links, and
+that string appears in the cassette only inside model output, never in a GitHub response. The
+letter happened not to cite it, so nothing was removed and fidelity still read 1.00. A report
+is a deliverable in its own right, and this one links to a repository no tool ever produced.
+That measurement is the natural successor to this one, at the same $0.
+
 **Two limits worth naming.** Matching is the crude token containment coverage uses, so a
 fabricated requirement echoing the posting's wording counts as grounded — this bounds
 *untraceable* claims, not false ones, exactly as the citation check bounds unsupported
