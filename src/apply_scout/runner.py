@@ -13,7 +13,10 @@ from collections.abc import Callable
 from apply_scout import config
 from apply_scout.agent import Agent, AgentConfig, AgentResult
 from apply_scout.budget import Budget
+from apply_scout.fetch import Fetcher
+from apply_scout.github import GitHubClient
 from apply_scout.llm import AnthropicLLM, LLMClient
+from apply_scout.structuring import Structurer
 from apply_scout.tools.real import real_tools
 from apply_scout.tools.registry import ToolRegistry
 from apply_scout.trajectory import TrajectoryStep
@@ -42,10 +45,17 @@ def run_assessment(
     budget: Budget | None = None,
     model: str = config.DEFAULT_MODEL,
     on_step: Callable[[TrajectoryStep], None] | None = None,
+    fetcher: Fetcher | None = None,
+    structurer: Structurer | None = None,
+    github: GitHubClient | None = None,
 ) -> AgentResult:
-    """Run one fit assessment. Returns the result (including the trajectory to persist)."""
+    """Run one fit assessment. Returns the result (including the trajectory to persist).
+
+    `fetcher` / `structurer` / `github` are forwarded to the real toolset when no ready
+    `tools` registry is given — that is how a cassette session substitutes its recording
+    or replaying collaborators without the caller re-assembling the tools by hand."""
     llm = llm or AnthropicLLM()
-    tools = tools or ToolRegistry(real_tools())
+    tools = tools or ToolRegistry(real_tools(fetcher=fetcher, structurer=structurer, github=github))
     agent = Agent(
         llm,
         tools,

@@ -37,6 +37,8 @@ src/apply_scout/
   guardrail.py    # deterministic anti-hallucination guardrail + unsupported-fraction measurement
   pipeline.py     # assess(): deterministic gather -> synthesize -> guard; produces the deliverables
   evaluation.py   # the eval harness: metrics (requirement F1, citation fidelity), aggregate, table
+  cassette.py     # record/replay of every external seam (LLM, structurer, fetch, GitHub) -> offline eval
+  env.py          # loads the gitignored .env into the environment (exported vars win)
   tools/
     base.py               # Tool contract: Pydantic input schema, run(); errors return as structured results
     registry.py           # name -> tool dispatch; unknown tool = structured error
@@ -48,6 +50,7 @@ src/apply_scout/
 tests/            # pytest; the loop is tested under a scripted fake model (no network, no key)
 eval/tasks.example.json  # annotated task fixtures (documents the eval format)
 eval/results/     # trajectory JSONL + eval markdown tables (gitignored)
+eval/cassettes/   # recorded external responses (COMMITTED — this is what replays in CI)
 docs/decisions/   # ADRs
 ```
 
@@ -66,7 +69,11 @@ trajectory, the harness (later) scores the trajectory.
 - **No hallucinated evidence.** A cover-letter/report claim must trace to an `Evidence`
   with a real, checkable URL. No evidence → rated `none`; do not paper over the gap.
 - **Every prompt/loop change ⇒ re-run the harness.** Results land in `eval/results/`
-  with the date and commit hash so regressions are visible (later milestone).
+  with the date and commit hash so regressions are visible (later milestone). The
+  cassette key hashes the whole request, prompt included, so a prompt edit misses every
+  entry it touches — the rule is enforced by the machinery, not by memory.
+- **Replay never falls back to the network.** An unrecorded request raises `CassetteMiss`.
+  Serving it live would turn a reproducible evaluation back into a paid, unverifiable one.
 - **No secrets in code.** `ANTHROPIC_API_KEY` is read from the environment at call time.
 - **Immutable contracts, no magic numbers.** Value objects are frozen; thresholds and
   model IDs live in `config.py`.
@@ -80,7 +87,9 @@ pytest                                             # the loop runs under a fake 
 ruff check .
 ```
 
-Real runs need `ANTHROPIC_API_KEY` (and optionally `GITHUB_TOKEN` for a higher GitHub rate limit):
+Real runs need `ANTHROPIC_API_KEY` (and optionally `GITHUB_TOKEN` for a higher GitHub rate
+limit). Copy `.env.example` to `.env` — the CLI loads it at startup (`env.py`); an already
+exported variable wins. A `--cassette-mode replay` run needs neither key nor network:
 
 ```bash
 apply-scout run --url <posting-url> --cv path/to/cv.md --github-user <user> --verbose
@@ -106,13 +115,19 @@ apply-scout eval --tasks eval/tasks.json --models claude-haiku-4-5,claude-opus-4
 5. **Report + letter + guardrail.** ✅ `synthesis` (MatchReport + cover letter), a deterministic
    anti-hallucination `guardrail` (removes fabricated citations; measures unsupported before/after),
    and `pipeline.assess()`.
-6. **Evaluation harness (this milestone).** ✅ `evaluation` + `apply-scout eval`: annotated tasks
+6. **Evaluation harness.** ✅ `evaluation` + `apply-scout eval`: annotated tasks
    scored for completion, requirement F1, citation fidelity, median LLM calls / cost → markdown
    table comparing two models.
-7. **Interface + docs (this milestone).** ✅ rich CLI (colored step stream + eval table),
+7. **Interface + docs.** ✅ rich CLI (colored step stream + eval table),
    README with the eval-table shape + cost analysis + honest limitations + mermaid diagram,
    ADR-0002 (pipeline vs loop) and ADR-0003 (structured outputs + guardrail). Demo GIF pending a
    live run.
+8. **Record/replay cassettes (this milestone).** ✅ `cassette.py`: every external seam
+   (LLM, structurer, HTTP fetch, GitHub) records to a committed JSONL cassette and replays
+   with no network, no key and no cost. `--cassette-mode {off,record,replay,auto}` on both
+   subcommands; a CI job replays the evaluation on every push. The 8-posting × 2-model
+   cassette is recorded and committed (62 entries, $0.88); replay reproduces the published
+   table byte-for-byte. `env.py` loads `.env` so a real run needs no shell setup.
 
 ## What not to do
 

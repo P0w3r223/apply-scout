@@ -19,8 +19,10 @@ from statistics import mean, median
 
 from pydantic import BaseModel, ConfigDict
 
+from apply_scout.fetch import Fetcher
+from apply_scout.github import GitHubClient
 from apply_scout.pipeline import Assessment, PipelineError, assess
-from apply_scout.structuring import AnthropicStructurer
+from apply_scout.structuring import AnthropicStructurer, Structurer
 
 
 class EvalTask(BaseModel):
@@ -162,26 +164,39 @@ def load_tasks(path: Path) -> list[EvalTask]:
     return [EvalTask.model_validate(item) for item in data]
 
 
-def pipeline_assess_fn(model: str) -> AssessFn:
+def pipeline_assess_fn(
+    model: str,
+    *,
+    structurer_factory: Callable[[], Structurer] = AnthropicStructurer,
+    fetcher: Fetcher | None = None,
+    github: GitHubClient | None = None,
+) -> AssessFn:
     """The production AssessFn: run the real pipeline per task, reporting cost + calls.
 
-    A fresh structurer per task so cost/calls are per-task. Not exercised by the unit
-    tests (it needs a key + network); the harness logic is tested with injected fakes."""
+    A fresh structurer *per task*, so cost and calls are per-task rather than cumulative —
+    hence a factory rather than an instance. Passing a cassette-backed factory (plus its
+    fetcher and GitHub client) is what makes the whole harness replayable offline; the
+    default wiring is the live one. Not exercised by the unit tests (it needs a key +
+    network); the harness logic itself is tested with injected fakes."""
 
     def run(task: EvalTask) -> tuple[Assessment | None, float, int]:
-        structurer = AnthropicStructurer()
+        structurer = structurer_factory()
         try:
             assessment: Assessment | None = assess(
                 job_url=task.job_url,
                 cv_path=task.cv_path,
                 github_user=task.github_user,
+                fetcher=fetcher,
                 structurer=structurer,
+                github=github,
                 model=model,
                 structure_model=model,  # uniform model for a head-to-head comparison
             )
         except PipelineError:
             assessment = None
-        return assessment, structurer.cost_usd, structurer.calls
+        # Cost/calls are read off the structurer, so any wrapper standing in for it must
+        # report them too — including a replay wrapper, which serves the recorded figures.
+        return assessment, getattr(structurer, "cost_usd", 0.0), getattr(structurer, "calls", 0)
 
     return run
 

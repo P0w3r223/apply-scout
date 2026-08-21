@@ -8,7 +8,7 @@ are tested — and they all share the same contracts, so the agent loop is uncha
 from __future__ import annotations
 
 from apply_scout import config
-from apply_scout.fetch import HttpFetcher
+from apply_scout.fetch import Fetcher, HttpFetcher
 from apply_scout.github import DiskCache, GitHubClient
 from apply_scout.structuring import AnthropicStructurer, Structurer
 from apply_scout.tools.base import Tool
@@ -19,7 +19,7 @@ from apply_scout.tools.read_cv import ReadCV
 
 def real_tools(
     *,
-    fetcher: HttpFetcher | None = None,
+    fetcher: Fetcher | None = None,
     structurer: Structurer | None = None,
     github: GitHubClient | None = None,
     model: str = config.STRUCTURE_MODEL,

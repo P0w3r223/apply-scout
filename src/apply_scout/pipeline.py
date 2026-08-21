@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 from apply_scout import config
 from apply_scout.contracts import CoverLetterDraft, CVProfile, Evidence, JobPosting, MatchReport
-from apply_scout.fetch import HttpFetcher
+from apply_scout.fetch import Fetcher, HttpFetcher
 from apply_scout.github import DiskCache, GitHubClient
 from apply_scout.guardrail import GuardrailResult, guardrail_letter
 from apply_scout.structuring import AnthropicStructurer, Structurer
@@ -51,7 +51,7 @@ def assess(
     job_url: str,
     cv_path: str,
     github_user: str,
-    fetcher: HttpFetcher | None = None,
+    fetcher: Fetcher | None = None,
     structurer: Structurer | None = None,
     github: GitHubClient | None = None,
     model: str = config.DEFAULT_MODEL,
