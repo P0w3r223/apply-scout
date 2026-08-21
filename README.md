@@ -299,6 +299,19 @@ Honest and specific, because an agent that hides its failure modes is worse than
 - **The metric bounds untraceable claims, not false ones.** Matching is the same crude token containment
   used by coverage, so a fabricated requirement that happens to echo the posting's wording counts as
   grounded. It is the report-level analogue of the citation check: it proves provenance, not truth.
+- **Report grounded has exactly one firing mode, and that is now measured too.** Scored at three
+  strictness levels — exact token equality, one-directional containment, and the symmetric containment
+  that ships — every completed task reads 1.00 under **all three**, with the rated-requirement count
+  equal to the posting's on every task (19/19, 21/21, 12/12, 19/19, 1/1). Both runners copy the
+  requirement list **verbatim**: neither paraphrases, neither adds. So the column can only fall when a
+  report rates requirements the posting never yielded — a real and worthwhile guard, but not the general
+  "is this report grounded" check the name suggests.
+- **Nothing yet checks the report's *evidence* against the tools.** One level down, the same question has
+  room to fail and does: on `konux-senior-data-scientist` the loop's report cites
+  `https://github.com/P0w3r223/P0w3r223` among 29 evidence links, and that string appears in the cassette
+  only inside model output — never in a GitHub response. `citation_fidelity` cannot see it, because it
+  scores the letter against the report and the URL *is* in the report. Here the letter happened not to
+  cite it, so nothing was removed; the report still links to a repository no tool ever returned.
 - **The guardrail checks citations, not truth.** It removes sentences citing links absent from the
   report; it does not fact-check a grounded claim's phrasing. It bounds hallucinated *citations*, not
   every possible overstatement.
