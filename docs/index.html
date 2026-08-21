@@ -46,22 +46,27 @@ safety budgets and a trajectory-evaluation harness.</p>
   <p>The harness runs each model end-to-end over the task set and records every metric from the
   logged trajectory. Cost is measured through a single token-accounting helper, not estimated.</p>
   <table>
-    <tr><th>Runner</th><th>Model</th><th>Completed</th><th>Req coverage</th><th>Citation fidelity</th><th>Median calls</th><th>Median cost</th></tr>
-    <tr><td>pipeline</td><td>claude-haiku-4-5</td><td>75%</td><td>0.80</td><td>0.83</td><td>4</td><td><strong>$0.0291</strong></td></tr>
-    <tr><td>pipeline</td><td>claude-opus-4-8</td><td>75%</td><td>0.68</td><td>1.00</td><td>4</td><td>$0.1827</td></tr>
-    <tr><td><strong>agent loop</strong></td><td>claude-haiku-4-5</td><td>75%</td><td>0.80</td><td><strong>1.00</strong></td><td>9.5</td><td>$0.0963</td></tr>
+    <tr><th>Runner</th><th>Model</th><th>Completed</th><th>Req coverage</th><th>Citation fidelity</th><th>Cited</th><th>Median calls</th><th>Median cost</th></tr>
+    <tr><td>pipeline</td><td>claude-haiku-4-5</td><td>75%</td><td>0.76 (5)</td><td>0.75 (4)</td><td>0.29</td><td>4</td><td><strong>$0.0291</strong></td></tr>
+    <tr><td>pipeline</td><td>claude-opus-4-8</td><td>75%</td><td>0.62 (5)</td><td>1.00 (1)</td><td>0.11</td><td>4</td><td>$0.1827</td></tr>
+    <tr><td><strong>agent loop</strong></td><td>claude-haiku-4-5</td><td>75%</td><td>0.76 (5)</td><td><strong>1.00 (5)</strong></td><td><strong>0.74</strong></td><td>9.5</td><td>$0.0963</td></tr>
   </table>
-  <p class="sub">The third row is the from-scratch tool loop solving the same tasks, scored on the same
-  axes. On the same model it costs 3.3&times; the pipeline and makes 2.4&times; the calls, and buys
-  exactly one thing: citation fidelity, 0.83 &rarr; 1.00. The useful comparison is the diagonal —
-  grounded letters cost either $0.1827 (strong model, pipeline) or $0.0963 (cheap model, loop): half the
-  price, with better coverage. It is the agency that fixes the citations, not the model tier.</p>
+  <p class="sub">The bracketed number is how many tasks the mean is actually over: a task with no
+  annotation has no coverage to measure, and a letter that cites nothing has no fidelity. Read the two
+  citation columns together — separately each one lies. The strong model's perfect 1.00 rests on a
+  single task, because in five of six its letters cite nothing at all (11% of sentences carry a link),
+  and a letter that promises nothing checkable cannot be caught fabricating.</p>
+  <p class="sub">The third row is the from-scratch tool loop solving the same tasks on the same axes. It
+  costs 3.3&times; the pipeline on the same model and makes 2.4&times; the calls, and it is the only
+  configuration here that both cites (74% of sentences) and gets every citation right, across five
+  tasks. Grounded, substantiated letters therefore cost $0.0963 with the cheap model in the loop against
+  $0.1827 for the strong model in the pipeline — half the price, better coverage, seven times the
+  citation rate. It is the agency that grounds the letter, not the model tier.</p>
   <p class="sub">On this task set the strong model costs roughly six times more per task and does not
-  buy a better match report: the same completion and lower requirement coverage. Where it does win is
-  citation fidelity — 1.00 against 0.83 — because the cheaper model invents citations that the
-  guardrail then has to strip. The honest reading is a split decision: the inexpensive model is the
-  better default for extraction and matching, and the money is better spent on the letter, where
-  fabrication actually shows up.</p>
+  buy a better match report: the same completion and lower requirement coverage. It does not buy a
+  better letter either — that took a metric fix to see, since its headline fidelity came from letters
+  that cite almost nothing. What produces grounded letters here is giving the cheap model the agent
+  loop, at roughly half the strong model's price.</p>
   <p class="sub">Requirement coverage is the share of human-annotated skills the extraction found —
   recall only, deliberately. The annotation lists the handful of skills a human judged load-bearing,
   not all two dozen requirements in a posting, so a precision denominator would penalise reading the

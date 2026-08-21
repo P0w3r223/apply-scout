@@ -382,7 +382,11 @@ class CassetteStructurer:
         self.calls += 1
         self.input_tokens += entry.input_tokens
         self.output_tokens += entry.output_tokens
-        self.cost_usd += entry.cost_usd
+        # Re-derived from the recorded tokens rather than read off `entry.cost_usd`, so the
+        # rate card is never frozen inside the committed artifact. The agent seam already
+        # prices this way (through the budget tracker); with two provenances a change to
+        # PRICING would silently update one half of the comparison table and not the other.
+        self.cost_usd += config.token_cost(entry.input_tokens, entry.output_tokens, model)
         return entry.payload["text"]
 
 

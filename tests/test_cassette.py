@@ -213,8 +213,12 @@ def test_structuring_replays_its_json_and_accumulates_recorded_usage():
 
     assert replayed == recorded == '{"title": "x"}'
     assert inner.calls == 1  # the replay did not reach the adapter
-    assert (replay.calls, replay.cost_usd) == (1, 0.25)
     assert (replay.input_tokens, replay.output_tokens) == (300, 40)
+    # Cost is re-derived from the recorded tokens, not read back from the entry: with the
+    # rate card frozen inside the artifact, correcting a price would update the agent half
+    # of the comparison table and leave the pipeline half stale.
+    assert replay.calls == 1
+    assert replay.cost_usd == config.token_cost(300, 40, "m")
 
 
 def test_structuring_records_a_collaborator_that_reports_no_usage():
@@ -548,7 +552,12 @@ def test_a_replayed_assessment_still_reports_what_it_cost(tmp_path):
     _assess_through_with(replaying, structurer, cv_file, fetcher=None, offline=True)
 
     assert structurer.calls == 4
-    assert structurer.cost_usd == pytest.approx(0.04)
+    # Four calls of 300+40 recorded tokens, priced by today's rate card rather than by
+    # whatever the adapter happened to report when the cassette was cut. Two run on the
+    # cheap structuring model (posting, CV) and two on the agent model (report, letter).
+    per_call = config.token_cost(300, 40, config.STRUCTURE_MODEL)
+    per_synthesis = config.token_cost(300, 40, config.DEFAULT_MODEL)
+    assert structurer.cost_usd == pytest.approx(2 * per_call + 2 * per_synthesis)
 
 
 def _assess_through_with(session, structurer, cv_file, *, fetcher, offline: bool):

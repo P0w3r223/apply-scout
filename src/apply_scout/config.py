@@ -65,6 +65,10 @@ DEFAULT_MAX_COST_USD = 0.50  # cumulative USD across the run
 # loop does when allowed to finish; graceful stopping is tested directly, not benchmarked.
 EVAL_AGENT_MAX_STEPS = 24
 EVAL_AGENT_MAX_COST_USD = 1.00
+# Raised alongside them, or it becomes the ceiling that actually binds: a 10-step loop run
+# already accumulates ~88k cumulative tokens, so the 200k default would stop a run at ~20
+# steps — under the step ceiling above, and scored as a model failure rather than a budget one.
+EVAL_AGENT_MAX_TOKENS = 500_000
 
 # --- Model request settings --------------------------------------------------
 # Per-response output cap (an enforced ceiling the model is not aware of), distinct from
@@ -113,7 +117,14 @@ def price_for(model: str) -> ModelPrice | None:
     exact = PRICING.get(model)
     if exact is not None:
         return exact
-    matches = [key for key in PRICING if model.startswith(key)]
+    # Only a dated-snapshot suffix counts. A bare `startswith` would also price some future
+    # `claude-opus-4-8-turbo` at Opus 4.8 rates — a silent wrong number, which is the class
+    # of bug this function exists to remove, not to relocate.
+    matches = [
+        key
+        for key in PRICING
+        if model.startswith(f"{key}-") and model[len(key) + 1 :].isdigit()
+    ]
     if not matches:
         return None
     return PRICING[max(matches, key=len)]  # longest prefix wins
