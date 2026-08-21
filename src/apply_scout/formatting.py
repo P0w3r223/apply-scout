@@ -7,6 +7,7 @@ these print to a terminal that may not be UTF-8 (Windows console).
 from __future__ import annotations
 
 from apply_scout.agent import AgentResult
+from apply_scout.contracts import CoverLetterDraft, MatchReport
 from apply_scout.trajectory import StepKind, TrajectoryStep
 
 # Rich style per step kind. Lives here rather than in the CLI because more than one
@@ -51,6 +52,27 @@ def format_step(step: TrajectoryStep) -> str:
     if step.kind is StepKind.BUDGET_STOP:
         return f"[stop] {step.note}"
     return f"[{step.index}] {step.kind.value}"
+
+
+def format_report(report: MatchReport, letter: CoverLetterDraft) -> str:
+    """The submitted deliverable as markdown, for a human reading the terminal.
+
+    The agent now hands back a contract rather than prose (see `tools/submit_report.py`),
+    so something has to turn it back into something readable. Deterministic on purpose —
+    no second model call to format what the first one already decided."""
+    lines = [f"# Match report — {report.job_title}", f"<{report.job_url}>", ""]
+    if report.summary:
+        lines += [report.summary, ""]
+    if report.assessments:
+        lines += ["| Requirement | Rating | Evidence |", "|---|---|---|"]
+        for item in report.assessments:
+            urls = ", ".join(e.url for e in item.evidence if e.url) or "—"
+            lines.append(f"| {item.requirement.text} | {item.rating.value} | {urls} |")
+        lines.append("")
+    if letter.sentences:
+        lines += ["## Cover letter (guardrailed)", ""]
+        lines += [s.text for s in letter.sentences]
+    return "\n".join(lines)
 
 
 def format_summary(result: AgentResult) -> str:

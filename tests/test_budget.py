@@ -38,3 +38,23 @@ def test_unknown_model_costs_zero_but_counts_tokens():
     tracker.record_usage(1_000_000, 1_000_000, "some-unlisted-model")
     assert tracker.cost_usd == 0.0
     assert tracker.total_tokens == 2_000_000
+
+
+def test_a_dated_snapshot_id_is_priced_like_its_alias():
+    """The API echoes back `claude-haiku-4-5-20251001` for a request that named
+    `claude-haiku-4-5`. Callers price the response, so an id that misses the rate card
+    reads as $0.00 — which also disables the cost ceiling, since a run that never spends
+    anything can never breach it."""
+    dated = f"{config.MODEL_CHEAP}-20251001"
+    assert config.token_cost(1_000_000, 0, dated) == config.token_cost(
+        1_000_000, 0, config.MODEL_CHEAP
+    )
+    assert config.token_cost(10_000, 5_000, dated) > 0.0
+
+    tracker = BudgetTracker(Budget(max_steps=99, max_tokens=10**9, max_cost_usd=0.01))
+    tracker.record_usage(1_000_000, 0, dated)  # $1.00 of input on the cheap model
+    assert tracker.breach() is BudgetBreach.COST
+
+
+def test_an_unpriced_model_costs_zero_rather_than_a_guess():
+    assert config.token_cost(1_000, 1_000, "some-other-vendor-model") == 0.0

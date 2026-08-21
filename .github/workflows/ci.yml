@@ -57,6 +57,15 @@ jobs:
           else
             echo "No cassette committed yet — record one with --cassette-mode record."
           fi
+      - name: Replay the agent-loop row of the comparison
+        # The loop-vs-pipeline claim is the project's headline result, so it is replayed
+        # from the same cassette as the pipeline rows rather than taken on trust.
+        run: |
+          if [ -f eval/cassettes/eval.jsonl ]; then
+            apply-scout eval --tasks eval/tasks.json --models claude-haiku-4-5 \
+              --runner agent --cassette-mode replay --out eval/results/replay-agent.md
+            cat eval/results/replay-agent.md
+          fi
       - name: Replay the recorded demo run
         # The README's demo claims a specific stream of steps. Replay the run behind it and
         # fail if a single printed line has moved: the picture must stay an artifact of a

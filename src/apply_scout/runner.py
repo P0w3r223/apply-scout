@@ -19,6 +19,7 @@ from apply_scout.llm import AnthropicLLM, LLMClient
 from apply_scout.structuring import Structurer
 from apply_scout.tools.real import real_tools
 from apply_scout.tools.registry import ToolRegistry
+from apply_scout.tools.submit_report import SubmitReport
 from apply_scout.trajectory import TrajectoryStep
 
 
@@ -49,6 +50,7 @@ def run_assessment(
     structurer: Structurer | None = None,
     github: GitHubClient | None = None,
     extractor: Extractor | None = None,
+    submit: SubmitReport | None = None,
 ) -> AgentResult:
     """Run one fit assessment. Returns the result (including the trajectory to persist).
 
@@ -57,7 +59,13 @@ def run_assessment(
     recording or replaying collaborators without the caller re-assembling the tools by hand."""
     llm = llm or AnthropicLLM()
     tools = tools or ToolRegistry(
-        real_tools(fetcher=fetcher, structurer=structurer, github=github, extractor=extractor)
+        real_tools(
+            fetcher=fetcher,
+            structurer=structurer,
+            github=github,
+            extractor=extractor,
+            submit=submit,
+        )
     )
     agent = Agent(
         llm,

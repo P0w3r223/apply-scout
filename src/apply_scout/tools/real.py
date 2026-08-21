@@ -15,6 +15,7 @@ from apply_scout.tools.base import Tool
 from apply_scout.tools.fetch_job_posting import FetchJobPosting
 from apply_scout.tools.github_evidence import GithubEvidence
 from apply_scout.tools.read_cv import ReadCV
+from apply_scout.tools.submit_report import SubmitReport
 
 
 def real_tools(
@@ -24,8 +25,13 @@ def real_tools(
     github: GitHubClient | None = None,
     extractor: Extractor | None = None,
     model: str = config.STRUCTURE_MODEL,
+    submit: SubmitReport | None = None,
 ) -> list[Tool]:
-    """The live tools for a real run. Defaults to production wiring; inject to test."""
+    """The live tools for a real run. Defaults to production wiring; inject to test.
+
+    `submit` is the terminal tool the run finishes with. A caller that needs the submitted
+    deliverable — the CLI to print it, the eval harness to score it — passes its own
+    instance and reads `submit.submitted` afterwards."""
     fetcher = fetcher or HttpFetcher()
     structurer = structurer or AnthropicStructurer()
     github = github or GitHubClient(cache=DiskCache(config.CACHE_DIR))
@@ -35,4 +41,5 @@ def real_tools(
         ),
         ReadCV(structurer=structurer, model=model),
         GithubEvidence(client=github),
+        submit or SubmitReport(),
     ]
