@@ -70,6 +70,11 @@ trajectory, the harness (later) scores the trajectory.
   never as exceptions — the loop must not crash on a bad tool call.
 - **Budgets stop gracefully.** Hitting `max_steps` / `max_tokens` / `max_cost` ends the
   run with a **partial report**, not a raised exception.
+- **A partial deliverable never reports as `completed`.** A reply cut off by
+  `MAX_OUTPUT_TOKENS` is continued in a *user* turn (prefilling the assistant turn is
+  rejected by this model family) and the pieces are stitched; running out of
+  `MAX_CONTINUATIONS` ends the run as `truncated`. `RunStatus` is what the eval's
+  completion rate reads — it has to mean what it says.
 - **No hallucinated evidence.** A cover-letter/report claim must trace to an `Evidence`
   with a real, checkable URL. No evidence → rated `none`; do not paper over the gap.
 - **Every prompt/loop change ⇒ re-run the harness.** Results land in `eval/results/`
@@ -142,11 +147,16 @@ python scripts/demo.py render      # docs/demo-cast.json -> docs/demo.svg
    table byte-for-byte. Main-text extraction is a recorded seam too — trafilatura's output
    differs between versions, so re-running it on replay changes the structuring key and
    misses. `env.py` loads `.env` so a real run needs no shell setup.
-9. **The demo (this milestone).** ✅ `scripts/demo.py capture` records a real run (recorded
-   2026-08-21: 8 steps, $0.5948, 138 s → `eval/cassettes/run.jsonl`) and `scripts/demo.py render`
-   turns the cast into `docs/demo.svg` — a CSS-animated, fixed-size scrolling terminal, no
-   recorder binary and no JavaScript. The same command with `--cassette-mode replay` reproduces
-   the stream character for character in 0.4 s with no key, so the picture stays regenerable.
+9. **The demo.** ✅ `scripts/demo.py capture` records a real run (recorded 2026-08-21: 8 steps,
+   $0.5948, 138 s → `eval/cassettes/run.jsonl`) and `scripts/demo.py render` turns the cast into
+   `docs/demo.svg` — a CSS-animated, fixed-size scrolling terminal, no recorder binary and no
+   JavaScript. `--cassette-mode replay` regenerates it offline, so the picture stays an artifact
+   of a reproducible run; CI replays it and fails on any drift.
+10. **Truthful completion (this milestone).** ✅ A reply stopped by `max_tokens` used to be
+   reported as `completed` with the report cut off mid-table. The loop now asks for the rest in a
+   user turn and stitches the pieces; out of continuations it returns the new `RunStatus.TRUNCATED`.
+   On the recorded demo the continuation is what the cost ceiling stops, so the run ends
+   `budget_stopped (breach: max_cost)` — both safety mechanisms visible, and no false success.
 
 ## What not to do
 

@@ -18,7 +18,7 @@ from enum import StrEnum
 from apply_scout import config
 from apply_scout.budget import Budget, BudgetBreach, BudgetTracker
 from apply_scout.llm import LLMClient
-from apply_scout.prompts import DEFAULT_SYSTEM_PROMPT
+from apply_scout.prompts import CONTINUE_INSTRUCTION, DEFAULT_SYSTEM_PROMPT
 from apply_scout.tools.registry import ToolRegistry
 from apply_scout.trajectory import StepKind, TrajectoryLogger, TrajectoryStep
 
@@ -26,12 +26,14 @@ from apply_scout.trajectory import StepKind, TrajectoryLogger, TrajectoryStep
 class RunStatus(StrEnum):
     COMPLETED = "completed"  # the model finished on its own
     BUDGET_STOPPED = "budget_stopped"  # a safety ceiling ended the run early
+    TRUNCATED = "truncated"  # the answer still hit the output cap after every continuation
 
 
 @dataclass(frozen=True)
 class AgentConfig:
     model: str = config.DEFAULT_MODEL
     budget: Budget = field(default_factory=Budget)
+    max_continuations: int = config.MAX_CONTINUATIONS
 
 
 @dataclass(frozen=True)
@@ -78,7 +80,11 @@ class Agent:
         tracker = BudgetTracker(self.cfg.budget)
         messages: list[dict] = [{"role": "user", "content": task}]
         step_index = 0
-        last_text = ""
+        # An answer cut off by the output cap arrives in pieces; `answer` collects them so
+        # the caller sees one report rather than the last fragment of it.
+        answer: list[str] = []
+        continuing = False
+        continuations = 0
 
         while True:
             # Budget is checked *before* each model call, so the run makes at most
@@ -92,7 +98,9 @@ class Agent:
                         note=f"stopped: {breach.value}",
                     )
                 )
-                return self._result(RunStatus.BUDGET_STOPPED, last_text, traj, tracker, breach)
+                return self._result(
+                    RunStatus.BUDGET_STOPPED, "".join(answer), traj, tracker, breach
+                )
 
             tracker.record_step()
             response = self.llm.complete(
@@ -104,7 +112,8 @@ class Agent:
             tracker.record_usage(
                 response.usage.input_tokens, response.usage.output_tokens, response.model
             )
-            last_text = response.text
+            # A continuation extends the answer in progress; anything else starts a new one.
+            answer = [*answer, response.text] if continuing else [response.text]
             record(
                 TrajectoryStep(
                     index=step_index,
@@ -124,10 +133,32 @@ class Agent:
 
             # No tool calls -> the model is done; that is the normal exit.
             if response.stop_reason != "tool_use" or not response.tool_calls:
+                truncated = response.stop_reason == "max_tokens"
+                if truncated and continuations < self.cfg.max_continuations:
+                    # The answer is unfinished, not the run. Ask for the rest in a *user*
+                    # turn — prefilling the assistant's own turn is rejected by this model
+                    # family — and let the budget check at the top of the loop bound it.
+                    continuations += 1
+                    continuing = True
+                    messages.append({"role": "user", "content": CONTINUE_INSTRUCTION})
+                    record(
+                        TrajectoryStep(
+                            index=step_index,
+                            kind=StepKind.CONTINUATION,
+                            note=f"output cap reached; continuing ({continuations}"
+                            f"/{self.cfg.max_continuations})",
+                        )
+                    )
+                    step_index += 1
+                    continue
+                # Out of continuations while still truncated: say so. Reporting a partial
+                # report as `completed` is exactly the failure this status exists to prevent.
+                status = RunStatus.TRUNCATED if truncated else RunStatus.COMPLETED
                 record(
                     TrajectoryStep(index=step_index, kind=StepKind.FINAL, note=response.stop_reason)
                 )
-                return self._result(RunStatus.COMPLETED, last_text, traj, tracker, None)
+                return self._result(status, "".join(answer), traj, tracker, None)
+            continuing = False
 
             # Run every requested tool and return all results in one user turn (splitting
             # them would quietly train the model to stop calling tools in parallel).
