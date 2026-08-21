@@ -34,7 +34,9 @@ src/apply_scout/
   formatting.py   # render steps (--verbose) and the run summary (ASCII, pure)
   cli.py          # `apply-scout run --url ... --cv ... --github-user ...` (+ __main__ for `python -m`)
   synthesis.py    # generate MatchReport + CoverLetterDraft from gathered evidence (LLM-structured)
-  guardrail.py    # deterministic anti-hallucination guardrail + unsupported-fraction measurement
+  matching.py     # crude token containment, shared by the guardrail and the harness (no deps)
+  guardrail.py    # deterministic anti-hallucination guardrail: letter->report filter (removes) +
+                  # report->posting grounding (measures only, removes nothing)
   pipeline.py     # assess(): deterministic gather -> synthesize -> guard; produces the deliverables
   evaluation.py   # the eval harness: metrics (requirement F1, citation fidelity), aggregate, table
   cassette.py     # record/replay of every external seam (LLM, structurer, fetch, extract, GitHub)
@@ -191,6 +193,21 @@ python scripts/demo.py render      # docs/demo-cast.json -> docs/demo.svg
    loop's prompt tokens came from cache, **26% saved** ($0.3994 → $0.2950), 16% on the shorter demo,
    and 0% on the task where the loop gave up after one call. Re-recording also moved the loop's
    completion 75% → 62% with no code change — eight tasks is a small sample (ADR-0007).
+15. **Grounding the report in the posting (this milestone).** ✅ The guardrail checked the letter
+   against the report and **nothing checked the report against the posting** — the hole an earlier
+   recording fell straight into (ten requirements lifted from the candidate's CV on a page the loop
+   could not read, every citation valid). `guardrail.requirement_grounding` scores what a report rates
+   against the posting `fetch_job_posting` actually returned — captured on the tool instance
+   (`FetchJobPosting.fetched`, the `SubmitReport.submitted` idiom), carried as `Assessment.source_posting`
+   so it is never the report's own account of itself, and published as **Report grounded**. A report
+   rating requirements with **no** posting behind it scores 0.0, not `n/a`: that case *is* the
+   measurement (ADR-0008). Cost **$0** — a pure function of recorded assessments, tool schemas and
+   prompts untouched, so both tables re-scored offline (0 recorded). **It reads 1.00 everywhere:** the
+   fabricating run is no longer in the cassette (the caching re-record replaced it with a refusal), so
+   the column is a control that fired nowhere, and the README says so. Surfaced the underlying cause,
+   deliberately unfixed here: an unreadable page still yields *some* text, so the tool returns a valid
+   `JobPosting` with **zero requirements** instead of an error — fixing that changes the conversation
+   the cassette is keyed on and costs a full re-record.
 
 ## What not to do
 

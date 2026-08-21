@@ -48,6 +48,12 @@ class FetchJobPosting(PydanticTool):
         self._extractor = extractor or MainTextExtractor()
         self._model = model
         self._max_attempts = max_attempts
+        # The last posting this tool actually returned, for a caller that needs to check a
+        # deliverable against its source (see `guardrail.requirement_grounding`). The
+        # trajectory only keeps a log-safe summary, so nothing downstream can recover the
+        # posting from there — and a run where this stays None is a run that never read the
+        # ad, which is itself the finding. Same idiom as `SubmitReport.submitted`.
+        self.fetched: JobPosting | None = None
 
     def _run(self, data: FetchJobPostingInput) -> ToolResult:  # type: ignore[override]
         try:
@@ -73,6 +79,7 @@ class FetchJobPosting(PydanticTool):
 
         # Trust our own URL over whatever the model echoed back.
         posting = posting.model_copy(update={"url": data.url})
+        self.fetched = posting
         return ToolResult.success(
             posting.model_dump_json(),
             summary=f"posting '{posting.title}' with {len(posting.requirements)} requirement(s)",
