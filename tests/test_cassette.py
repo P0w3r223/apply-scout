@@ -343,6 +343,34 @@ def test_record_reuses_a_github_body_it_just_fetched():
     assert cache.get("https://api/repos") == "body"
 
 
+def _missing_readme_transport(*, offline: bool) -> httpx.Client:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if offline:
+            raise AssertionError(f"replay reached the network: {request.url}")
+        return httpx.Response(404, json={"message": "Not Found"})
+
+    return httpx.Client(transport=httpx.MockTransport(handler))
+
+
+def test_a_repo_without_a_readme_replays_as_the_answer_it_recorded():
+    """"No README here" is a real GitHub answer, and `get_readme` treats it as non-fatal.
+
+    If a 404 leaves nothing in the cassette, the replay of a run that handled it perfectly
+    well dies on a miss instead — a recording that cannot reproduce its own run."""
+    cassette = Cassette()
+    recording = GitHubClient(
+        client=_missing_readme_transport(offline=False),
+        cache=CassetteCache(cassette, CassetteMode.RECORD),
+    )
+    assert recording.get_readme("u", "no-readme") is None
+
+    replaying = GitHubClient(
+        client=_missing_readme_transport(offline=True),
+        cache=CassetteCache(cassette, CassetteMode.REPLAY),
+    )
+    assert replaying.get_readme("u", "no-readme") is None
+
+
 # --- persistence --------------------------------------------------------------
 
 

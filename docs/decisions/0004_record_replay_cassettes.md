@@ -29,7 +29,7 @@ Every outbound dependency is already an injected protocol: `LLMClient`, `Structu
 `Fetcher`, and the GitHub response `Cache`. `cassette.py` wraps each one with a recorder
 that stores the response in a keyed JSONL cassette and serves it again on replay. The
 cassette for the published task set is **committed** (`eval/cassettes/eval.jsonl`), and CI
-replays the evaluation from it on every push.
+replays the evaluation from it on every pull request and every push to `main`.
 
 Modes: `record` (always call upstream, store the result), `replay` (never call upstream),
 `auto` (replay a hit, record a miss — so extending a task set only pays for what is new),
@@ -91,6 +91,12 @@ when it crosses the network.
 - **Entries serialize sorted by key.** A re-record produces a reviewable diff instead of
   reshuffling a 1.5 MB file, and `.gitattributes` marks the cassette `-text` so no
   line-ending conversion can silently corrupt it.
+- **A stable "not found" is recorded; a transient failure is not.** A posting that 404s and
+  a repo with no README are *answers* — the task set contains both on purpose — so they go
+  into the cassette and replay the same way. A rate limit or a 5xx is noise: recording it
+  would bake one bad afternoon into the published numbers, so it is left out, and a replay
+  of a run that hit one fails loudly and asks to be re-cut. The distinction is whether the
+  response would come back the same tomorrow.
 
 ## Consequences
 

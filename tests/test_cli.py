@@ -145,6 +145,9 @@ def test_run_replay_injects_the_cassette_collaborators(tmp_path, monkeypatch, ca
     assert isinstance(captured["llm"], CassetteLLM)
     assert not captured["llm"].live  # replay must not construct a real client
     assert not captured["fetcher"].live
+    # Extraction is a recorded seam too — a live one here would re-derive the page text
+    # from the local trafilatura and miss every entry keyed on the recorded text.
+    assert not captured["extractor"].live
     assert "cassette[replay]" in capsys.readouterr().out
 
 
