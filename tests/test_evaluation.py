@@ -19,7 +19,8 @@ from apply_scout.evaluation import (
     evaluate_and_report,
     evaluate_task,
     format_comparison,
-    requirement_f1,
+    mentions,
+    requirement_coverage,
     run_evaluation,
 )
 from apply_scout.guardrail import GuardrailResult
@@ -52,10 +53,38 @@ def _task(expected) -> EvalTask:
     )
 
 
-def test_requirement_f1_is_case_insensitive_and_set_based():
-    assert requirement_f1(["Python", "SQL"], ["python", "sql"]) == 1.0
-    assert requirement_f1(["Python", "Java"], ["Python", "SQL"]) == 0.5  # tp=1, p=r=0.5
-    assert requirement_f1([], []) == 1.0
+def test_a_skill_counts_when_a_requirement_names_it():
+    """The annotation says `PyTorch`; the posting says a whole sentence around it."""
+    assert mentions("Experience with PyTorch or TensorFlow in production", "PyTorch")
+    assert mentions("Strong Python for AI/ML workloads", "python")
+    assert mentions("chunking strategies, embedding models, vector DBs", "embeddings")  # plural
+    assert mentions("Deep knowledge of scikit-learn", "scikit-learn")  # punctuation
+
+
+def test_a_skill_does_not_count_on_a_coincidental_word():
+    assert not mentions("Experience with TensorFlow", "PyTorch")
+    # Both words present, but not as the phrase — `vector` and `databases` are far apart.
+    assert not mentions("vector search over relational databases", "vector databases")
+    # Substring of a longer word is not a mention.
+    assert not mentions("Familiarity with Rust", "R")
+
+
+def test_coverage_is_recall_over_the_annotated_skills():
+    extracted = [
+        "Strong Python for AI/ML workloads",
+        "Experience with Docker and Kubernetes",
+    ]
+    assert requirement_coverage(extracted, ["Python", "Docker", "Kubernetes"]) == 1.0
+    assert requirement_coverage(extracted, ["Python", "Airflow"]) == 0.5
+    assert requirement_coverage([], ["Python"]) == 0.0
+    assert requirement_coverage([], []) == 1.0
+
+
+def test_coverage_does_not_punish_extracting_more_than_the_annotation():
+    """The annotation is the skills a human judged load-bearing, never the whole posting.
+    Extracting twenty further real requirements is not a mistake, and must not score as one."""
+    thorough = ["Python", *[f"unannotated requirement {i}" for i in range(20)]]
+    assert requirement_coverage(thorough, ["Python"]) == 1.0
 
 
 def test_citation_fidelity_is_grounded_over_cited():
@@ -77,7 +106,7 @@ def test_evaluate_task_scores_a_completed_run():
     )
     metrics = evaluate_task(_task(["Python", "FastAPI"]), a, cost_usd=0.01, llm_calls=4)
     assert metrics.completed
-    assert metrics.requirement_f1 == 1.0
+    assert metrics.requirement_coverage == 1.0
     assert metrics.citation_fidelity == 1.0
     assert metrics.llm_calls == 4
     assert metrics.cost_usd == 0.01
@@ -98,7 +127,7 @@ def test_aggregate_uses_completed_only_and_medians():
     agg = aggregate("m", metrics)
     assert agg.n_tasks == 3
     assert agg.completion_rate == 2 / 3
-    assert agg.mean_requirement_f1 == 0.75
+    assert agg.mean_requirement_coverage == 0.75
     assert agg.median_llm_calls == 5  # median of [4, 6]
     assert agg.median_cost_usd == 0.02  # median of [0.01, 0.03]
 

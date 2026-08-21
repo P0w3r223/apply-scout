@@ -12,6 +12,7 @@ Assessment, so the scoring is deterministic and unit-tested with hand-built resu
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -42,7 +43,7 @@ class EvalTask(BaseModel):
 class TaskMetrics:
     name: str
     completed: bool
-    requirement_f1: float
+    requirement_coverage: float
     citation_fidelity: float
     unsupported_fraction: float
     llm_calls: int
@@ -54,7 +55,7 @@ class Aggregate:
     model: str
     n_tasks: int
     completion_rate: float
-    mean_requirement_f1: float
+    mean_requirement_coverage: float
     mean_citation_fidelity: float
     median_llm_calls: float
     median_cost_usd: float
@@ -64,22 +65,46 @@ class Aggregate:
 AssessFn = Callable[[EvalTask], "tuple[Assessment | None, float, int]"]
 
 
-def _norm(text: str) -> str:
-    return text.strip().lower()
+def _tokens(text: str) -> list[str]:
+    """Lowercased word tokens, with a trailing plural `s` folded away.
+
+    Deliberately crude: it exists to stop `embeddings` and `embedding models` counting
+    as different skills, not to do linguistics. Anything cleverer would need its own
+    tests to justify, and a metric nobody can re-derive by hand is worse than a blunt one.
+    """
+    words = re.split(r"[^a-z0-9+#]+", text.lower())
+    return [w[:-1] if len(w) > 3 and w.endswith("s") else w for w in words if w]
 
 
-def requirement_f1(extracted: list[str], expected: list[str]) -> float:
-    """F1 of the extracted requirement set vs the annotated one (case-insensitive)."""
-    got = {_norm(x) for x in extracted}
-    want = {_norm(x) for x in expected}
-    if not got and not want:
+def mentions(requirement_text: str, expected: str) -> bool:
+    """Whether one extracted requirement names the annotated skill.
+
+    Containment, not equality: an annotation says `PyTorch` while a posting says
+    "experience with PyTorch or TensorFlow in production". Those are the same finding,
+    and scoring them as a miss measures the annotation format rather than the extraction.
+    Tokens must appear consecutively, so `vector databases` does not match a requirement
+    that merely happens to contain both words far apart.
+    """
+    want = _tokens(expected)
+    if not want:
+        return False
+    got = _tokens(requirement_text)
+    return any(got[i : i + len(want)] == want for i in range(len(got) - len(want) + 1))
+
+
+def requirement_coverage(extracted: list[str], expected: list[str]) -> float:
+    """Fraction of the annotated skills that appear somewhere in the extracted requirements.
+
+    This is recall, and recall alone, on purpose — see `docs/decisions/0005`. The
+    annotation lists the skills a human judged load-bearing, never every requirement in
+    the posting, so there is no denominator that would make precision mean anything: a
+    posting with 24 requirements annotated with 9 skills caps precision at 9/24 however
+    perfect the extraction is. Reporting an F1 built on that denominator would grade the
+    annotation's length, not the agent.
+    """
+    if not expected:
         return 1.0
-    tp = len(got & want)
-    precision = tp / len(got) if got else 0.0
-    recall = tp / len(want) if want else 0.0
-    if precision + recall == 0:
-        return 0.0
-    return 2 * precision * recall / (precision + recall)
+    return sum(any(mentions(x, want) for x in extracted) for want in expected) / len(expected)
 
 
 def citation_fidelity(assessment: Assessment) -> float:
@@ -100,7 +125,7 @@ def evaluate_task(
     return TaskMetrics(
         name=task.name,
         completed=True,
-        requirement_f1=requirement_f1(extracted, list(task.expected_requirements)),
+        requirement_coverage=requirement_coverage(extracted, list(task.expected_requirements)),
         citation_fidelity=citation_fidelity(assessment),
         unsupported_fraction=assessment.guardrail.unsupported_before,
         llm_calls=llm_calls,
@@ -118,7 +143,7 @@ def run_evaluation(tasks: list[EvalTask], assess_fn: AssessFn) -> list[TaskMetri
                 TaskMetrics(
                     name=task.name,
                     completed=False,
-                    requirement_f1=0.0,
+                    requirement_coverage=0.0,
                     citation_fidelity=0.0,
                     unsupported_fraction=0.0,
                     llm_calls=llm_calls,
@@ -136,7 +161,9 @@ def aggregate(model: str, metrics: list[TaskMetrics]) -> Aggregate:
         model=model,
         n_tasks=len(metrics),
         completion_rate=(len(completed) / len(metrics)) if metrics else 0.0,
-        mean_requirement_f1=mean(m.requirement_f1 for m in completed) if completed else 0.0,
+        mean_requirement_coverage=(
+            mean(m.requirement_coverage for m in completed) if completed else 0.0
+        ),
         mean_citation_fidelity=mean(m.citation_fidelity for m in completed) if completed else 0.0,
         median_llm_calls=median(m.llm_calls for m in completed) if completed else 0.0,
         median_cost_usd=median(m.cost_usd for m in completed) if completed else 0.0,
@@ -146,12 +173,13 @@ def aggregate(model: str, metrics: list[TaskMetrics]) -> Aggregate:
 def format_comparison(aggregates: list[Aggregate]) -> str:
     """A markdown table, one row per model."""
     header = (
-        "| Model | Tasks | Completed | Req F1 | Citation fidelity "
+        "| Model | Tasks | Completed | Req coverage | Citation fidelity "
         "| Median LLM calls | Median cost |\n"
         "|---|---|---|---|---|---|---|\n"
     )
     rows = "".join(
-        f"| {a.model} | {a.n_tasks} | {a.completion_rate:.0%} | {a.mean_requirement_f1:.2f} "
+        f"| {a.model} | {a.n_tasks} | {a.completion_rate:.0%} "
+        f"| {a.mean_requirement_coverage:.2f} "
         f"| {a.mean_citation_fidelity:.2f} | {a.median_llm_calls:g} | ${a.median_cost_usd:.4f} |\n"
         for a in aggregates
     )

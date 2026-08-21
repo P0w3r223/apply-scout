@@ -45,17 +45,22 @@ safety budgets and a trajectory-evaluation harness.</p>
   <p>The harness runs each model end-to-end over the task set and records every metric from the
   logged trajectory. Cost is measured through a single token-accounting helper, not estimated.</p>
   <table>
-    <tr><th>Model</th><th>Tasks</th><th>Completed</th><th>Req F1</th><th>Citation fidelity</th><th>Median calls</th><th>Median cost</th></tr>
-    <tr><td>claude-haiku-4-5</td><td>8</td><td>75%</td><td>0.33</td><td>0.83</td><td>4</td><td><strong>$0.0291</strong></td></tr>
-    <tr><td>claude-opus-4-8</td><td>8</td><td>75%</td><td>0.23</td><td>1.00</td><td>4</td><td>$0.1827</td></tr>
+    <tr><th>Model</th><th>Tasks</th><th>Completed</th><th>Req coverage</th><th>Citation fidelity</th><th>Median calls</th><th>Median cost</th></tr>
+    <tr><td>claude-haiku-4-5</td><td>8</td><td>75%</td><td>0.80</td><td>0.83</td><td>4</td><td><strong>$0.0291</strong></td></tr>
+    <tr><td>claude-opus-4-8</td><td>8</td><td>75%</td><td>0.68</td><td>1.00</td><td>4</td><td>$0.1827</td></tr>
   </table>
   <p class="sub">On this task set the strong model costs roughly six times more per task and does not
-  buy a better match report: the same completion and a lower requirement-F1. Where it does win is
+  buy a better match report: the same completion and lower requirement coverage. Where it does win is
   citation fidelity — 1.00 against 0.83 — because the cheaper model invents citations that the
   guardrail then has to strip. The honest reading is a split decision: the inexpensive model is the
   better default for extraction and matching, and the money is better spent on the letter, where
-  fabrication actually shows up. Requirement-F1 is an exact set match after case-folding, so it should
-  be read as a strict lower bound on extraction quality rather than a failure to read the posting.</p>
+  fabrication actually shows up.</p>
+  <p class="sub">Requirement coverage is the share of human-annotated skills the extraction found —
+  recall only, deliberately. The annotation lists the handful of skills a human judged load-bearing,
+  not all two dozen requirements in a posting, so a precision denominator would penalise reading the
+  posting thoroughly. This column used to report an exact-match F1 of 0.33 and 0.23; on this task set
+  a flawless extraction could not have scored above 0.68 under that metric. Re-scoring cost nothing,
+  because the metric is a pure function of the recorded runs below.</p>
   <p class="sub">Completion is 75% rather than 100% because two of the eight advertisements were taken
   down between the first run and this one and now return HTTP 404. Nothing in the pipeline regressed;
   the web changed underneath the task set — which is what the cassette below exists to fix.</p>

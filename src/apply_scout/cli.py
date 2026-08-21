@@ -163,14 +163,15 @@ def _run(args: argparse.Namespace) -> int:
 
 def _eval_table(aggregates: list[Aggregate]) -> Table:
     table = Table(title="Evaluation — model comparison")
-    for column in ("Model", "Tasks", "Completed", "Req F1", "Citation", "Med. calls", "Med. cost"):
+    columns = ("Model", "Tasks", "Completed", "Req cov.", "Citation", "Med. calls", "Med. cost")
+    for column in columns:
         table.add_column(column)
     for a in aggregates:
         table.add_row(
             a.model,
             str(a.n_tasks),
             f"{a.completion_rate:.0%}",
-            f"{a.mean_requirement_f1:.2f}",
+            f"{a.mean_requirement_coverage:.2f}",
             f"{a.mean_citation_fidelity:.2f}",
             f"{a.median_llm_calls:g}",
             f"${a.median_cost_usd:.4f}",
