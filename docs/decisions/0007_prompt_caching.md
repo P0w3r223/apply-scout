@@ -49,15 +49,38 @@ The structurer deliberately does **not** ask for caching: every call carries dif
 content, and its shared prefix sits under the cheap model's cache minimum. Its counters are
 read defensively anyway, so enabling it later cannot silently drop the cost.
 
+## What it saved (measured)
+
+Re-recorded on 2026-08-21 for **$0.73** total. Only the model turns were re-recorded: the
+fetch, extraction, GitHub and structuring entries replayed from the existing cassette, so the
+runs saw byte-identical inputs and the comparison is not confounded by a changed posting.
+
+The saving is measured **inside each run** — the same prompts and the same replies, priced as
+if none of it had been cached. Comparing two separate runs would credit the cache with the
+model's own sampling variance:
+
+| recorded run | prompt tokens | from cache | cost | same run, uncached | saved |
+|---|---:|---:|---:|---:|---:|
+| eval loop — Haiku, 38 turns | 248,710 | 53% | $0.2950 | $0.3994 | **26%** |
+| demo — Opus, 5 turns | 48,978 | 51% | $0.4368 | $0.5195 | **16%** |
+
+Per task (loop, median): **$0.0741 → $0.0592**. The spread is the interesting part — 36% on the
+longest task, and **0% on the Reddit task**, where the loop gave up after a single call so
+nothing was ever re-sent. The five-turn demo saves less than the 38-turn eval for the same
+reason in miniature: at 1.25× a cache *write* is a loss until something reads it back. Caching
+pays for turns over a growing prefix, not for calling a model.
+
 ## Consequences
 
-- **Shipping this cost nothing.** No re-record, no cassette churn, no change to any
-  published number — the committed recordings predate caching and replay as the uncached
-  calls they were.
-- **Demonstrating it does cost something**, and has not been done. Replayed usage carries no
-  cache counters, so the saving cannot be shown from what is committed; publishing a
-  cached-cost row means re-recording the demo (~$0.54) and the loop pilot (~$0.52). Until
-  then the tables describe uncached runs, and this ADR does not claim a measured saving.
+- **Shipping this cost nothing; measuring it cost $0.73.** No cassette churn and no change to
+  the pipeline rows — their seams were never touched.
+- **Re-recording moved the loop's quality numbers, and the code did not.** Completion went
+  75% → 62% and the citation rate 0.74 → 0.45 on identical inputs. That is sampling on an
+  eight-task set, and it is now stated wherever those numbers appear: the ordering survived
+  both runs, the decimals did not.
+- **The published table now mixes bases** — the loop row is cached, the pipeline rows are not.
+  The uncached counterfactual ($0.0741 median) is published beside it so the runner comparison
+  is made on one basis rather than flattering the loop.
 - **The first call of each task will not cache on the cheap model.** The minimum cacheable
   prefix is 4096 tokens for `claude-haiku-4-5` and 1024 for `claude-opus-4-8` — not
   monotonic across tiers, hence `CACHE_MIN_PREFIX_TOKENS` as a table. The loop's opening

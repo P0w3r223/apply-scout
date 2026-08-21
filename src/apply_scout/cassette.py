@@ -319,8 +319,15 @@ class CassetteLLM:
             response = self._inner.complete(
                 system=system, messages=messages, tools=tools, model=model
             )
+            # Priced with the cache counters, or the entry would record a turn as costing
+            # only its uncached remainder. `input_tokens` stays the remainder, matching the
+            # API's own field; the full prompt is in the payload's usage.
             cost = config.token_cost(
-                response.usage.input_tokens, response.usage.output_tokens, response.model
+                response.usage.input_tokens,
+                response.usage.output_tokens,
+                response.model,
+                cache_read_tokens=response.usage.cache_read_tokens,
+                cache_write_tokens=response.usage.cache_write_tokens,
             )
             return (
                 _response_to_payload(response),
