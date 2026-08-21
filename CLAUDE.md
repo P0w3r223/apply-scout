@@ -134,8 +134,8 @@ python scripts/demo.py render      # docs/demo-cast.json -> docs/demo.svg
    anti-hallucination `guardrail` (removes fabricated citations; measures unsupported before/after),
    and `pipeline.assess()`.
 6. **Evaluation harness.** ✅ `evaluation` + `apply-scout eval`: annotated tasks
-   scored for completion, requirement F1, citation fidelity, median LLM calls / cost → markdown
-   table comparing two models.
+   scored for completion, requirement coverage, citation fidelity, median LLM calls / cost →
+   markdown table comparing two models.
 7. **Interface + docs.** ✅ rich CLI (colored step stream + eval table),
    README with the eval-table shape + cost analysis + honest limitations + mermaid diagram,
    ADR-0002 (pipeline vs loop) and ADR-0003 (structured outputs + guardrail).
@@ -152,11 +152,17 @@ python scripts/demo.py render      # docs/demo-cast.json -> docs/demo.svg
    `docs/demo.svg` — a CSS-animated, fixed-size scrolling terminal, no recorder binary and no
    JavaScript. `--cassette-mode replay` regenerates it offline, so the picture stays an artifact
    of a reproducible run; CI replays it and fails on any drift.
-10. **Truthful completion (this milestone).** ✅ A reply stopped by `max_tokens` used to be
+10. **Truthful completion.** ✅ A reply stopped by `max_tokens` used to be
    reported as `completed` with the report cut off mid-table. The loop now asks for the rest in a
    user turn and stitches the pieces; out of continuations it returns the new `RunStatus.TRUNCATED`.
    On the recorded demo the continuation is what the cost ceiling stops, so the run ends
    `budget_stopped (breach: max_cost)` — both safety mechanisms visible, and no false success.
+11. **A metric that means something (this milestone).** ✅ `requirement_f1` scored an exact set
+   match against an annotation that lists only the load-bearing skills, so extracting a posting
+   thoroughly *lowered* the score — a flawless extraction could not have beaten 0.68 on this task
+   set. Replaced by `requirement_coverage` (recall, containment matching); precision is not
+   reported because no honest denominator exists here (ADR-0005). Re-scoring cost $0: the metric
+   is a pure function of the recorded assessments, so the cassette recomputed the table offline.
 
 ## What not to do
 

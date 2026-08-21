@@ -97,10 +97,10 @@ The harness scores each annotated task (see [`eval/tasks.example.json`](eval/tas
 the format, including edge cases: English postings, no salary range, JS-only pages, repos without a
 README) and writes a markdown table comparing two models:
 
-| Model | Tasks | Completed | Req F1 | Citation fidelity | Median LLM calls | Median cost |
+| Model | Tasks | Completed | Req coverage | Citation fidelity | Median LLM calls | Median cost |
 |---|---|---|---|---|---|---|
-| `claude-haiku-4-5` | 8 | 75% | 0.33 | 0.83 | 4 | $0.0291 |
-| `claude-opus-4-8` | 8 | 75% | 0.23 | 1.00 | 4 | $0.1827 |
+| `claude-haiku-4-5` | 8 | 75% | 0.80 | 0.83 | 4 | $0.0291 |
+| `claude-opus-4-8` | 8 | 75% | 0.68 | 1.00 | 4 | $0.1827 |
 
 > Real numbers from `apply-scout eval` (2026-08-21) over 8 annotated live postings — 6 English and 2 Polish,
 > from Lever / Greenhouse / SmartRecruiters, plus one deliberately JavaScript-only page as an edge case.
@@ -117,10 +117,14 @@ recorded rather than merely reported — see **Reproducibility** below.
 
 - **Completed** — did the run produce a report + letter without a fatal error. Catches brittleness on
   edge-case postings.
-- **Req F1** — set F1 of the extracted requirements against a human annotation. Measures how well the
-  posting was actually understood, not just fetched. It is an **exact set-match after case-folding**, so a
-  paraphrase or a coarser/finer split counts as a miss — read the ~0.3 scores as a strict lower bound on
-  extraction quality, not as a failure to read the posting.
+- **Req coverage** — the fraction of the human-annotated skills that appear somewhere in the extracted
+  requirements. Measures how well the posting was actually understood, not just fetched. It is recall
+  and nothing else, on purpose: the annotation lists the five to ten skills a human judged
+  load-bearing, never all two dozen requirements in the posting, so there is no denominator that
+  would make precision mean anything — see [ADR-0005](docs/decisions/0005_requirement_coverage_not_f1.md).
+  This column previously reported an exact-match F1 (0.33 / 0.23); on this task set a *flawless*
+  extraction could not have scored above 0.68 under that metric, because every correctly extracted
+  requirement the annotator had not listed counted against it.
 - **Citation fidelity** — of the letter's sentences that cite evidence, the fraction whose citation is
   a real link from the report. The anti-hallucination guardrail computes this deterministically; a
   low number means the model was inventing citations. **Haiku scores 0.83 here and Opus 1.00** — the
@@ -167,7 +171,7 @@ Each eval row runs one model end-to-end, and every model call's token usage flow
 `token_cost()` helper, so per-task cost is measured, not estimated. For this task set the result is
 unambiguous: **`claude-opus-4-8` costs ≈6× more per task than `claude-haiku-4-5` ($0.1827 vs $0.0291)
 and does not buy a better match report** — identical completion (75%, both blocked by the same two dead
-URLs) and a *lower* requirement-F1 (0.23 vs 0.33). The one place the strong model does win is
+URLs) and *lower* requirement coverage (0.68 vs 0.80). The one place the strong model does win is
 **citation fidelity — 1.00 against Haiku's 0.83**: Haiku invents citations that the guardrail then has
 to strip. So the honest reading is a split decision: **Haiku is the better default for extraction and
 matching, and the money is better spent on the letter, where fabrication actually shows up.** That is
@@ -187,7 +191,12 @@ Honest and specific, because an agent that hides its failure modes is worse than
   and README text — not full code search. A skill demonstrated only deep in a source file, with no
   mention in the README, is missed (rated `none`, honestly).
 - **Extraction is only as good as the model.** Odd posting layouts can drop or merge requirements; the
-  Req F1 metric exists precisely to quantify this rather than assume it away.
+  coverage metric exists precisely to quantify this rather than assume it away. The Reddit posting is
+  the worked example — it yields a single extracted requirement and scores **0.00 coverage**.
+- **Nothing measures over-extraction.** Coverage is recall only, so an extractor that split a posting
+  into far too many requirements would still score well. The task set has no exhaustive annotation to
+  support a precision metric, and inventing one from a partial annotation is what the old F1 did
+  wrong ([ADR-0005](docs/decisions/0005_requirement_coverage_not_f1.md)).
 - **The guardrail checks citations, not truth.** It removes sentences citing links absent from the
   report; it does not fact-check a grounded claim's phrasing. It bounds hallucinated *citations*, not
   every possible overstatement.
@@ -216,6 +225,7 @@ Honest and specific, because an agent that hides its failure modes is worse than
 - [ADR-0002 — a deterministic pipeline alongside the agent loop](docs/decisions/0002_pipeline_vs_agent_loop.md)
 - [ADR-0003 — structured outputs with our own validate-and-retry, and a deterministic guardrail](docs/decisions/0003_structured_outputs_and_guardrail.md)
 - [ADR-0004 — record/replay cassettes at our own seams, not at the HTTP layer](docs/decisions/0004_record_replay_cassettes.md)
+- [ADR-0005 — requirement coverage, not requirement F1](docs/decisions/0005_requirement_coverage_not_f1.md)
 
 ## Demo
 
