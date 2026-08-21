@@ -22,7 +22,13 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from apply_scout.contracts import CoverLetterDraft, JobPosting, LetterSentence, MatchReport
+from apply_scout.contracts import (
+    CoverLetterDraft,
+    Evidence,
+    JobPosting,
+    LetterSentence,
+    MatchReport,
+)
 from apply_scout.matching import mentions
 
 
@@ -121,3 +127,49 @@ def requirement_grounding(
     if not sources:
         return 0.0
     return sum(_traces_to(requirement, sources) for requirement in rated) / len(rated)
+
+
+def repo_of(url: str) -> str | None:
+    """The `owner/name` a GitHub URL points at, or `None` if it points at no repository.
+
+    Compared at repository level rather than by exact string, because the tool and the model
+    legitimately name the same repository differently: `github_evidence` returns a README's
+    `html_url` (`…/owner/name/blob/main/README.md`) while a report may cite the repository
+    itself (`…/owner/name`). Those are the same source, and scoring them as a fabrication
+    measures URL formatting, not provenance — a mistake made once by hand while investigating
+    this very gap, which is why the check is defined this way rather than on raw strings.
+    """
+    _, sep, rest = url.partition("github.com/")
+    if not sep:
+        return None
+    owner, _, tail = rest.partition("/")
+    name = tail.partition("/")[0]
+    return f"{owner}/{name}" if owner and name else None
+
+
+def evidence_grounding(report: MatchReport, retrieved: Sequence[Evidence]) -> float | None:
+    """Of the evidence links a report cites, the fraction pointing at a repository the tools
+    actually returned during this run.
+
+    The gap this closes: `guardrail_letter` scores the *letter* against the report, so a link
+    that reaches the report is a valid citation target no matter where it came from. Nothing
+    scored the report's own evidence against what `github_evidence` retrieved — and the report
+    is a deliverable in its own right, printed for a human to click.
+
+    `None` when the report cites no links at all: there is no claim to check, and a report that
+    honestly rates everything `none` must not be scored as if it had invented something. 0.0
+    when it cites links while the tools returned nothing — that asymmetry is the same one
+    `requirement_grounding` makes, and for the same reason.
+    """
+    cited = [
+        evidence.url
+        for assessment in report.assessments
+        for evidence in assessment.evidence
+        if evidence.url
+    ]
+    if not cited:
+        return None
+    available = {repo for e in retrieved if e.url and (repo := repo_of(e.url))}
+    if not available:
+        return 0.0
+    return sum(repo_of(url) in available for url in cited) / len(cited)

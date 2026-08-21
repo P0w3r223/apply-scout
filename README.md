@@ -12,7 +12,7 @@ machine-readable trajectory log, and a proper evaluation are possible.
 
 > Status: **complete — published, with a real evaluation that anyone can re-run.**
 > The full agent, the three real tools, the structured deliverables, the measured anti-hallucination
-> guardrail, and the evaluation harness are built and tested (178 tests, no network or key required).
+> guardrail, and the evaluation harness are built and tested (185 tests, no network or key required).
 > The table under **Evaluation** comes from a real paid run over 8 annotated postings on two models —
 > and every external response is **recorded to a committed cassette**, so `--cassette-mode replay`
 > reproduces that exact table offline, with no API key and at no cost. CI does this on every
@@ -46,6 +46,7 @@ flowchart LR
   JP --> SYN[synthesis]
   CVP --> SYN
   EV --> SYN
+  EV -.->|checked against| G
   SYN --> MR[MatchReport] --> CL[cover letter] --> G[guardrail] --> OUT[report + guarded letter]
   JP -.->|checked against| G
 ```
@@ -67,7 +68,7 @@ no API key** — which is exactly how the tests drive it.
 ```bash
 python -m venv .venv
 .venv/Scripts/python -m pip install -e ".[dev]"   # Windows
-pytest        # 124 tests, all under fakes — no ANTHROPIC_API_KEY needed
+pytest        # 185 tests, all under fakes — no ANTHROPIC_API_KEY needed
 ruff check .
 ```
 
@@ -98,11 +99,11 @@ The harness scores each annotated task (see [`eval/tasks.example.json`](eval/tas
 the format, including edge cases: English postings, no salary range, JS-only pages, repos without a
 README) and writes a markdown table comparing two models:
 
-| Runner | Model | Tasks | Completed | Req coverage | Report grounded | Citation fidelity | Cited | Median LLM calls | Median cost |
-|---|---|---|---|---|---|---|---|---|---|
-| pipeline | `claude-haiku-4-5` | 8 | 75% | 0.76 (5) | 1.00 (5) | 0.75 (4) | 0.29 | 4 | $0.0291 |
-| pipeline | `claude-opus-4-8` | 8 | 75% | 0.62 (5) | 1.00 (5) | 1.00 (1) | 0.11 | 4 | $0.1827 |
-| **agent loop** | `claude-haiku-4-5` | 8 | 62% | 0.76 (5) | 1.00 (5) | **1.00 (4)** | **0.45** | 8 | $0.0592 |
+| Runner | Model | Tasks | Completed | Req coverage | Report grounded | Evidence grounded | Citation fidelity | Cited | Median LLM calls | Median cost |
+|---|---|---|---|---|---|---|---|---|---|---|
+| pipeline | `claude-haiku-4-5` | 8 | 75% | 0.76 (5) | 1.00 (5) | 1.00 (3) | 0.75 (4) | 0.29 | 4 | $0.0291 |
+| pipeline | `claude-opus-4-8` | 8 | 75% | 0.62 (5) | 1.00 (5) | 1.00 (1) | 1.00 (1) | 0.11 | 4 | $0.1827 |
+| **agent loop** | `claude-haiku-4-5` | 8 | 62% | 0.76 (5) | 1.00 (5) | 1.00 (4) | **1.00 (4)** | **0.45** | 8 | $0.0592 |
 
 > The bracketed number is **how many tasks the mean is actually over** — a task with no
 > annotation has no coverage to measure, and a letter that cites nothing has no fidelity.
@@ -174,6 +175,14 @@ recorded rather than merely reported — see **Reproducibility** below.
   requirements with no posting behind it scores 0.00, not `n/a`** — calling the fabrication case
   "not applicable" would drop the one run the metric exists for. It reads 1.00 everywhere in this
   recording; see the limitations for what that does and does not prove.
+- **Evidence grounded** — of the links the *report* cites, the fraction pointing at a repository
+  `github_evidence` actually returned during that run. This is the link the citation columns cannot
+  see: they score the letter against the report, so a fabricated URL that reaches the report becomes a
+  valid citation target and launders itself into a perfect fidelity. Compared at repository level
+  (`owner/name`), not by URL string — the tool returns a README's link while a report may cite the
+  repository root, and calling those two sources produced a false positive the first time this was
+  measured by hand ([ADR-0009](docs/decisions/0009_evidence_grounding.md)). Reads 1.00 across the
+  recording: every cited link traces to a repository the tools retrieved.
 - **Citation fidelity** — of the letter's sentences that cite evidence, the fraction whose citation is
   a real link from the report. The anti-hallucination guardrail computes this deterministically; a low
   number means the model was inventing citations. **Never read it without the next column**: a letter
@@ -306,12 +315,14 @@ Honest and specific, because an agent that hides its failure modes is worse than
   requirement list **verbatim**: neither paraphrases, neither adds. So the column can only fall when a
   report rates requirements the posting never yielded — a real and worthwhile guard, but not the general
   "is this report grounded" check the name suggests.
-- **Nothing yet checks the report's *evidence* against the tools.** One level down, the same question has
-  room to fail and does: on `konux-senior-data-scientist` the loop's report cites
-  `https://github.com/P0w3r223/P0w3r223` among 29 evidence links, and that string appears in the cassette
-  only inside model output — never in a GitHub response. `citation_fidelity` cannot see it, because it
-  scores the letter against the report and the URL *is* in the report. Here the letter happened not to
-  cite it, so nothing was removed; the report still links to a repository no tool ever returned.
+- **Evidence grounding reads 1.00, and the "catch" that motivated it was a measurement error.** An
+  earlier pass over this cassette reported the loop's `konux` report citing
+  `https://github.com/P0w3r223/P0w3r223` as a link no tool returned. It was not: that repository *is*
+  in the recorded GitHub responses, and `github_evidence` returned its README URL
+  (`…/blob/main/README.md`) while the report cited the repository itself. Comparing raw URL strings
+  called one source two, which is why **Evidence grounded** compares the `owner/name` a link points at
+  rather than the string. Scored that way, every cited link in this recording traces to a repository the
+  tools actually retrieved.
 - **The guardrail checks citations, not truth.** It removes sentences citing links absent from the
   report; it does not fact-check a grounded claim's phrasing. It bounds hallucinated *citations*, not
   every possible overstatement.
@@ -347,6 +358,7 @@ Honest and specific, because an agent that hides its failure modes is worse than
 - [ADR-0006 — score the agent loop on the same axes as the pipeline](docs/decisions/0006_scoring_the_agent_loop.md)
 - [ADR-0007 — prompt caching at the top level, so the cassettes survive it](docs/decisions/0007_prompt_caching.md)
 - [ADR-0008 — ground the report in the posting, and measure it before enforcing it](docs/decisions/0008_grounding_the_report.md)
+- [ADR-0009 — ground the report's evidence in what the tools retrieved, compared by repository](docs/decisions/0009_evidence_grounding.md)
 
 ## Demo
 
