@@ -258,6 +258,8 @@ def _response_to_payload(response: LLMResponse) -> dict:
         "usage": {
             "input_tokens": response.usage.input_tokens,
             "output_tokens": response.usage.output_tokens,
+            "cache_read_tokens": response.usage.cache_read_tokens,
+            "cache_write_tokens": response.usage.cache_write_tokens,
         },
         "model": response.model,
         "raw_content": response.raw_content,
@@ -272,7 +274,14 @@ def _response_from_payload(payload: dict) -> LLMResponse:
         tool_calls=tuple(
             ToolCall(id=c["id"], name=c["name"], input=c["input"]) for c in payload["tool_calls"]
         ),
-        usage=Usage(usage["input_tokens"], usage["output_tokens"]),
+        # `.get` with a zero default: entries recorded before prompt caching existed carry
+        # no cache counters, and they replay as the uncached calls they were.
+        usage=Usage(
+            usage["input_tokens"],
+            usage["output_tokens"],
+            usage.get("cache_read_tokens", 0),
+            usage.get("cache_write_tokens", 0),
+        ),
         model=payload["model"],
         raw_content=list(payload["raw_content"]),
     )

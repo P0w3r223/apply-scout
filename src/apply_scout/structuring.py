@@ -134,11 +134,21 @@ class AnthropicStructurer:
             messages=[{"role": "user", "content": content}],
             output_config={"format": {"type": "json_schema", "schema": schema}},
         )
+        # No `cache_control` here on purpose: every structuring call carries different
+        # content, and the shared prefix (instructions + schema) sits under the cheap
+        # model's 4096-token cache minimum, so a breakpoint would buy nothing. The counters
+        # are read defensively anyway — if that ever changes, cost must not silently drop.
+        cache_read = getattr(response.usage, "cache_read_input_tokens", 0) or 0
+        cache_write = getattr(response.usage, "cache_creation_input_tokens", 0) or 0
         self.calls += 1
-        self.input_tokens += response.usage.input_tokens
+        self.input_tokens += response.usage.input_tokens + cache_read + cache_write
         self.output_tokens += response.usage.output_tokens
         self.cost_usd += config.token_cost(
-            response.usage.input_tokens, response.usage.output_tokens, model
+            response.usage.input_tokens,
+            response.usage.output_tokens,
+            model,
+            cache_read_tokens=cache_read,
+            cache_write_tokens=cache_write,
         )
         for block in response.content:
             if block.type == "text":
