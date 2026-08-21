@@ -33,8 +33,13 @@ class TrajectoryStep(BaseModel):
     kind: StepKind
     # model_call fields
     model: str | None = None
-    input_tokens: int | None = None
+    input_tokens: int | None = Field(
+        None, description="Whole prompt read this step, cached tokens included."
+    )
     output_tokens: int | None = None
+    cached_tokens: int | None = Field(
+        None, description="Of the prompt, how much was served from the cache at 0.1x rate."
+    )
     cost_usd: float | None = None
     tool_calls_requested: int | None = None
     text: str | None = Field(None, description="Assistant's visible text on a model_call step.")
