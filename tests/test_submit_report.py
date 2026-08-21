@@ -8,10 +8,13 @@ tool validates and holds a submission, and `agent_assess_fn` turns one into a sc
 
 from __future__ import annotations
 
+import httpx
 from fakes import ScriptedLLM, ScriptedStructurer, final_turn, tool_use_turn
 
 from apply_scout.budget import Budget
 from apply_scout.evaluation import EvalTask, agent_assess_fn
+from apply_scout.fetch import HttpFetcher
+from apply_scout.guardrail import requirement_grounding
 from apply_scout.tools.submit_report import SubmitReport
 
 REPORT = {
@@ -89,6 +92,72 @@ def test_agent_assess_fn_scores_a_submitted_report():
     assert [s.text for s in assessment.letter.sentences] == [GROUNDED]
     assert [s.text for s in assessment.guardrail.removed] == [FABRICATED]
     assert calls >= 1 and cost >= 0.0
+
+
+POSTING_HTML = (
+    "<html><body><article><h1>Senior AI Engineer</h1>"
+    "<p>We need strong Python. Kubernetes is not mentioned anywhere.</p></article></body></html>"
+)
+POSTING_JSON = '{"url": "https://example.com/job", "title": "Senior AI Engineer", "requirements": [{"text": "Strong Python for production services"}]}'  # noqa: E501
+
+
+def _mock_fetcher() -> HttpFetcher:
+    handler = lambda request: httpx.Response(  # noqa: E731
+        200, headers={"content-type": "text/html"}, text=POSTING_HTML
+    )
+    return HttpFetcher(client=httpx.Client(transport=httpx.MockTransport(handler)))
+
+
+def test_a_report_submitted_without_reading_the_ad_scores_zero_grounding():
+    """The fabricated-posting failure, end to end: the loop submits ratings for a posting it
+    never fetched. Every earlier metric is blind to this — coverage reads the report's own
+    requirements, and the letter's citations really do point at that report."""
+    task = EvalTask(
+        name="t", job_url="u", cv_path="c", github_user="g", expected_requirements=("Python",)
+    )
+    assess = agent_assess_fn(
+        "claude-opus-4-8",
+        llm_factory=lambda: ScriptedLLM([_submit_turn(), final_turn("submitted")]),
+        structurer_factory=lambda: ScriptedStructurer([]),
+    )
+    assessment, _, _ = assess(task)
+
+    assert assessment is not None
+    assert assessment.source_posting is None  # nothing was ever fetched to rate against
+    assert requirement_grounding(assessment.report, assessment.source_posting) == 0.0
+
+
+def test_grounding_is_scored_against_the_fetched_posting_not_the_report():
+    """The loop reads an ad asking only for Python, then rates Kubernetes too. Scoring the
+    report against `assessment.posting` would return 1.00 — that one is rebuilt *from* the
+    report, so it can only ever agree with it."""
+    task = EvalTask(
+        name="t",
+        job_url="https://example.com/job",
+        cv_path="c",
+        github_user="g",
+        expected_requirements=("Python",),
+    )
+    assess = agent_assess_fn(
+        "claude-opus-4-8",
+        llm_factory=lambda: ScriptedLLM(
+            [
+                tool_use_turn([("f1", "fetch_job_posting", {"url": "https://example.com/job"})]),
+                _submit_turn(),
+                final_turn("submitted"),
+            ]
+        ),
+        structurer_factory=lambda: ScriptedStructurer([POSTING_JSON]),
+        fetcher=_mock_fetcher(),
+    )
+    assessment, _, _ = assess(task)
+
+    assert assessment is not None
+    assert assessment.source_posting is not None
+    # Python traces to the ad, Kubernetes does not: half the report is untraceable.
+    assert requirement_grounding(assessment.report, assessment.source_posting) == 0.5
+    # And the self-derived posting agrees with the report about everything, as it must.
+    assert requirement_grounding(assessment.report, assessment.posting) == 1.0
 
 
 def test_a_run_that_never_submits_scores_as_not_completed():

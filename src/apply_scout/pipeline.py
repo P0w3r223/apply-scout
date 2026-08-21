@@ -32,11 +32,17 @@ class PipelineError(Exception):
 
 @dataclass(frozen=True)
 class Assessment:
-    posting: JobPosting
+    posting: JobPosting  # what the run claims the posting asked for
     cv: CVProfile
     report: MatchReport
     letter: CoverLetterDraft  # already guardrailed
     guardrail: GuardrailResult
+    # What `fetch_job_posting` actually returned, when anything did. Separate from `posting`
+    # because the two are not the same claim: on the agent path `posting` is reconstructed
+    # from the report itself (see `evaluation.agent_assess_fn`), so checking a report against
+    # it would ask a document to confirm itself. `None` means no posting was ever fetched —
+    # a fact about the run, not missing data.
+    source_posting: JobPosting | None = None
 
 
 def _tool_json(tool: PydanticTool, raw_input: dict, model_cls: type) -> object:
@@ -96,4 +102,14 @@ def assess(
         report, structurer=structurer, model=model, max_attempts=max_attempts
     )
     guard = guardrail_letter(letter, report)
-    return Assessment(posting=posting, cv=cv, report=report, letter=guard.filtered, guardrail=guard)
+    return Assessment(
+        posting=posting,
+        cv=cv,
+        report=report,
+        letter=guard.filtered,
+        guardrail=guard,
+        # Here the two are the same object: the pipeline rates the posting it fetched, by
+        # construction. Recording it anyway is what lets the grounding metric be read as a
+        # control — a pipeline row below 1.00 means synthesis invented a requirement.
+        source_posting=posting,
+    )

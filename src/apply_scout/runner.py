@@ -17,6 +17,7 @@ from apply_scout.fetch import Extractor, Fetcher
 from apply_scout.github import GitHubClient
 from apply_scout.llm import AnthropicLLM, LLMClient
 from apply_scout.structuring import Structurer
+from apply_scout.tools.fetch_job_posting import FetchJobPosting
 from apply_scout.tools.real import real_tools
 from apply_scout.tools.registry import ToolRegistry
 from apply_scout.tools.submit_report import SubmitReport
@@ -51,12 +52,17 @@ def run_assessment(
     github: GitHubClient | None = None,
     extractor: Extractor | None = None,
     submit: SubmitReport | None = None,
+    fetch: FetchJobPosting | None = None,
 ) -> AgentResult:
     """Run one fit assessment. Returns the result (including the trajectory to persist).
 
     `fetcher` / `structurer` / `github` / `extractor` are forwarded to the real toolset when
     no ready `tools` registry is given — that is how a cassette session substitutes its
-    recording or replaying collaborators without the caller re-assembling the tools by hand."""
+    recording or replaying collaborators without the caller re-assembling the tools by hand.
+
+    `submit` and `fetch` are the two tool instances a caller may want to keep: one holds the
+    deliverable the run produced, the other the posting it was built from. Scoring one against
+    the other is what `requirement_grounding` does."""
     llm = llm or AnthropicLLM()
     tools = tools or ToolRegistry(
         real_tools(
@@ -65,6 +71,7 @@ def run_assessment(
             github=github,
             extractor=extractor,
             submit=submit,
+            fetch=fetch,
         )
     )
     agent = Agent(

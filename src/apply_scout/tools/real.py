@@ -26,17 +26,21 @@ def real_tools(
     extractor: Extractor | None = None,
     model: str = config.STRUCTURE_MODEL,
     submit: SubmitReport | None = None,
+    fetch: FetchJobPosting | None = None,
 ) -> list[Tool]:
     """The live tools for a real run. Defaults to production wiring; inject to test.
 
     `submit` is the terminal tool the run finishes with. A caller that needs the submitted
     deliverable — the CLI to print it, the eval harness to score it — passes its own
-    instance and reads `submit.submitted` afterwards."""
+    instance and reads `submit.submitted` afterwards. `fetch` is the same arrangement at
+    the other end of the run: pass an instance to read back the posting the loop actually
+    fetched, which is what a deliverable has to be checked against."""
     fetcher = fetcher or HttpFetcher()
     structurer = structurer or AnthropicStructurer()
     github = github or GitHubClient(cache=DiskCache(config.CACHE_DIR))
     return [
-        FetchJobPosting(
+        fetch
+        or FetchJobPosting(
             fetcher=fetcher, structurer=structurer, extractor=extractor, model=model
         ),
         ReadCV(structurer=structurer, model=model),
