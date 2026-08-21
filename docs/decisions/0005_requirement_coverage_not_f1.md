@@ -60,6 +60,26 @@ The published numbers move from 0.33 / 0.23 to **0.80 / 0.68**. The ordering is 
 the cheap model still extracts better than the strong one — so the README's split-decision
 conclusion survives re-scoring rather than depending on the old metric.
 
+## Amendment (same day) — a metric must be allowed to say "not applicable"
+
+The first version of this change kept a habit from the old one: returning `1.0` when there was
+nothing to score. A code review caught what that did. `zapier-ai-ml-js-only-edge` has an empty
+annotation by design — it is the JavaScript-only page — so it scored a perfect 1.00 on a posting
+that was never read, and as 1 of 6 completed tasks it lifted every published mean by a sixth of
+a point for having nothing to be right about. Removing it: **0.80 → 0.76** and **0.68 → 0.62**.
+
+`citation_fidelity` had the identical bug and it mattered more. A letter that cites nothing has
+an empty denominator, and returning `1.0` made the metric say its most flattering thing about its
+worst case. Five of six Opus letters in the published run cite nothing at all — so the README's
+"the strong model wins on the letter" rested on it promising nothing checkable.
+
+Both now return `None`, are excluded from the mean, and print as `n/a`. The table also carries the
+count of tasks each mean is over, and a new **citation rate** (cited / written sentences) — the
+denominator fidelity throws away. A model that avoids citations cannot be caught fabricating them,
+so fidelity alone rewards writing vaguely.
+
+The rule this leaves behind: **a metric with no data must return nothing, not its best score.**
+
 ## Consequences
 
 - **Re-scoring cost nothing.** The metric is a pure function of a recorded `Assessment`, so

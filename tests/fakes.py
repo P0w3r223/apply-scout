@@ -56,19 +56,29 @@ def final_turn(
 def truncated_turn(
     text: str,
     *,
+    calls: list[tuple[str, str, dict]] | None = None,
     input_tokens: int = 100,
     output_tokens: int = 50,
     model: str = config.MODEL_STRONG,
 ) -> LLMResponse:
-    """A model turn cut off by the per-response output cap, mid-sentence and with no
-    tool calls — what a report too long for one reply actually looks like."""
+    """A model turn cut off by the per-response output cap.
+
+    With no `calls` it is a cut-off sentence — a report too long for one reply, which the
+    loop can ask the model to continue. With `calls` the cap landed *inside* a tool_use
+    block, which it cannot: that shape is a different code path and needs testing too.
+    """
+    tool_calls = tuple(ToolCall(id=i, name=n, input=inp) for i, n, inp in (calls or []))
+    raw: list[dict] = [{"type": "text", "text": text}]
+    raw.extend(
+        {"type": "tool_use", "id": i, "name": n, "input": inp} for i, n, inp in (calls or [])
+    )
     return LLMResponse(
         stop_reason="max_tokens",
         text=text,
-        tool_calls=(),
+        tool_calls=tool_calls,
         usage=Usage(input_tokens, output_tokens),
         model=model,
-        raw_content=[{"type": "text", "text": text}],
+        raw_content=raw,
     )
 
 

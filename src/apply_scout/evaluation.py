@@ -48,11 +48,15 @@ class EvalTask(BaseModel):
 
 @dataclass(frozen=True)
 class TaskMetrics:
+    """One task's scores. `None` means "this task cannot answer that question" — an
+    unannotated posting has no coverage to measure, a letter with no citations has no
+    fidelity. Averaging a stand-in value over those is how a metric flatters itself."""
+
     name: str
     completed: bool
-    requirement_coverage: float
-    citation_fidelity: float
-    unsupported_fraction: float
+    requirement_coverage: float | None
+    citation_fidelity: float | None
+    citation_rate: float | None
     llm_calls: int
     cost_usd: float
 
@@ -62,8 +66,13 @@ class Aggregate:
     model: str
     n_tasks: int
     completion_rate: float
-    mean_requirement_coverage: float
-    mean_citation_fidelity: float
+    mean_requirement_coverage: float | None
+    mean_citation_fidelity: float | None
+    mean_citation_rate: float | None
+    # How many tasks each mean is actually over — a 1.00 from one task is not a 1.00
+    # from six, and the table has no business hiding which it is.
+    scored_coverage: int
+    scored_fidelity: int
     median_llm_calls: float
     median_cost_usd: float
 
@@ -99,7 +108,7 @@ def mentions(requirement_text: str, expected: str) -> bool:
     return any(got[i : i + len(want)] == want for i in range(len(got) - len(want) + 1))
 
 
-def requirement_coverage(extracted: list[str], expected: list[str]) -> float:
+def requirement_coverage(extracted: list[str], expected: list[str]) -> float | None:
     """Fraction of the annotated skills that appear somewhere in the extracted requirements.
 
     This is recall, and recall alone, on purpose — see `docs/decisions/0005`. The
@@ -108,21 +117,46 @@ def requirement_coverage(extracted: list[str], expected: list[str]) -> float:
     posting with 24 requirements annotated with 9 skills caps precision at 9/24 however
     perfect the extraction is. Reporting an F1 built on that denominator would grade the
     annotation's length, not the agent.
+
+    `None` when the task has no annotation at all. Scoring that 1.0 — as this did — hands
+    a perfect row to the deliberately-unreadable JavaScript-only task, which is 1 of 6
+    completed tasks and so lifted every published mean by a sixth of a point for having
+    nothing to be right about.
     """
     if not expected:
-        return 1.0
+        return None
     return sum(any(mentions(x, want) for x in extracted) for want in expected) / len(expected)
 
 
-def citation_fidelity(assessment: Assessment) -> float:
+def citation_fidelity(assessment: Assessment) -> float | None:
     """Of the letter sentences that cite evidence, the fraction whose citations are grounded.
 
     The guarded letter keeps only grounded cited sentences; the removed ones were exactly
-    the ungrounded citations, so this is kept_cited / (kept_cited + removed)."""
+    the ungrounded citations, so this is kept_cited / (kept_cited + removed).
+
+    `None` when the letter cited nothing at all. This used to return 1.0, which made the
+    metric say its most flattering thing about its worst case: a letter of a dozen factual
+    claims carrying no citations scored a perfect fidelity, indistinguishable from one that
+    cited a real link for every claim. Read it alongside `citation_rate` — a fidelity
+    without its denominator is not a result.
+    """
     kept_cited = sum(1 for sentence in assessment.letter.sentences if sentence.evidence_urls)
     removed = len(assessment.guardrail.removed)
     total_cited = kept_cited + removed
-    return kept_cited / total_cited if total_cited else 1.0
+    return kept_cited / total_cited if total_cited else None
+
+
+def citation_rate(assessment: Assessment) -> float | None:
+    """Of all the letter's sentences, the fraction that cite anything at all.
+
+    The denominator `citation_fidelity` throws away. A model that avoids citations cannot
+    be caught fabricating them, so fidelity alone rewards writing vaguely; this is what
+    separates "grounded" from "said nothing checkable"."""
+    written = len(assessment.letter.sentences) + len(assessment.guardrail.removed)
+    if not written:
+        return None
+    cited = sum(1 for s in assessment.letter.sentences if s.evidence_urls)
+    return (cited + len(assessment.guardrail.removed)) / written
 
 
 def evaluate_task(
@@ -134,7 +168,7 @@ def evaluate_task(
         completed=True,
         requirement_coverage=requirement_coverage(extracted, list(task.expected_requirements)),
         citation_fidelity=citation_fidelity(assessment),
-        unsupported_fraction=assessment.guardrail.unsupported_before,
+        citation_rate=citation_rate(assessment),
         llm_calls=llm_calls,
         cost_usd=cost_usd,
     )
@@ -150,9 +184,12 @@ def run_evaluation(tasks: list[EvalTask], assess_fn: AssessFn) -> list[TaskMetri
                 TaskMetrics(
                     name=task.name,
                     completed=False,
-                    requirement_coverage=0.0,
-                    citation_fidelity=0.0,
-                    unsupported_fraction=0.0,
+                    # Not zero: a run that produced nothing has no quality to score, and a
+                    # zero would drag the mean as if it had been measured and found bad.
+                    # Failure is already reported by the completion rate.
+                    requirement_coverage=None,
+                    citation_fidelity=None,
+                    citation_rate=None,
                     llm_calls=llm_calls,
                     cost_usd=cost_usd,
                 )
@@ -164,30 +201,47 @@ def run_evaluation(tasks: list[EvalTask], assess_fn: AssessFn) -> list[TaskMetri
 
 def aggregate(model: str, metrics: list[TaskMetrics]) -> Aggregate:
     completed = [m for m in metrics if m.completed]
+    coverage = [m.requirement_coverage for m in completed if m.requirement_coverage is not None]
+    fidelity = [m.citation_fidelity for m in completed if m.citation_fidelity is not None]
+    rate = [m.citation_rate for m in completed if m.citation_rate is not None]
     return Aggregate(
         model=model,
         n_tasks=len(metrics),
         completion_rate=(len(completed) / len(metrics)) if metrics else 0.0,
-        mean_requirement_coverage=(
-            mean(m.requirement_coverage for m in completed) if completed else 0.0
-        ),
-        mean_citation_fidelity=mean(m.citation_fidelity for m in completed) if completed else 0.0,
+        mean_requirement_coverage=mean(coverage) if coverage else None,
+        mean_citation_fidelity=mean(fidelity) if fidelity else None,
+        mean_citation_rate=mean(rate) if rate else None,
+        scored_coverage=len(coverage),
+        scored_fidelity=len(fidelity),
         median_llm_calls=median(m.llm_calls for m in completed) if completed else 0.0,
         median_cost_usd=median(m.cost_usd for m in completed) if completed else 0.0,
     )
 
 
+def format_score(value: float | None, scored: int | None = None) -> str:
+    """A metric cell: the number and, where it matters, how many tasks it averages."""
+    if value is None:
+        return "n/a"
+    return f"{value:.2f}" if scored is None else f"{value:.2f} ({scored})"
+
+
 def format_comparison(aggregates: list[Aggregate]) -> str:
-    """A markdown table, one row per model."""
+    """A markdown table, one row per model.
+
+    Both citation columns are printed together on purpose: fidelity says how many cited
+    claims were grounded, and the rate says how many claims were cited at all. Fidelity
+    alone reads best for a letter that promises nothing checkable."""
     header = (
-        "| Model | Tasks | Completed | Req coverage | Citation fidelity "
+        "| Model | Tasks | Completed | Req coverage | Citation fidelity | Cited "
         "| Median LLM calls | Median cost |\n"
-        "|---|---|---|---|---|---|---|\n"
+        "|---|---|---|---|---|---|---|---|\n"
     )
     rows = "".join(
         f"| {a.model} | {a.n_tasks} | {a.completion_rate:.0%} "
-        f"| {a.mean_requirement_coverage:.2f} "
-        f"| {a.mean_citation_fidelity:.2f} | {a.median_llm_calls:g} | ${a.median_cost_usd:.4f} |\n"
+        f"| {format_score(a.mean_requirement_coverage, a.scored_coverage)} "
+        f"| {format_score(a.mean_citation_fidelity, a.scored_fidelity)} "
+        f"| {format_score(a.mean_citation_rate)} "
+        f"| {a.median_llm_calls:g} | ${a.median_cost_usd:.4f} |\n"
         for a in aggregates
     )
     return header + rows
@@ -264,7 +318,9 @@ def agent_assess_fn(
     """
 
     ceilings = budget or Budget(
-        max_steps=config.EVAL_AGENT_MAX_STEPS, max_cost_usd=config.EVAL_AGENT_MAX_COST_USD
+        max_steps=config.EVAL_AGENT_MAX_STEPS,
+        max_tokens=config.EVAL_AGENT_MAX_TOKENS,
+        max_cost_usd=config.EVAL_AGENT_MAX_COST_USD,
     )
 
     def run(task: EvalTask) -> tuple[Assessment | None, float, int]:

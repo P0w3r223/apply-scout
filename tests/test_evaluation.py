@@ -16,6 +16,7 @@ from apply_scout.evaluation import (
     TaskMetrics,
     aggregate,
     citation_fidelity,
+    citation_rate,
     evaluate_and_report,
     evaluate_task,
     format_comparison,
@@ -77,7 +78,14 @@ def test_coverage_is_recall_over_the_annotated_skills():
     assert requirement_coverage(extracted, ["Python", "Docker", "Kubernetes"]) == 1.0
     assert requirement_coverage(extracted, ["Python", "Airflow"]) == 0.5
     assert requirement_coverage([], ["Python"]) == 0.0
-    assert requirement_coverage([], []) == 1.0
+
+
+def test_an_unannotated_task_scores_no_coverage_at_all():
+    """It used to score 1.0, which handed the deliberately-unreadable JavaScript-only task
+    a perfect row on a page nothing could be extracted from — 1 of 6 completed tasks, so a
+    sixth of every published mean was awarded for having nothing to be right about."""
+    assert requirement_coverage([], []) is None
+    assert requirement_coverage(["anything at all"], []) is None
 
 
 def test_coverage_does_not_punish_extracting_more_than_the_annotation():
@@ -96,6 +104,17 @@ def test_citation_fidelity_is_grounded_over_cited():
     removed = [LetterSentence(text="bad", evidence_urls=("fabricated",))]
     a = _assessment(requirements=["Python"], letter_sentences=kept, removed=removed)
     assert citation_fidelity(a) == 2 / 3  # 2 grounded cited / (2 + 1 removed)
+    assert citation_rate(a) == 3 / 4  # 3 of 4 written sentences carried a citation
+
+
+def test_a_letter_that_cites_nothing_has_no_fidelity_to_report():
+    """This used to score a perfect 1.00 — the metric's most flattering answer for its
+    worst case. Five of six Opus letters in the published run cite nothing at all, so the
+    'strong model wins on citation fidelity' claim rested on it promising nothing checkable."""
+    uncited = [LetterSentence(text="I would be a great fit."), LetterSentence(text="I ship a lot.")]
+    a = _assessment(requirements=["Python"], letter_sentences=uncited, removed=[])
+    assert citation_fidelity(a) is None
+    assert citation_rate(a) == 0.0
 
 
 def test_evaluate_task_scores_a_completed_run():
@@ -120,20 +139,26 @@ def test_run_evaluation_marks_failures_not_completed():
 
 def test_aggregate_uses_completed_only_and_medians():
     metrics = [
-        TaskMetrics("a", True, 1.0, 1.0, 0.0, 4, 0.01),
-        TaskMetrics("b", True, 0.5, 0.8, 0.2, 6, 0.03),
-        TaskMetrics("c", False, 0.0, 0.0, 0.0, 1, 0.005),
+        TaskMetrics("a", True, 1.0, 1.0, 1.0, 4, 0.01),
+        TaskMetrics("b", True, 0.5, 0.8, 0.5, 6, 0.03),
+        TaskMetrics("c", False, None, None, None, 1, 0.005),
+        # Completed, but nothing to score: no annotation and an uncited letter.
+        TaskMetrics("d", True, None, None, 0.0, 2, 0.02),
     ]
     agg = aggregate("m", metrics)
-    assert agg.n_tasks == 3
-    assert agg.completion_rate == 2 / 3
-    assert agg.mean_requirement_coverage == 0.75
-    assert agg.median_llm_calls == 5  # median of [4, 6]
-    assert agg.median_cost_usd == 0.02  # median of [0.01, 0.03]
+    assert agg.n_tasks == 4
+    assert agg.completion_rate == 3 / 4
+    assert agg.mean_requirement_coverage == 0.75  # over the two tasks that had an annotation
+    assert agg.scored_coverage == 2  # and the table says so, rather than implying four
+    assert agg.mean_citation_fidelity == 0.9
+    assert agg.scored_fidelity == 2
+    assert agg.mean_citation_rate == 0.5  # includes task d: it wrote a letter, cited nothing
+    assert agg.median_llm_calls == 4  # median of [4, 6, 2]
+    assert agg.median_cost_usd == 0.02  # median of [0.01, 0.03, 0.02]
 
 
 def test_format_comparison_is_markdown():
-    agg = Aggregate("claude-haiku-4-5", 2, 1.0, 0.90, 0.95, 4, 0.012)
+    agg = Aggregate("claude-haiku-4-5", 2, 1.0, 0.90, 0.95, 0.80, 2, 2, 4, 0.012)
     table = format_comparison([agg])
     assert "| Model |" in table
     assert "claude-haiku-4-5" in table

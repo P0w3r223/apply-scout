@@ -58,3 +58,12 @@ def test_a_dated_snapshot_id_is_priced_like_its_alias():
 
 def test_an_unpriced_model_costs_zero_rather_than_a_guess():
     assert config.token_cost(1_000, 1_000, "some-other-vendor-model") == 0.0
+
+
+def test_only_a_dated_suffix_is_treated_as_the_same_model():
+    """A bare prefix match would price a future `...-turbo` at today's rates — a silent
+    wrong number, which is the class of bug price_for exists to remove."""
+    strong = config.PRICING[config.MODEL_STRONG]
+    assert config.price_for(f"{config.MODEL_STRONG}-20260101") is strong
+    assert config.price_for(f"{config.MODEL_STRONG}-turbo") is None
+    assert config.price_for(f"{config.MODEL_STRONG}x") is None
