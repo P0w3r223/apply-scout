@@ -9,6 +9,24 @@ from __future__ import annotations
 from apply_scout.agent import AgentResult
 from apply_scout.trajectory import StepKind, TrajectoryStep
 
+# Rich style per step kind. Lives here rather than in the CLI because more than one
+# surface renders a step stream (the terminal, and the demo recorder in scripts/) —
+# and they must agree on what a step looks like.
+STEP_STYLE: dict[StepKind, str] = {
+    StepKind.MODEL_CALL: "cyan",
+    StepKind.TOOL_RESULT: "dim",
+    StepKind.FINAL: "bold green",
+    StepKind.BUDGET_STOP: "bold yellow",
+}
+FAILED_TOOL_STYLE = "red"
+
+
+def step_style(step: TrajectoryStep) -> str:
+    """The rich style a step should be printed in. A failed tool call outranks its kind."""
+    if step.kind is StepKind.TOOL_RESULT and step.tool_ok is False:
+        return FAILED_TOOL_STYLE
+    return STEP_STYLE.get(step.kind, "")
+
 
 def format_step(step: TrajectoryStep) -> str:
     """One (or two) lines describing a single trajectory step."""
