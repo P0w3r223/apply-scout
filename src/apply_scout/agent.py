@@ -110,7 +110,11 @@ class Agent:
                 model=self.cfg.model,
             )
             tracker.record_usage(
-                response.usage.input_tokens, response.usage.output_tokens, response.model
+                response.usage.input_tokens,
+                response.usage.output_tokens,
+                response.model,
+                cache_read_tokens=response.usage.cache_read_tokens,
+                cache_write_tokens=response.usage.cache_write_tokens,
             )
             # A continuation extends the answer in progress; anything else starts a new one.
             answer = [*answer, response.text] if continuing else [response.text]
@@ -119,10 +123,15 @@ class Agent:
                     index=step_index,
                     kind=StepKind.MODEL_CALL,
                     model=response.model,
-                    input_tokens=response.usage.input_tokens,
+                    input_tokens=response.usage.prompt_tokens,
                     output_tokens=response.usage.output_tokens,
+                    cached_tokens=response.usage.cache_read_tokens,
                     cost_usd=config.token_cost(
-                        response.usage.input_tokens, response.usage.output_tokens, response.model
+                        response.usage.input_tokens,
+                        response.usage.output_tokens,
+                        response.model,
+                        cache_read_tokens=response.usage.cache_read_tokens,
+                        cache_write_tokens=response.usage.cache_write_tokens,
                     ),
                     tool_calls_requested=len(response.tool_calls),
                     text=response.text or None,

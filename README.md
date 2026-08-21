@@ -205,6 +205,14 @@ unambiguous: **`claude-opus-4-8` costs ≈6× more per task than `claude-haiku-4
 and does not buy a better match report** — identical completion (75%, both blocked by the same two dead
 URLs) and *lower* requirement coverage (0.62 vs 0.76).
 
+**Prompt caching is on, and the table above predates it.** The loop re-sends the whole
+conversation every step — 65% of its cost is input tokens, most of them a repeated prefix — so
+requests now carry a top-level `cache_control`, which bills a repeated prefix at a tenth of the
+input rate. The numbers here were recorded before that and are honest about it: showing the saving
+means paying to re-record, and no cached-cost row is claimed until that happens
+([ADR-0007](docs/decisions/0007_prompt_caching.md)). Cached tokens are priced and counted against
+the budget rather than treated as free.
+
 It does not buy a better letter either, which took a metric fix to see. The strong model's 1.00 citation
 fidelity is over **one task**; in the other five its letters cite nothing at all (an 0.11 citation rate),
 and a letter that promises nothing checkable cannot be caught fabricating. What actually produces
@@ -278,6 +286,7 @@ Honest and specific, because an agent that hides its failure modes is worse than
 - [ADR-0004 — record/replay cassettes at our own seams, not at the HTTP layer](docs/decisions/0004_record_replay_cassettes.md)
 - [ADR-0005 — requirement coverage, not requirement F1](docs/decisions/0005_requirement_coverage_not_f1.md)
 - [ADR-0006 — score the agent loop on the same axes as the pipeline](docs/decisions/0006_scoring_the_agent_loop.md)
+- [ADR-0007 — prompt caching at the top level, so the cassettes survive it](docs/decisions/0007_prompt_caching.md)
 
 ## Demo
 

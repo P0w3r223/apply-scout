@@ -50,6 +50,19 @@ PRICING: dict[str, ModelPrice] = {
     MODEL_STRONG: ModelPrice(input_per_mtok=5.00, output_per_mtok=25.00),
 }
 
+# Prompt-cache repricing, as multiples of a model's base input rate. Uniform across models,
+# so they live here once rather than as two more fields to keep in sync per rate card.
+# Writing a cache entry costs more than sending the tokens plain; reading one costs a tenth.
+CACHE_WRITE_MULTIPLIER = 1.25  # 5-minute TTL, which is what the loop uses
+CACHE_READ_MULTIPLIER = 0.10
+# Below this, a prefix is silently not cached — no error, just no saving. Model-dependent
+# and NOT monotonic across tiers, which is why it is a table and not one number: the loop's
+# first call on the cheap model (~2.8k tokens) falls under its threshold and never caches.
+CACHE_MIN_PREFIX_TOKENS: dict[str, int] = {
+    MODEL_CHEAP: 4096,
+    MODEL_STRONG: 1024,
+}
+
 # --- Safety budget defaults --------------------------------------------------
 # Hard ceilings for a single agent run. Exceeding any of them is NOT an error: the
 # loop stops in a controlled way and returns whatever partial report it has. These
@@ -130,17 +143,34 @@ def price_for(model: str) -> ModelPrice | None:
     return PRICING[max(matches, key=len)]  # longest prefix wins
 
 
-def token_cost(input_tokens: int, output_tokens: int, model: str) -> float:
+def token_cost(
+    input_tokens: int,
+    output_tokens: int,
+    model: str,
+    *,
+    cache_read_tokens: int = 0,
+    cache_write_tokens: int = 0,
+) -> float:
     """USD cost of a call, from the per-model base rates above.
 
     Single source of truth for cost accounting (the budget tracker and the trajectory
     both use it). A model with no rate card costs 0.0 — the alternative is guessing a
     price, and a guessed cost in a table whose whole point is measured cost is worse
-    than a visible zero."""
+    than a visible zero.
+
+    The cache arguments are not optional bookkeeping. With prompt caching on, the API's
+    `input_tokens` is the *uncached remainder only*: charging for that alone would report
+    a run as far cheaper than it was, which is the same silent-understatement bug that
+    already cost this project a wrong headline once.
+    """
     price = price_for(model)
     if price is None:
         return 0.0
-    return (
-        input_tokens / 1_000_000 * price.input_per_mtok
-        + output_tokens / 1_000_000 * price.output_per_mtok
+    billable = (
+        input_tokens
+        + cache_read_tokens * CACHE_READ_MULTIPLIER
+        + cache_write_tokens * CACHE_WRITE_MULTIPLIER
+    )
+    return billable / 1_000_000 * price.input_per_mtok + (
+        output_tokens / 1_000_000 * price.output_per_mtok
     )
