@@ -472,7 +472,10 @@ class CassetteCache:
             return entry.payload["body"]
         if self._mode is CassetteMode.REPLAY:
             self._cassette.misses += 1
-            raise CassetteMiss(f"no recorded GitHub response for {key}")
+            raise CassetteMiss(
+                f"no recorded GitHub response for {key}. "
+                "Re-record the cassette — a repo set or an input has changed."
+            )
         return None
 
     def set(self, key: str, value: str) -> None:

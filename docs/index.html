@@ -62,7 +62,8 @@ safety budgets and a trajectory-evaluation harness.</p>
   <ul>
     <li><strong>The table above reproduces offline</strong> with
     <code>--cassette-mode replay</code>: no network, no API key, no cost. Continuous integration
-    replays it on every push, which turns the published numbers into a regression test.</li>
+    replays it on every pull request and every push to the main branch, which turns the published
+    numbers into a regression test.</li>
     <li><strong>Replay never falls back to the network.</strong> An unrecorded request stops the run;
     quietly serving it live would turn a reproducible evaluation back into a paid, unverifiable one.</li>
     <li><strong>Cost survives the offline path.</strong> Tokens and dollars are replayed as captured at

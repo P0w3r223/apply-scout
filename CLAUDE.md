@@ -125,7 +125,7 @@ apply-scout eval --tasks eval/tasks.json --models claude-haiku-4-5,claude-opus-4
 8. **Record/replay cassettes (this milestone).** ✅ `cassette.py`: every external seam
    (LLM, structurer, HTTP fetch, GitHub) records to a committed JSONL cassette and replays
    with no network, no key and no cost. `--cassette-mode {off,record,replay,auto}` on both
-   subcommands; a CI job replays the evaluation on every push. The 8-posting × 2-model
+   subcommands; a CI job replays the evaluation on every PR and push to main. The 8-posting × 2-model
    cassette is recorded and committed (68 entries, $0.88); replay reproduces the published
    table byte-for-byte. Main-text extraction is a recorded seam too — trafilatura's output
    differs between versions, so re-running it on replay changes the structuring key and

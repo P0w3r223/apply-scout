@@ -15,7 +15,8 @@ machine-readable trajectory log, and a proper evaluation are possible.
 > guardrail, and the evaluation harness are built and tested (124 tests, no network or key required).
 > The table under **Evaluation** comes from a real paid run over 8 annotated postings on two models —
 > and every external response is **recorded to a committed cassette**, so `--cassette-mode replay`
-> reproduces that exact table offline, with no API key and at no cost. CI does this on every push.
+> reproduces that exact table offline, with no API key and at no cost. CI does this on every
+> pull request and every push to `main`.
 
 ## Why it's built this way
 
@@ -154,7 +155,8 @@ apply-scout eval --tasks eval/tasks.json --models claude-haiku-4-5,claude-opus-4
 - **A prompt edit invalidates exactly what it touches.** The cassette key hashes the whole request,
   system prompt included — so the project's "change a prompt ⇒ re-run the harness" rule is enforced by
   the machinery instead of by memory.
-- **CI replays it on every push**, which turns the published table into a regression test.
+- **CI replays it on every pull request and every push to `main`**, which turns the published table
+  into a regression test.
 
 Recording the whole 8-posting × 2-model table cost **$0.88** and produced 68 entries (40 structuring
 calls, 8 pages, 6 extractions, 14 GitHub responses). Every reproduction since has been free.
