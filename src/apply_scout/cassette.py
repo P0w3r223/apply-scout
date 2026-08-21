@@ -245,6 +245,8 @@ def _counters(obj: object) -> tuple[int, int, float]:
         int(getattr(obj, "input_tokens", 0) or 0),
         int(getattr(obj, "output_tokens", 0) or 0),
         float(getattr(obj, "cost_usd", 0.0) or 0.0),
+        int(getattr(obj, "cache_read_tokens", 0) or 0),
+        int(getattr(obj, "cache_write_tokens", 0) or 0),
     )
 
 
@@ -385,7 +387,15 @@ class CassetteStructurer:
             )
             after = _counters(self._inner)
             return (
-                {"text": text},
+                {
+                    "text": text,
+                    # The cache split, recorded because the cost is re-derived on replay. The
+                    # LLM seam has carried these since caching shipped; this one did not, so a
+                    # cached structuring call would have replayed at the full input rate — a
+                    # silent divergence between a cassette run and a live one.
+                    "cache_read_tokens": after[3] - before[3],
+                    "cache_write_tokens": after[4] - before[4],
+                },
                 after[0] - before[0],
                 after[1] - before[1],
                 after[2] - before[2],
@@ -402,7 +412,17 @@ class CassetteStructurer:
         # rate card is never frozen inside the committed artifact. The agent seam already
         # prices this way (through the budget tracker); with two provenances a change to
         # PRICING would silently update one half of the comparison table and not the other.
-        self.cost_usd += config.token_cost(entry.input_tokens, entry.output_tokens, model)
+        # `.get` with a zero default: entries recorded before the split existed replay as the
+        # uncached calls they were, exactly as the LLM seam handles its own older entries.
+        cache_read = int(entry.payload.get("cache_read_tokens", 0) or 0)
+        cache_write = int(entry.payload.get("cache_write_tokens", 0) or 0)
+        self.cost_usd += config.token_cost(
+            entry.input_tokens - cache_read - cache_write,
+            entry.output_tokens,
+            model,
+            cache_read_tokens=cache_read,
+            cache_write_tokens=cache_write,
+        )
         return entry.payload["text"]
 
 

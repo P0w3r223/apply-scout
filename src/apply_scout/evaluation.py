@@ -81,6 +81,7 @@ class Aggregate:
     scored_grounding: int
     scored_evidence: int
     scored_fidelity: int
+    scored_rate: int
     median_llm_calls: float
     median_cost_usd: float
 
@@ -209,6 +210,7 @@ def aggregate(model: str, metrics: list[TaskMetrics]) -> Aggregate:
         scored_grounding=len(grounding),
         scored_evidence=len(evidence),
         scored_fidelity=len(fidelity),
+        scored_rate=len(rate),
         median_llm_calls=median(m.llm_calls for m in completed) if completed else 0.0,
         median_cost_usd=median(m.cost_usd for m in completed) if completed else 0.0,
     )
@@ -242,7 +244,7 @@ def format_comparison(aggregates: list[Aggregate]) -> str:
         f"| {format_score(a.mean_requirement_grounding, a.scored_grounding)} "
         f"| {format_score(a.mean_evidence_grounding, a.scored_evidence)} "
         f"| {format_score(a.mean_citation_fidelity, a.scored_fidelity)} "
-        f"| {format_score(a.mean_citation_rate)} "
+        f"| {format_score(a.mean_citation_rate, a.scored_rate)} "
         f"| {a.median_llm_calls:g} | ${a.median_cost_usd:.4f} |\n"
         for a in aggregates
     )
@@ -287,6 +289,17 @@ def pipeline_assess_fn(
             )
         except PipelineError:
             assessment = None
+        else:
+            if not assessment.report.assessments:
+                # A report that rates nothing is not a deliverable, and the published table
+                # had two definitions of "Completed" sitting in adjacent rows: the agent path
+                # already requires a submission, while this one counted the JavaScript-only
+                # task as a success on the strength of a posting with no requirements, an empty
+                # report and two sentences of boilerplate. Its own fixture says "expected to
+                # fail extraction and score as not-completed". Every grounding column returns
+                # `n/a` there, so nothing else in the table could catch it — it fed only the
+                # completion rate it inflated, from an honest 62% to 75%.
+                assessment = None
         # Cost/calls are read off the structurer, so any wrapper standing in for it must
         # report them too — including a replay wrapper, which serves the recorded figures.
         return assessment, getattr(structurer, "cost_usd", 0.0), getattr(structurer, "calls", 0)

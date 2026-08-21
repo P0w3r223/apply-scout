@@ -17,8 +17,14 @@ import re
 
 
 def tokens(text: str) -> list[str]:
-    """Lowercased word tokens, with a trailing plural `s` folded away."""
-    words = re.split(r"[^a-z0-9+#]+", text.lower())
+    r"""Lowercased word tokens, with a trailing plural `s` folded away.
+
+    Split on non-word characters with `\w` rather than an ASCII class, because two of the
+    eight evaluation postings are Polish: `[^a-z0-9+#]` turned `różnych` into `['r', 'nych']`,
+    so a one-letter needle like `R` matched the debris of an unrelated word. `+` and `#` stay
+    in the word class for `C++` and `C#`.
+    """
+    words = re.split(r"[^\w+#]+", text.lower(), flags=re.UNICODE)
     return [w[:-1] if len(w) > 3 and w.endswith("s") else w for w in words if w]
 
 

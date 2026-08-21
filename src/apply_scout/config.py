@@ -58,6 +58,9 @@ CACHE_READ_MULTIPLIER = 0.10
 # Below this, a prefix is silently not cached — no error, just no saving. Model-dependent
 # and NOT monotonic across tiers, which is why it is a table and not one number: the loop's
 # first call on the cheap model (~2.8k tokens) falls under its threshold and never caches.
+# Reference data, deliberately not a runtime switch: nothing counts prompt tokens before the
+# call, so the code cannot act on it. It exists to explain the measured per-task saving in
+# ADR-0007 and why `structuring.py` sets no breakpoint — kept here so both cite one source.
 CACHE_MIN_PREFIX_TOKENS: dict[str, int] = {
     MODEL_CHEAP: 4096,
     MODEL_STRONG: 1024,

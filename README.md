@@ -12,7 +12,7 @@ machine-readable trajectory log, and a proper evaluation are possible.
 
 > Status: **complete — published, with a real evaluation that anyone can re-run.**
 > The full agent, the three real tools, the structured deliverables, the measured anti-hallucination
-> guardrail, and the evaluation harness are built and tested (185 tests, no network or key required).
+> guardrail, and the evaluation harness are built and tested (188 tests, no network or key required).
 > The table under **Evaluation** comes from a real paid run over 8 annotated postings on two models —
 > and every external response is **recorded to a committed cassette**, so `--cassette-mode replay`
 > reproduces that exact table offline, with no API key and at no cost. CI does this on every
@@ -68,7 +68,7 @@ no API key** — which is exactly how the tests drive it.
 ```bash
 python -m venv .venv
 .venv/Scripts/python -m pip install -e ".[dev]"   # Windows
-pytest        # 185 tests, all under fakes — no ANTHROPIC_API_KEY needed
+pytest        # 188 tests, all under fakes — no ANTHROPIC_API_KEY needed
 ruff check .
 ```
 
@@ -101,9 +101,9 @@ README) and writes a markdown table comparing two models:
 
 | Runner | Model | Tasks | Completed | Req coverage | Report grounded | Evidence grounded | Citation fidelity | Cited | Median LLM calls | Median cost |
 |---|---|---|---|---|---|---|---|---|---|---|
-| pipeline | `claude-haiku-4-5` | 8 | 75% | 0.76 (5) | 1.00 (5) | 1.00 (3) | 0.75 (4) | 0.29 | 4 | $0.0291 |
-| pipeline | `claude-opus-4-8` | 8 | 75% | 0.62 (5) | 1.00 (5) | 1.00 (1) | 1.00 (1) | 0.11 | 4 | $0.1827 |
-| **agent loop** | `claude-haiku-4-5` | 8 | 62% | 0.76 (5) | 1.00 (5) | 1.00 (4) | **1.00 (4)** | **0.45** | 8 | $0.0592 |
+| pipeline | `claude-haiku-4-5` | 8 | 62% | 0.76 (5) | 1.00 (5) | 1.00 (3) | 0.75 (4) | 0.34 (5) | 4 | $0.0306 |
+| pipeline | `claude-opus-4-8` | 8 | 62% | 0.62 (5) | 1.00 (5) | 1.00 (1) | 1.00 (1) | 0.13 (5) | 4 | $0.1910 |
+| **agent loop** | `claude-haiku-4-5` | 8 | 62% | 0.76 (5) | 1.00 (5) | 1.00 (4) | **1.00 (4)** | **0.45 (5)** | 8 | $0.0592 |
 
 > The bracketed number is **how many tasks the mean is actually over** — a task with no
 > annotation has no coverage to measure, and a letter that cites nothing has no fidelity.
@@ -111,7 +111,7 @@ README) and writes a markdown table comparing two models:
 > and gave Opus a headline 1.00 it had not earned.
 >
 > **The loop row is cached; the pipeline rows are not** (see below). On the same basis the loop's
-> median task costs **$0.0741**, so the runner comparison is 2.5×, not the 2.0× the table implies.
+> median task costs **$0.0741**, so the runner comparison is 2.4×, not the 1.9× the table implies.
 > The loop row is also a **fresh sample**: re-recording it moved completion 75% → 62% and the
 > citation rate 0.74 → 0.45 with no code change. Eight tasks is a small sample, and it wobbles.
 
@@ -123,9 +123,12 @@ README) and writes a markdown table comparing two models:
 
 **What the agent loop buys.** The third row is the from-scratch tool loop solving the same tasks and
 scored on the same axes — the claim in [ADR-0001](docs/decisions/0001_own_loop_vs_framework.md) finally
-measured instead of asserted. On the same model it costs **3.3× the pipeline** and makes 2.4× the calls,
-and buys the one thing the whole evidence standard exists for: **letters that actually cite, and whose
-citations hold up**.
+measured instead of asserted. On the same model it costs **2.4× the pipeline** on a like-for-like
+(uncached) basis — 1.9× as the table stands, because the loop row is cached and the pipeline rows are
+not — and makes **twice the calls** (median 8 against 4). It buys the one thing the whole evidence
+standard exists for: **letters that actually cite, and whose citations hold up**. (An earlier edition of
+this section said 3.3× and 2.4×; those were the pre-caching figures and they outlived the recording that
+produced them — corrected here from the committed cassette.)
 
 Read the two citation columns together — separately, each one lies. Opus's pipeline letters score a
 perfect 1.00 fidelity **on a single task**, because in five of six they cite nothing at all: only 11% of
@@ -136,20 +139,28 @@ result — and why the pipeline-Opus row is not the "buy the strong model for th
 like.
 
 So the diagonal is the finding: grounded, *substantiated* letters cost **$0.0592** (cheap model, loop,
-cached — $0.0741 on the pipeline's uncached basis) against **$0.1827** for the strong model in the
+cached — $0.0741 on the pipeline's uncached basis) against **$0.1910** for the strong model in the
 pipeline — a third to a half of the price, better coverage (0.76 against 0.62), and four times the
 citation rate. It is the agency that grounds the letter, not the model tier.
 
-**How firm is that?** Firmer on citations than on anything else. Re-recording the loop moved its
+**How firm is that?** Firmer on citations than on anything else. Re-recording the loop moved *its own*
 completion from 75% to 62% and its citation rate from 0.74 to 0.45 on the same code and the same
-inputs — sampling, not a regression, and a reminder that eight tasks is a small sample. What survived
+inputs — sampling, not a regression, and a reminder that eight tasks is a small sample. (All three rows
+read 62% today for a different and unrelated reason: the pipeline stopped counting an empty report as a
+deliverable — see below.) What survived
 both runs is the ordering: the loop cites far more than either pipeline row and grounds everything it
 cites. The Opus × loop cell is deliberately unrecorded: ≈$4.7 to fill
 ([ADR-0006](docs/decisions/0006_scoring_the_agent_loop.md)).
 
-**Why "Completed" is 75% and not 100%.** Two of the eight postings — The Athletic and HHAeXchange —
-now return **HTTP 404**: the ads were taken down between the first run (2026-07-27, when all eight
-resolved) and this one. Nothing in the pipeline regressed; the *web* changed underneath the task set.
+**Why "Completed" is 62% and not 100%.** Three of the eight postings produce no deliverable. Two — The
+Athletic and HHAeXchange — now return **HTTP 404**: the ads were taken down between the first run
+(2026-07-27, when all eight resolved) and this one. The third is the JavaScript-only page, which yields
+a posting with no requirements and therefore a report that rates nothing. **All three rows read 62%
+because all three runners now answer the same question.** They did not: the pipeline rows used to read
+75%, counting that empty report as a success while the agent path — which requires a `submit_report`
+call — scored the same task as a failure. Two definitions of "Completed" in adjacent rows of one table,
+and every grounding column returns `n/a` there, so nothing else could catch it. Nothing in the pipeline
+regressed; the *web* changed underneath the task set, and the metric now says so honestly.
 That is precisely the failure this milestone set out to fix, and it is the reason the numbers above are
 recorded rather than merely reported — see **Reproducibility** below.
 
@@ -189,7 +200,7 @@ recorded rather than merely reported — see **Reproducibility** below.
   that cites nothing scores no fidelity at all (`n/a`), and one that cites once and gets it right scores
   1.00 — the same as one that cites forty times and gets them all right.
 - **Cited** — of everything the letter wrote, the fraction of sentences that cite anything. This is the
-  denominator fidelity throws away. Opus's pipeline letters sit at **0.11**: they make claims and back
+  denominator fidelity throws away. Opus's pipeline letters sit at **0.13**: they make claims and back
   almost none of them, which is how they reach a 1.00 fidelity over a single task. The loop sits at
   **0.45**.
 - **Median LLM calls / cost** — the price of a task, per model. This is the "cheaper model enough?"
@@ -231,8 +242,8 @@ calls, 8 pages, 6 extractions, 14 GitHub responses). Every reproduction since ha
 
 Each eval row runs one model end-to-end, and every model call's token usage flows through one
 `token_cost()` helper, so per-task cost is measured, not estimated. For this task set the result is
-unambiguous: **`claude-opus-4-8` costs ≈6× more per task than `claude-haiku-4-5` ($0.1827 vs $0.0291)
-and does not buy a better match report** — identical completion (75%, both blocked by the same two dead
+unambiguous: **`claude-opus-4-8` costs ≈6× more per task than `claude-haiku-4-5` ($0.1910 vs $0.0306)
+and does not buy a better match report** — identical completion (62%, both blocked by the same three
 URLs) and *lower* requirement coverage (0.62 vs 0.76).
 
 **What prompt caching actually saved.** The loop re-sends the whole conversation every step, so
@@ -254,7 +265,7 @@ Cached tokens are priced and counted against the budget rather than treated as f
 the API's `input_tokens` is only the uncached remainder ([ADR-0007](docs/decisions/0007_prompt_caching.md)).
 
 It does not buy a better letter either, which took a metric fix to see. The strong model's 1.00 citation
-fidelity is over **one task**; in the other five its letters cite nothing at all (an 0.11 citation rate),
+fidelity is over **one task**; in the other four its letters cite nothing at all (a 0.13 citation rate),
 and a letter that promises nothing checkable cannot be caught fabricating. What actually produces
 grounded letters on this task set is **giving the cheap model the agent loop** — 0.45 cited, 1.00
 fidelity across four tasks, at $0.0592. Spend the money on agency, not on the tier.
@@ -265,8 +276,8 @@ was priced from the model id the **API returns**, which for Haiku is a dated sna
 whole cost column read `$0.00` — and `max_cost` could never fire, because a run that never spends
 anything cannot breach a spend ceiling. `price_for` now resolves the longest matching prefix and the
 recorded entries were re-priced from their captured token counts. **The first table this produced said
-the loop was 3.5× cheaper than the pipeline; it is 3.3× more expensive.** Measured cost is only as
-honest as the rate card lookup behind it.
+the loop was 3.5× cheaper than the pipeline; it was 3.3× more expensive** (2.5× today, on a like-for-like
+basis, after prompt caching). Measured cost is only as honest as the rate card lookup behind it.
 
 ## Limitations — what apply-scout can't do
 
@@ -280,6 +291,18 @@ Honest and specific, because an agent that hides its failure modes is worse than
 - **Evidence is repo + README only.** `github_evidence` matches a requirement against repo metadata
   and README text — not full code search. A skill demonstrated only deep in a source file, with no
   mention in the README, is missed (rated `none`, honestly).
+- **And the match is the *whole requirement* as a literal substring, which is the bigger miss.**
+  `find_evidence` tests `requirement.lower() in readme.lower()`, so a requirement phrased as a sentence
+  — which is how postings phrase them — can only match if a README contains that sentence verbatim.
+  Measured over the committed cassette: **63 of 72 probes (87%) return no evidence, and 48 of those 63
+  contain a distinctive keyword that *is* present in one of the READMEs** — `qlora`, `mlflow`,
+  `langchain`, `transformer`, `guardrails`, `docker`, `sentiment` among them. So a large share of the
+  `none` ratings, and of the low citation rates in the table, are a **retrieval artifact rather than an
+  honest absence of proof**. The 48 is an upper bound on what better probing could recover, not a
+  promise — some keyword hits would be noise. Fixing it (a sharper tool description telling the agent to
+  probe one technology at a time, or token-level matching inside the tool) changes what the tool returns,
+  which changes the conversation every cassette entry is keyed on — so it costs a full re-record and is
+  named here rather than quietly patched.
 - **Extraction is only as good as the model.** Odd posting layouts can drop or merge requirements; the
   coverage metric exists precisely to quantify this rather than assume it away. The Reddit posting is
   the worked example — it yields a single extracted requirement and scores **0.00 coverage**.
@@ -338,8 +361,10 @@ Honest and specific, because an agent that hides its failure modes is worse than
   than delivering half a report.
 - **A budget can be overshot by one call.** Ceilings are checked *before* each model call, so a single
   expensive reply can end a run above its limit. The stop is graceful and honest; it is a ceiling on
-  starting work, not a hard cap on spend. The demo run spends $0.5374 against a $0.50 default ceiling
-  for exactly this reason.
+  starting work, not a hard cap on spend. The demo used to be the worked example — an earlier recording
+  spent $0.5948 against the $0.50 default ceiling and stopped there — but prompt caching brought the same
+  run to **$0.4368**, so the committed demo now finishes on `end_turn` without ever breaching. The
+  behaviour is pinned by tests rather than by the picture.
 - **Only the cheap model has been measured in the loop.** The third eval row is
   `claude-haiku-4-5`; the Opus × loop cell would cost ≈$4.7 to record and is deliberately empty
   ([ADR-0006](docs/decisions/0006_scoring_the_agent_loop.md)). Read the loop-vs-pipeline comparison as
@@ -359,6 +384,7 @@ Honest and specific, because an agent that hides its failure modes is worse than
 - [ADR-0007 — prompt caching at the top level, so the cassettes survive it](docs/decisions/0007_prompt_caching.md)
 - [ADR-0008 — ground the report in the posting, and measure it before enforcing it](docs/decisions/0008_grounding_the_report.md)
 - [ADR-0009 — ground the report's evidence in what the tools retrieved, compared by repository](docs/decisions/0009_evidence_grounding.md)
+- [ADR-0010 — one definition of "Completed" for both runners](docs/decisions/0010_one_definition_of_completed.md)
 
 ## Demo
 
