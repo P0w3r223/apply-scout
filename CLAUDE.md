@@ -47,11 +47,15 @@ src/apply_scout/
     github_evidence.py    # real: find_evidence (pure) + GitHub-backed tool -> Evidence[]
     real.py               # real_tools() factory (all three tools live)
     mock.py               # stand-ins matching the real tools' contracts (used by the loop tests)
+scripts/
+  demo.py         # capture (a real run -> docs/demo-cast.json) and render the README demo
+  demo_svg.py     # pure: cast -> animated SVG (fixed-size scrolling terminal, CSS only)
 tests/            # pytest; the loop is tested under a scripted fake model (no network, no key)
 eval/tasks.example.json  # annotated task fixtures (documents the eval format)
 eval/results/     # trajectory JSONL + eval markdown tables (gitignored)
 eval/cassettes/   # recorded external responses (COMMITTED — this is what replays in CI)
 docs/decisions/   # ADRs
+docs/demo.svg     # the README demo, generated from docs/demo-cast.json (both COMMITTED)
 ```
 
 Data flows one way: tools emit contracts, the agent reasons over them and logs a
@@ -102,6 +106,15 @@ Evaluate over annotated tasks (writes a markdown table comparing two models):
 apply-scout eval --tasks eval/tasks.json --models claude-haiku-4-5,claude-opus-4-8
 ```
 
+Regenerate the README demo from the committed recording (free, offline — re-record only when
+the run itself should change, and expect to pay for it):
+
+```bash
+python scripts/demo.py capture --url <recorded-url> --cv cv/candidate.md \
+  --github-user P0w3r223 --cassette-mode replay
+python scripts/demo.py render      # docs/demo-cast.json -> docs/demo.svg
+```
+
 ## Roadmap (7 milestones)
 
 1. **Architecture + contracts + loop skeleton.** ✅ Pydantic contracts, budgets,
@@ -120,9 +133,8 @@ apply-scout eval --tasks eval/tasks.json --models claude-haiku-4-5,claude-opus-4
    table comparing two models.
 7. **Interface + docs.** ✅ rich CLI (colored step stream + eval table),
    README with the eval-table shape + cost analysis + honest limitations + mermaid diagram,
-   ADR-0002 (pipeline vs loop) and ADR-0003 (structured outputs + guardrail). Demo GIF pending a
-   live run.
-8. **Record/replay cassettes (this milestone).** ✅ `cassette.py`: every external seam
+   ADR-0002 (pipeline vs loop) and ADR-0003 (structured outputs + guardrail).
+8. **Record/replay cassettes.** ✅ `cassette.py`: every external seam
    (LLM, structurer, HTTP fetch, GitHub) records to a committed JSONL cassette and replays
    with no network, no key and no cost. `--cassette-mode {off,record,replay,auto}` on both
    subcommands; a CI job replays the evaluation on every PR and push to main. The 8-posting × 2-model
@@ -130,6 +142,11 @@ apply-scout eval --tasks eval/tasks.json --models claude-haiku-4-5,claude-opus-4
    table byte-for-byte. Main-text extraction is a recorded seam too — trafilatura's output
    differs between versions, so re-running it on replay changes the structuring key and
    misses. `env.py` loads `.env` so a real run needs no shell setup.
+9. **The demo (this milestone).** ✅ `scripts/demo.py capture` records a real run (recorded
+   2026-08-21: 8 steps, $0.5948, 138 s → `eval/cassettes/run.jsonl`) and `scripts/demo.py render`
+   turns the cast into `docs/demo.svg` — a CSS-animated, fixed-size scrolling terminal, no
+   recorder binary and no JavaScript. The same command with `--cassette-mode replay` reproduces
+   the stream character for character in 0.4 s with no key, so the picture stays regenerable.
 
 ## What not to do
 

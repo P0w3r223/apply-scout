@@ -30,6 +30,17 @@ then drafts a match report and a grounded cover letter — a tool loop written f
 safety budgets and a trajectory-evaluation harness.</p>
 
 <div class="card">
+  <h2>One run, as it happened</h2>
+  <img src="demo.svg" width="876" style="width: 100%; height: auto; border-radius: 8px;"
+       alt="apply-scout run: the agent fetches the posting, reads the CV, probes GitHub for evidence, and prints a match report">
+  <p class="sub">A real run against a live posting on 2026-08-21: 8 model calls, 56 evidence probes,
+  $0.5948, 138 seconds. Generated from the recording rather than re-enacted — pauses are compressed
+  and repeated probes are folded up with a count. It ends mid-table on purpose: a 24-requirement
+  report exceeds the 4096-token cap on one reply, and the recording keeps that rather than hiding it.
+  The whole run replays from a committed cassette in 0.4 seconds, offline and without an API key.</p>
+</div>
+
+<div class="card">
   <h2>Evaluation: when is the cheaper model enough?</h2>
   <p>The harness runs each model end-to-end over the task set and records every metric from the
   logged trajectory. Cost is measured through a single token-accounting helper, not estimated.</p>

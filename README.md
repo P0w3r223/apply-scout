@@ -196,6 +196,10 @@ Honest and specific, because an agent that hides its failure modes is worse than
   extending or refreshing it means new annotation and a new paid recording.
 - **A cassette is a snapshot, not a guarantee of current behaviour.** Replay proves what the models did
   on the recorded requests, not what they would do today. Re-record to make that claim.
+- **A long report can outgrow one response.** `MAX_OUTPUT_TOKENS` caps a single model reply at 4096
+  tokens, which a posting with two dozen requirements can exceed — the run then ends
+  `finished (max_tokens)` with the report truncated (visible in the demo above). The budget stop is
+  graceful, but the deliverable is partial; the fix is a continuation turn, not a bigger cap.
 - **English/Polish postings assumed.** Other languages are untested.
 - **No application is ever submitted.** apply-scout drafts a report and a letter for a human to review
   and send — it does not act on the candidate's behalf.
@@ -210,50 +214,38 @@ Honest and specific, because an agent that hides its failure modes is worse than
 ## Demo
 
 A real `apply-scout run` against a live posting (Jeeves — *Senior AI Engineer*), matched against the
-synthetic candidate CV (`cv/candidate.md`) and the public `P0w3r223` GitHub. Captured from the
-`--verbose` step stream (lightly trimmed):
+synthetic candidate CV (`cv/candidate.md`) and the public `P0w3r223` GitHub:
 
-```text
-$ apply-scout run --url https://jobs.lever.co/tryjeeves/… --cv cv/candidate.md --github-user P0w3r223 --verbose
+<img src="docs/demo.svg" alt="apply-scout run: the agent fetches the posting, reads the CV, probes GitHub for evidence, and prints a match report" width="876">
 
-[0]  claude-opus-4-8 | 1256+187 tok | $0.0110 | 2 tool call(s)
-     I'll fetch the posting and read the CV in parallel, then gather GitHub evidence.
-    - fetch_job_posting -> ok: posting 'Senior AI Engineer' with 22 requirement(s)
-    - read_cv           -> ok: CV for P0w3r223 with 49 skill(s)
+Recorded 2026-08-21 on `claude-opus-4-8`: **8 model calls, 56 `github_evidence` probes, 68.9k+10.0k
+tokens, $0.5948, 138 s**. The picture is generated from the run, not re-enacted — pauses are
+compressed to keep it watchable and repeated probes are folded up with an explicit count
+(`... 7 more github_evidence call(s)`); nothing is otherwise edited or reordered.
 
-[3]  claude-opus-4-8 | 3613+1783 tok | $0.0626 | 18 tool call(s)
-    - github_evidence -> ok: 0 evidence item(s) for 'LLM-powered applications … in production'
-    - github_evidence -> ok: 0 evidence item(s) for 'RAG pipelines (chunking, embeddings, vector DB)'
-    … (18 long-phrase queries, all 0)
+**Reproduce it yourself — offline, in under a second, with no API key:**
 
-[22] claude-opus-4-8 | 7040+883 tok | $0.0573 | 6 tool call(s)
-     All eighteen returned no evidence — unusual given the CV. Let me retry with simpler terms.
-    - github_evidence -> ok: 1 evidence item(s) for 'MLflow'
-    - github_evidence -> ok: 8 evidence item(s) for 'Python'
-
-[36] claude-opus-4-8 | 10639+4096 tok | $0.1556
-     The GitHub tool is functioning correctly (real repos for Python, MLflow, the portfolio
-     projects), so the many `none` results are genuine findings, not tool failures.
-
-     # Match Report — Senior AI Engineer @ Jeeves
-     Overall: **weak fit** — strong classical-ML / MLOps / A-B-testing evidence, but the posting's
-     production-LLM, RAG, vector-DB, cloud and serving requirements have no verifiable evidence.
-
-     | Requirement                | Rating | Evidence                                              |
-     |----------------------------|--------|-------------------------------------------------------|
-     | Strong Python for AI/ML    | strong | car-price-ml, pl-review-sense, mlops-car-price        |
-     | ML lifecycle (MLflow, …)   | strong | mlops-car-price — MLflow tracking + registry          |
-     | LLM apps in production     | weak   | token-budget references the Claude ecosystem, not a deployed app |
-     | RAG / vector databases     | none   | no evidence found                                     |
-     | PostgreSQL                 | none   | only SQLite evidenced (it-job-radar)                  |
-
-status: completed | steps: 5 | tokens: 31742+7898 | cost: $0.3562
+```bash
+python scripts/demo.py capture --url https://jobs.lever.co/tryjeeves/2f00206f-6091-4eed-8b5f-1325afdbfe30 \
+  --cv cv/candidate.md --github-user P0w3r223 --cassette-mode replay
+python scripts/demo.py render
 ```
 
-> A genuine run, trimmed for length. Two things it shows: the agent **self-corrects** — when its first
-> descriptive queries return nothing, it retries with short tokens and finds real evidence — and it rates
-> **honestly**, refusing to claim production / RAG / cloud experience the repos don't back up. The full
-> trajectory is written to `eval/results/` as JSONL.
+The replay reproduces the recorded stream **character for character** — 0.4 s instead of 138 s, $0
+instead of $0.59 — because every external seam of that run is committed in
+`eval/cassettes/run.jsonl` (see [ADR-0004](docs/decisions/0004_record_replay_cassettes.md)).
+
+Three things the run shows, including one that is not flattering:
+
+- **It self-corrects.** The first 26 probes use long requirement phrases and return nothing; the agent
+  notices ("the search appears to favor short/specific terms"), retries with single keywords —
+  `MLflow`, `drift`, `FastAPI`, `RAG` — and starts hitting real repos.
+- **It rates honestly.** Requirements with no retrieved evidence come back `none`, including
+  "5+ years professional experience", which no repository can prove. It cites this project's *own*
+  audit against itself rather than papering over the gap.
+- **It ran out of output budget.** The final report is cut off mid-table and the run ends
+  `finished (max_tokens)`: a 24-requirement report does not fit in `MAX_OUTPUT_TOKENS = 4096`. Left
+  in the recording rather than hidden — the trajectory in `eval/results/` records it the same way.
 
 ## License
 
