@@ -3,290 +3,266 @@
   "title": "apply-scout run — claude-opus-4-8",
   "frames": [
     {
-      "t": 5.329,
-      "text": "[0] model claude-opus-4-8 | 3414+171 tok | $0.0213 | 2 tool call(s)\n     I'll start by fetching the job posting and reading the CV in parallel.",
+      "t": 7.094,
+      "text": "[0] model claude-opus-4-8 | 3414+192 tok | $0.0261 | 2 tool call(s)\n     I'll start by fetching the job posting and reading the candidate's CV.",
       "style": "cyan",
       "group": null
     },
     {
-      "t": 13.25,
+      "t": 7.109,
       "text": "    - fetch_job_posting -> ok: posting 'Senior AI Engineer' with 29 requirement(s)",
       "style": "dim",
       "group": "fetch_job_posting"
     },
     {
-      "t": 17.204,
+      "t": 7.109,
       "text": "    - read_cv -> ok: CV for candidate with 49 skill(s)",
       "style": "dim",
       "group": "read_cv"
     },
     {
-      "t": 40.719,
-      "text": "[3] model claude-opus-4-8 | 5326+2704 tok | $0.0942 | 29 tool call(s)\n     Now I'll gather GitHub evidence for each requirement. Let me batch these calls.",
+      "t": 29.719,
+      "text": "[3] model claude-opus-4-8 | 5347+2462 tok | $0.0753 | 27 tool call(s)\n     Now I'll gather GitHub evidence for each requirement. Let me batch these calls.",
       "style": "cyan",
       "group": null
     },
     {
-      "t": 45.735,
-      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Bachelor's degree in Computer Science or equivalent practical experience'",
+      "t": 29.719,
+      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Python for AI/ML'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 45.735,
-      "text": "    - github_evidence -> ok: 0 evidence item(s) for '5+ years professional software engineering experience'",
+      "t": 29.719,
+      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'LLM-powered applications using OpenAI, Anthropic, or Cohere in production'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 45.735,
-      "text": "    - github_evidence -> ok: 0 evidence item(s) for '3+ years AI/ML systems in production'",
-      "style": "dim",
-      "group": "github_evidence"
-    },
-    {
-      "t": 45.75,
-      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Building and deploying LLM-powered applications using OpenAI, Anthropic, or Cohere in production'",
-      "style": "dim",
-      "group": "github_evidence"
-    },
-    {
-      "t": 45.766,
+      "t": 29.719,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'RAG pipelines: chunking, embedding models, vector database integration'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 45.766,
-      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Python for AI/ML workloads'",
+      "t": 29.734,
+      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'AI orchestration framework (LangChain, LlamaIndex)'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 45.766,
-      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'AI orchestration framework (LangChain, LlamaIndex, or equivalent)'",
+      "t": 29.734,
+      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'ML model serving infrastructure: REST or gRPC inference endpoints, latency budgeting, monitoring'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 45.766,
-      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'ML model serving infrastructure: REST or gRPC inference endpoints, input/output validation, latency budgeting, monitoring'",
-      "style": "dim",
-      "group": "github_evidence"
-    },
-    {
-      "t": 45.766,
+      "t": 29.734,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'REST APIs'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 45.766,
+      "t": 29.75,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Relational databases PostgreSQL'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 45.766,
+      "t": 29.75,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Async patterns'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 45.782,
+      "t": 29.75,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Cloud infrastructure (AWS, GCP, or Azure)'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 45.797,
-      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Observability: structured logging, distributed tracing, dashboards for AI system health'",
+      "t": 29.75,
+      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Observability: structured logging, distributed tracing, dashboards'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 45.797,
-      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Fintech, financial services, or regulated industry with AI reliability and auditability'",
-      "style": "dim",
-      "group": "github_evidence"
-    },
-    {
-      "t": 45.797,
-      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Prompt evaluation frameworks, A/B testing AI outputs, tracking model performance degradation'",
-      "style": "dim",
-      "group": "github_evidence"
-    },
-    {
-      "t": 45.813,
-      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'ML lifecycle management tools: MLflow, Weights & Biases, Vertex AI, or SageMaker'",
-      "style": "dim",
-      "group": "github_evidence"
-    },
-    {
-      "t": 45.813,
-      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Real-time data streaming (Kafka, Kinesis) for event-driven AI pipelines'",
-      "style": "dim",
-      "group": "github_evidence"
-    },
-    {
-      "t": 45.813,
-      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Open-source AI tooling contributions, published technical writing, or conference talks'",
-      "style": "dim",
-      "group": "github_evidence"
-    },
-    {
-      "t": 45.813,
-      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Startup or scale-up experience'",
-      "style": "dim",
-      "group": "github_evidence"
-    },
-    {
-      "t": 45.829,
+      "t": 29.766,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Pinecone'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 45.829,
+      "t": 29.766,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Weaviate'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 45.829,
+      "t": 29.781,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'pgvector'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 45.844,
+      "t": 29.781,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'OpenAI API'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 45.844,
+      "t": 29.781,
       "text": "    - github_evidence -> ok: 1 evidence item(s) for 'Anthropic API'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 45.86,
+      "t": 29.797,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Cohere API'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 45.86,
+      "t": 29.797,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'HuggingFace'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 45.86,
+      "t": 29.797,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Vector databases'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 45.86,
-      "text": "    - github_evidence -> ok: 9 evidence item(s) for 'Go'",
+      "t": 29.813,
+      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Go programming language'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 45.875,
+      "t": 29.813,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Node.js'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 61.11,
-      "text": "[33] model claude-opus-4-8 | 11585+1313 tok | $0.0907 | 8 tool call(s)\n     The \"Go\" results are false positives — the snippets match the English word \"go/goes,\" not the Go language. Let me refine a few searches where the CV strongly suggests evidence exists but the first pass returned nothing, using more specific terms.",
-      "style": "cyan",
-      "group": null
-    },
-    {
-      "t": 61.11,
-      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'MLflow reproducible training pipeline'",
+      "t": 29.813,
+      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'AI/ML systems in production'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 61.125,
+      "t": 29.813,
+      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'fintech, financial services, or regulated industry'",
+      "style": "dim",
+      "group": "github_evidence"
+    },
+    {
+      "t": 29.813,
+      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'prompt evaluation frameworks, A/B testing AI outputs, model performance degradation tracking'",
+      "style": "dim",
+      "group": "github_evidence"
+    },
+    {
+      "t": 29.828,
+      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'ML lifecycle management tools: MLflow, Weights & Biases, Vertex AI, SageMaker'",
+      "style": "dim",
+      "group": "github_evidence"
+    },
+    {
+      "t": 29.828,
+      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'real-time data streaming (Kafka, Kinesis)'",
+      "style": "dim",
+      "group": "github_evidence"
+    },
+    {
+      "t": 29.828,
+      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Contributions to open-source AI tooling, published technical writing, or talks'",
+      "style": "dim",
+      "group": "github_evidence"
+    },
+    {
+      "t": 29.828,
+      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'startup or scale-up experience'",
+      "style": "dim",
+      "group": "github_evidence"
+    },
+    {
+      "t": 39.5,
+      "text": "[31] model claude-opus-4-8 | 10144+815 tok | $0.0838 | 6 tool call(s)\n     Let me refine a few searches based on CV signals (MLflow, transformer fine-tuning, A/B testing, agents/evaluation harnesses).",
+      "style": "cyan",
+      "group": null
+    },
+    {
+      "t": 39.5,
+      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'MLflow reproducible ML pipelines'",
+      "style": "dim",
+      "group": "github_evidence"
+    },
+    {
+      "t": 39.516,
       "text": "    - github_evidence -> ok: 0 evidence item(s) for 'A/B testing hypothesis testing statistics'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 61.125,
-      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'transformer fine-tuning QLoRA HerBERT text classification'",
+      "t": 39.516,
+      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'transformer fine-tuning QLoRA HuggingFace'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 61.125,
-      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'FastAPI web service endpoint'",
+      "t": 39.531,
+      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'LLM agents tool loops structured outputs guardrails evaluation harness'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 61.141,
-      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Docker containerization CI GitHub Actions'",
+      "t": 39.531,
+      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'Docker CI GitHub Actions'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 61.141,
-      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'embeddings semantic search retrieval'",
+      "t": 39.547,
+      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'text classification sentiment analysis evaluation'",
       "style": "dim",
       "group": "github_evidence"
     },
     {
-      "t": 61.141,
-      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'LLM agent tool loop structured outputs guardrails'",
-      "style": "dim",
-      "group": "github_evidence"
-    },
-    {
-      "t": 61.157,
-      "text": "    - github_evidence -> ok: 0 evidence item(s) for 'model monitoring drift PSI production'",
-      "style": "dim",
-      "group": "github_evidence"
-    },
-    {
-      "t": 123.188,
-      "text": "[42] model claude-opus-4-8 | 13573+5933 tok | $0.2162 | 1 tool call(s)\n     I have enough to compile the report. Note: the \"Go\" hits are false positives — the snippets match the English word \"go/goes\" in prose, not the Go language, so they don't actually evidence the requirement. The only genuine hit across all requirements is a profile-README mention of the Anthropic API.",
+      "t": 114.344,
+      "text": "[38] model claude-opus-4-8 | 11478+6829 tok | $0.1841 | 1 tool call(s)\n     GitHub evidence is very thin — only the candidate's profile README surfaced anything (Anthropic API, from-scratch agents, QLoRA fine-tuning, evaluation harnesses). Every other search returned no citable proof. I'll rate honestly and submit.",
       "style": "cyan",
       "group": null
     },
     {
-      "t": 123.188,
-      "text": "    - submit_report -> ok: submitted: 29 rating(s), 5 letter sentence(s)",
+      "t": 114.344,
+      "text": "    - submit_report -> ok: submitted: 29 rating(s), 4 letter sentence(s)",
       "style": "dim",
       "group": "submit_report"
     },
     {
-      "t": 133.172,
-      "text": "[44] model claude-opus-4-8 | 19789+639 tok | $0.1149 | 0 tool call(s)\n     I've submitted the match report. Here's the bottom line:\n     \n     ## Match summary: Senior AI Engineer @ Jeeves — **weak fit on verifiable evidence**\n     \n     Against citable GitHub evidence, this candidate is a poor match for this specific posting. Of 29 requirements, only **one** produced genuine, verifiable evidence.\n     \n     **What was found:**\n     - **Anthropic API** (rated *weak*) — the only real hit: the candidate's profile README self-describes \"Anthropic API, from-scratch agents, QLoRA fine-tuning, evaluation harnesses.\" This also lends partial (weak) support to the \"LLM-powered applications\" requirement, though there's no evidence of a *production* deployment.\n     \n     **What was not found (rated `none`):**\n     - All the core AI-infra requirements: RAG pipelines, vector databases (Pinecone/Weaviate/pgvector), model serving, cloud, observability, orchestration frameworks (LangChain/LlamaIndex).\n     - Required languages **Go** and **Node.js** — notably, the \"Go\" search returned repos, but every snippet was a false positive matching the English word \"go/goes\" in prose, not the Go language. I rated it `none`.\n     - Experience/seniority gates (degree, 5+ years, 3+ years AI/ML in production) and all nice-to-haves.\n     \n     **Important caveat:** The candidate's CV lists many relevant skills (Python, MLflow, transformer fine-tuning, A/B testing, Docker/CI) that the repository search did *not* surface as citable evidence. Per the evidence-only standard, those were rated `none` — this reflects a gap in *retrievable proof*, not necessarily a total absence of the skill. A follow-up with direct repo links from the candidate could substantially change several ratings.\n     \n     The cover-letter draft was kept minimal and honest: only the Anthropic API claim carries a factual assertion, backed by its README link.",
+      "t": 124.453,
+      "text": "[40] model claude-opus-4-8 | 18595+685 tok | $0.0674 | 0 tool call(s)\n     I've completed the assessment and submitted the report. Here's the summary:\n     \n     ## Match Report: Senior AI Engineer @ Jeeves\n     \n     **Overall: Weak match** based on verifiable GitHub evidence.\n     \n     The only citable GitHub artifact found was the candidate's profile README (`P0w3r223/P0w3r223`), which lists: *\"Anthropic API, from-scratch agents, QLoRA fine-tuning, evaluation harnesses.\"*\n     \n     **Weak (3 requirements)** — backed by that README:\n     - LLM-powered applications (Anthropic mentioned, but no production deployment shown)\n     - Anthropic API (listed, no dedicated project repo)\n     - Prompt evaluation / A/B testing (README cites \"evaluation harnesses\")\n     \n     **None (26 requirements)** — no retrievable proof, including every other hard requirement:\n     - Languages: **Go**, **Node.js**, Python-for-AI/ML (no citable repo surfaced)\n     - Vector DBs: **Pinecone**, **Weaviate**, **pgvector**, generic vector databases\n     - APIs: **OpenAI**, **Cohere**, HuggingFace (QLoRA implied but not named/verifiable)\n     - RAG pipelines, orchestration frameworks (LangChain/LlamaIndex), model-serving infra, REST APIs, PostgreSQL, async patterns, cloud infra, observability\n     - Experience/domain claims: 5+ yrs, 3+ yrs AI/ML in production, degree, fintech, MLflow/W&B, Kafka/Kinesis, OSS/talks, startup experience\n     \n     **Note on honesty:** The CV lists many of these skills (Python, MLflow, A/B testing, transformer fine-tuning), but per the anti-hallucination rules I rate strictly on retrievable, citable evidence. Since GitHub searches returned no citable proof for those, they're rated `none` rather than papered over.\n     \n     The cover-letter draft is intentionally minimal — only claims traceable to the one verified README URL were included.",
       "style": "cyan",
       "group": null
     },
     {
-      "t": 133.172,
+      "t": 124.453,
       "text": "[done] finished (end_turn)",
       "style": "bold green",
       "group": null
     },
     {
-      "t": 133.172,
-      "text": "\nstatus: completed\nsteps: 5 | tokens: 53687+10760 | cost: $0.5374",
+      "t": 124.453,
+      "text": "\nstatus: completed\nsteps: 5 | tokens: 48978+10983 | cost: $0.4368",
       "style": "bold green",
       "group": null
     },
     {
-      "t": 133.172,
-      "text": "--- report ---\nI've submitted the match report. Here's the bottom line:\n\n## Match summary: Senior AI Engineer @ Jeeves — **weak fit on verifiable evidence**\n\nAgainst citable GitHub evidence, this candidate is a poor match for this specific posting. Of 29 requirements, only **one** produced genuine, verifiable evidence.\n\n**What was found:**\n- **Anthropic API** (rated *weak*) — the only real hit: the candidate's profile README self-describes \"Anthropic API, from-scratch agents, QLoRA fine-tuning, evaluation harnesses.\" This also lends partial (weak) support to the \"LLM-powered applications\" requirement, though there's no evidence of a *production* deployment.\n\n**What was not found (rated `none`):**\n- All the core AI-infra requirements: RAG pipelines, vector databases (Pinecone/Weaviate/pgvector), model serving, cloud, observability, orchestration frameworks (LangChain/LlamaIndex).\n- Required languages **Go** and **Node.js** — notably, the \"Go\" search returned repos, but every snippet was a false positive matching the English word \"go/goes\" in prose, not the Go language. I rated it `none`.\n- Experience/seniority gates (degree, 5+ years, 3+ years AI/ML in production) and all nice-to-haves.\n\n... 3 more line(s) — full report above",
+      "t": 124.453,
+      "text": "--- report ---\nI've completed the assessment and submitted the report. Here's the summary:\n\n## Match Report: Senior AI Engineer @ Jeeves\n\n**Overall: Weak match** based on verifiable GitHub evidence.\n\nThe only citable GitHub artifact found was the candidate's profile README (`P0w3r223/P0w3r223`), which lists: *\"Anthropic API, from-scratch agents, QLoRA fine-tuning, evaluation harnesses.\"*\n\n**Weak (3 requirements)** — backed by that README:\n- LLM-powered applications (Anthropic mentioned, but no production deployment shown)\n- Anthropic API (listed, no dedicated project repo)\n- Prompt evaluation / A/B testing (README cites \"evaluation harnesses\")\n\n**None (26 requirements)** — no retrievable proof, including every other hard requirement:\n... 9 more line(s) — full report above",
       "style": "",
       "group": null
     }

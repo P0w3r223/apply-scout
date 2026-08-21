@@ -101,12 +101,17 @@ README) and writes a markdown table comparing two models:
 |---|---|---|---|---|---|---|---|---|
 | pipeline | `claude-haiku-4-5` | 8 | 75% | 0.76 (5) | 0.75 (4) | 0.29 | 4 | $0.0291 |
 | pipeline | `claude-opus-4-8` | 8 | 75% | 0.62 (5) | 1.00 (1) | 0.11 | 4 | $0.1827 |
-| **agent loop** | `claude-haiku-4-5` | 8 | 75% | 0.76 (5) | **1.00 (5)** | **0.74** | 9.5 | $0.0963 |
+| **agent loop** | `claude-haiku-4-5` | 8 | 62% | 0.76 (5) | **1.00 (4)** | **0.45** | 8 | $0.0592 |
 
 > The bracketed number is **how many tasks the mean is actually over** — a task with no
 > annotation has no coverage to measure, and a letter that cites nothing has no fidelity.
 > Both used to be scored 1.00, which is why an earlier version of this table read 0.80 / 0.68
 > and gave Opus a headline 1.00 it had not earned.
+>
+> **The loop row is cached; the pipeline rows are not** (see below). On the same basis the loop's
+> median task costs **$0.0741**, so the runner comparison is 2.5×, not the 2.0× the table implies.
+> The loop row is also a **fresh sample**: re-recording it moved completion 75% → 62% and the
+> citation rate 0.74 → 0.45 with no code change. Eight tasks is a small sample, and it wobbles.
 
 > Real numbers from `apply-scout eval` (2026-08-21) over 8 annotated live postings — 6 English and 2 Polish,
 > from Lever / Greenhouse / SmartRecruiters, plus one deliberately JavaScript-only page as an edge case.
@@ -123,15 +128,21 @@ citations hold up**.
 Read the two citation columns together — separately, each one lies. Opus's pipeline letters score a
 perfect 1.00 fidelity **on a single task**, because in five of six they cite nothing at all: only 11% of
 their sentences carry a link, so there is almost nothing for the guardrail to catch. The loop cites in
-**74%** of its sentences and every one of them is grounded, across five tasks. A model that promises
+**45%** of its sentences and every one of them is grounded, across four tasks. A model that promises
 nothing checkable cannot be caught fabricating, which is why fidelity without its denominator is not a
 result — and why the pipeline-Opus row is not the "buy the strong model for the letter" story it looks
 like.
 
-So the diagonal is the finding: grounded, *substantiated* letters cost **$0.0963** (cheap model, loop)
-against **$0.1827** for the strong model in the pipeline — half the price, better coverage (0.76 against
-0.62), and seven times the citation rate. It is the agency that grounds the letter, not the model tier.
-The Opus × loop cell is deliberately unrecorded: ≈$4.7 to fill
+So the diagonal is the finding: grounded, *substantiated* letters cost **$0.0592** (cheap model, loop,
+cached — $0.0741 on the pipeline's uncached basis) against **$0.1827** for the strong model in the
+pipeline — a third to a half of the price, better coverage (0.76 against 0.62), and four times the
+citation rate. It is the agency that grounds the letter, not the model tier.
+
+**How firm is that?** Firmer on citations than on anything else. Re-recording the loop moved its
+completion from 75% to 62% and its citation rate from 0.74 to 0.45 on the same code and the same
+inputs — sampling, not a regression, and a reminder that eight tasks is a small sample. What survived
+both runs is the ordering: the loop cites far more than either pipeline row and grounds everything it
+cites. The Opus × loop cell is deliberately unrecorded: ≈$4.7 to fill
 ([ADR-0006](docs/decisions/0006_scoring_the_agent_loop.md)).
 
 **Why "Completed" is 75% and not 100%.** Two of the eight postings — The Athletic and HHAeXchange —
@@ -205,19 +216,29 @@ unambiguous: **`claude-opus-4-8` costs ≈6× more per task than `claude-haiku-4
 and does not buy a better match report** — identical completion (75%, both blocked by the same two dead
 URLs) and *lower* requirement coverage (0.62 vs 0.76).
 
-**Prompt caching is on, and the table above predates it.** The loop re-sends the whole
-conversation every step — 65% of its cost is input tokens, most of them a repeated prefix — so
-requests now carry a top-level `cache_control`, which bills a repeated prefix at a tenth of the
-input rate. The numbers here were recorded before that and are honest about it: showing the saving
-means paying to re-record, and no cached-cost row is claimed until that happens
-([ADR-0007](docs/decisions/0007_prompt_caching.md)). Cached tokens are priced and counted against
-the budget rather than treated as free.
+**What prompt caching actually saved.** The loop re-sends the whole conversation every step, so
+requests carry a top-level `cache_control` and a repeated prefix bills at a tenth of the input rate.
+Measured **inside each recorded run** — the same prompts and replies, priced as if nothing had been
+cached — so the model's own sampling variance cannot be mistaken for a saving:
+
+| recorded run | prompt tokens | served from cache | cost | same run, uncached | saved |
+|---|---:|---:|---:|---:|---:|
+| eval loop — Haiku, 38 turns | 248,710 | 53% | **$0.2950** | $0.3994 | **26%** |
+| demo — Opus, 5 turns | 48,978 | 51% | **$0.4368** | $0.5195 | **16%** |
+
+Per task the saving runs from **36% to nothing**, and the shape is the point: the Reddit task saved
+**0%** because the loop gave up after a single call — nothing was ever re-sent, so nothing could be
+read back. Caching pays for turns over a growing prefix, and a cache *write* costs 1.25×, which is
+why the five-turn demo saves less than the 38-turn eval. On the median task: $0.0741 → **$0.0592**.
+
+Cached tokens are priced and counted against the budget rather than treated as free — with caching on,
+the API's `input_tokens` is only the uncached remainder ([ADR-0007](docs/decisions/0007_prompt_caching.md)).
 
 It does not buy a better letter either, which took a metric fix to see. The strong model's 1.00 citation
 fidelity is over **one task**; in the other five its letters cite nothing at all (an 0.11 citation rate),
 and a letter that promises nothing checkable cannot be caught fabricating. What actually produces
-grounded letters on this task set is **giving the cheap model the agent loop** — 0.74 cited, 1.00
-fidelity across five tasks, at $0.0963. Spend the money on agency, not on the tier.
+grounded letters on this task set is **giving the cheap model the agent loop** — 0.45 cited, 1.00
+fidelity across four tasks, at $0.0592. Spend the money on agency, not on the tier.
 
 One caveat found while measuring the loop, and worth naming because it undercut this very section: cost
 was priced from the model id the **API returns**, which for Haiku is a dated snapshot
@@ -295,11 +316,11 @@ synthetic candidate CV (`cv/candidate.md`) and the public `P0w3r223` GitHub:
 
 <img src="docs/demo.svg" alt="apply-scout run: the agent fetches the posting, reads the CV, probes GitHub for evidence, and prints a match report" width="876">
 
-Recorded live on 2026-08-21 against `claude-opus-4-8` (**5 model calls, 37 `github_evidence` probes,
-53.7k+10.8k tokens, $0.5374, 133 s**), then **rendered from a replay of that recording** — which is
-why the steps are evenly paced: a replay has no thinking time to show. Repeated probes are folded up
-with an explicit count (`... 7 more github_evidence call(s)`) and one frame contributes at most six
-rows; nothing is edited or reordered.
+Recorded live on 2026-08-21 against `claude-opus-4-8` (**5 model calls, 33 `github_evidence` probes,
+49.0k+11.0k tokens, $0.4368 with prompt caching — $0.5195 without, 125 s**), then **rendered from a
+replay of that recording** — which is why the steps are evenly paced: a replay has no thinking time to
+show. Repeated probes are folded up with an explicit count (`... 7 more github_evidence call(s)`) and
+one frame contributes at most six rows; nothing is edited or reordered.
 
 **Reproduce it yourself — offline, in under a second, with no API key:**
 
@@ -309,14 +330,14 @@ python scripts/demo.py capture --url https://jobs.lever.co/tryjeeves/2f00206f-60
 python scripts/demo.py render
 ```
 
-The replay reproduces the recorded stream **character for character** — under a second instead of 133 s,
-$0 instead of $0.54 — because every external seam of that run is committed in
+The replay reproduces the recorded stream **character for character** — under a second instead of 125 s,
+$0 instead of $0.44 — because every external seam of that run is committed in
 `eval/cassettes/run.jsonl` (see [ADR-0004](docs/decisions/0004_record_replay_cassettes.md)).
 
 Three things the run shows:
 
 - **It finishes by calling a tool, not by talking.** The last step is
-  `submit_report -> ok: submitted: 29 rating(s), 5 letter sentence(s)` — the deliverable arrives as a
+  `submit_report -> ok: submitted: 29 rating(s), 4 letter sentence(s)` — the deliverable arrives as a
   validated `MatchReport` + `CoverLetterDraft`, which is what lets the harness score this loop on the
   same axes as the pipeline ([ADR-0006](docs/decisions/0006_scoring_the_agent_loop.md)).
 - **It rates honestly, and audits its own evidence.** Requirements with no retrieved evidence come back
