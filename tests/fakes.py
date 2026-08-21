@@ -53,6 +53,25 @@ def final_turn(
     )
 
 
+def truncated_turn(
+    text: str,
+    *,
+    input_tokens: int = 100,
+    output_tokens: int = 50,
+    model: str = config.MODEL_STRONG,
+) -> LLMResponse:
+    """A model turn cut off by the per-response output cap, mid-sentence and with no
+    tool calls — what a report too long for one reply actually looks like."""
+    return LLMResponse(
+        stop_reason="max_tokens",
+        text=text,
+        tool_calls=(),
+        usage=Usage(input_tokens, output_tokens),
+        model=model,
+        raw_content=[{"type": "text", "text": text}],
+    )
+
+
 class ScriptedLLM:
     """Replays `turns` in order; records each request for assertions."""
 

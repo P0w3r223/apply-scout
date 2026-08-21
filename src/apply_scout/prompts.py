@@ -25,3 +25,13 @@ A requirement with no evidence is rated `none` — do not paper over the gap.
 the same failing call.
 - When you have gathered enough to report, stop calling tools and write the report.
 """
+
+# Sent as a *user* turn when a reply stops on `max_tokens`. It cannot be an assistant
+# turn: prefilling the last assistant message is rejected by this model family, so the
+# ask to continue has to come from our side of the conversation. The two constraints
+# exist because the pieces are concatenated verbatim — a repeated preamble would show
+# up as a seam in the middle of the report.
+CONTINUE_INSTRUCTION = """\
+Your previous message was cut off by the output limit. Continue it from exactly where \
+it stopped — do not repeat anything you already wrote, and do not start over with a \
+preamble or a new heading."""

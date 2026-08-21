@@ -15,6 +15,7 @@ from apply_scout.trajectory import StepKind, TrajectoryStep
 STEP_STYLE: dict[StepKind, str] = {
     StepKind.MODEL_CALL: "cyan",
     StepKind.TOOL_RESULT: "dim",
+    StepKind.CONTINUATION: "bold yellow",
     StepKind.FINAL: "bold green",
     StepKind.BUDGET_STOP: "bold yellow",
 }
@@ -43,6 +44,8 @@ def format_step(step: TrajectoryStep) -> str:
     if step.kind is StepKind.TOOL_RESULT:
         mark = "ok" if step.tool_ok else "ERR"
         return f"    - {step.tool_name} -> {mark}: {step.tool_summary}"
+    if step.kind is StepKind.CONTINUATION:
+        return f"[...] {step.note}"
     if step.kind is StepKind.FINAL:
         return f"[done] finished ({step.note})"
     if step.kind is StepKind.BUDGET_STOP:
