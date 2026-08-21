@@ -19,6 +19,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class StepKind(StrEnum):
     MODEL_CALL = "model_call"  # one call to the LLM, with its token/cost usage
     TOOL_RESULT = "tool_result"  # one tool executed on the model's behalf
+    CONTINUATION = "continuation"  # the answer hit the output cap; the loop asked for the rest
     FINAL = "final"  # the run completed normally (model stopped calling tools)
     BUDGET_STOP = "budget_stop"  # the run was cut short by a safety ceiling
 

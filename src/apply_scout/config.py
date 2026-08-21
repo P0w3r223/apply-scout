@@ -61,8 +61,14 @@ DEFAULT_MAX_COST_USD = 0.50  # cumulative USD across the run
 
 # --- Model request settings --------------------------------------------------
 # Per-response output cap (an enforced ceiling the model is not aware of), distinct
-# from the run-wide DEFAULT_MAX_TOKENS budget above.
+# from the run-wide DEFAULT_MAX_TOKENS budget above. A long report does not fit in one
+# reply at this cap — the loop stitches the pieces together instead of raising it (see
+# MAX_CONTINUATIONS), which keeps each recorded turn small and the cost per call legible.
 MAX_OUTPUT_TOKENS = 4096
+# How many times a run may ask the model to continue an answer the cap cut off. Bounded
+# like every other ceiling here: running out of continuations ends the run as `truncated`,
+# never as `completed` — a partial deliverable must not be reported as a finished one.
+MAX_CONTINUATIONS = 2
 # Adaptive thinking + effort are the current controls (no budget_tokens on Opus 4.8
 # / Haiku 4.5). "high" is a sensible default for multi-step tool reasoning.
 DEFAULT_EFFORT = "high"
