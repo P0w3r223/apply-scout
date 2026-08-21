@@ -18,12 +18,19 @@ from dataclasses import dataclass
 from pathlib import Path
 from statistics import mean, median
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, ValidationError
 
+from apply_scout import config
+from apply_scout.budget import Budget
+from apply_scout.contracts import CVProfile, JobPosting
 from apply_scout.fetch import Extractor, Fetcher
 from apply_scout.github import GitHubClient
+from apply_scout.guardrail import guardrail_letter
+from apply_scout.llm import LLMClient
 from apply_scout.pipeline import Assessment, PipelineError, assess
+from apply_scout.runner import run_assessment
 from apply_scout.structuring import AnthropicStructurer, Structurer
+from apply_scout.tools.submit_report import SubmitReport
 
 
 class EvalTask(BaseModel):
@@ -227,6 +234,82 @@ def pipeline_assess_fn(
         # Cost/calls are read off the structurer, so any wrapper standing in for it must
         # report them too — including a replay wrapper, which serves the recorded figures.
         return assessment, getattr(structurer, "cost_usd", 0.0), getattr(structurer, "calls", 0)
+
+    return run
+
+
+def agent_assess_fn(
+    model: str,
+    *,
+    llm_factory: Callable[[], LLMClient],
+    structurer_factory: Callable[[], Structurer] = AnthropicStructurer,
+    fetcher: Fetcher | None = None,
+    github: GitHubClient | None = None,
+    extractor: Extractor | None = None,
+    budget: Budget | None = None,
+) -> AssessFn:
+    """The other AssessFn: score the *agent loop* on the same tasks and the same metrics.
+
+    This is what makes the project's headline claim checkable. Until now the harness only
+    ever ran `pipeline_assess_fn`, so every published number described the deterministic
+    pipeline — while the from-scratch loop, the thing ADR-0001 argues for, went unmeasured
+    outside unit tests. The loop reaches the same contracts through `submit_report`, the
+    same deterministic guardrail runs over its letter, so the two rows are comparable
+    rather than merely adjacent.
+
+    Cost and calls cover the *whole* run: the loop's own model calls plus the structuring
+    the tools did on its behalf. Comparing the loop's token bill against a pipeline figure
+    that quietly excluded half the work would be the kind of flattering accounting this
+    harness exists to prevent.
+    """
+
+    ceilings = budget or Budget(
+        max_steps=config.EVAL_AGENT_MAX_STEPS, max_cost_usd=config.EVAL_AGENT_MAX_COST_USD
+    )
+
+    def run(task: EvalTask) -> tuple[Assessment | None, float, int]:
+        structurer = structurer_factory()
+        submit = SubmitReport()
+        result = run_assessment(
+            job_url=task.job_url,
+            cv_path=task.cv_path,
+            github_user=task.github_user,
+            llm=llm_factory(),
+            model=model,
+            budget=ceilings,
+            fetcher=fetcher,
+            structurer=structurer,
+            github=github,
+            extractor=extractor,
+            submit=submit,
+        )
+        cost = result.cost_usd + float(getattr(structurer, "cost_usd", 0.0) or 0.0)
+        calls = result.steps + int(getattr(structurer, "calls", 0) or 0)
+        if submit.submitted is None:
+            # The loop ran out of budget, or talked instead of submitting. Either way it
+            # produced no deliverable, which is exactly what "not completed" means here.
+            return None, cost, calls
+        guard = guardrail_letter(submit.submitted.letter, submit.submitted.report)
+        report = submit.submitted.report
+        try:
+            posting = JobPosting(
+                url=report.job_url,
+                title=report.job_title,
+                # The requirements the loop actually reported on — there is no separate
+                # posting object to score, and rating a requirement is what claiming to
+                # have extracted it means.
+                requirements=tuple(a.requirement for a in report.assessments),
+            )
+        except ValidationError:
+            return None, cost, calls  # a submission too malformed to score
+        assessment = Assessment(
+            posting=posting,
+            cv=CVProfile(),  # unused by every metric; the loop never returns one
+            report=report,
+            letter=guard.filtered,
+            guardrail=guard,
+        )
+        return assessment, cost, calls
 
     return run
 

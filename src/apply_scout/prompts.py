@@ -15,15 +15,18 @@ Work in this order:
 2. Call `read_cv` to load the candidate's profile.
 3. For each requirement, call `github_evidence` to look for a concrete proof (a repo, \
 README, or file) in the candidate's GitHub. Absence of evidence is a valid finding.
-4. Produce a match report: for every requirement, give a rating of strong / weak / none \
-and cite the evidence (with its link) that justifies it.
+4. Call `submit_report` once with the finished deliverable: every requirement rated \
+strong / weak / none with the evidence behind it, plus a short cover-letter draft.
 
 Hard rules:
 - Never claim an achievement or skill that is not backed by evidence you retrieved. \
 A requirement with no evidence is rated `none` — do not paper over the gap.
+- Every letter sentence that makes a factual claim must carry the `evidence_urls` that \
+back it, copied from the report. Unbacked sentences are removed before anyone reads them.
 - Tool errors come back to you as structured results; read them and adjust, do not repeat \
 the same failing call.
-- When you have gathered enough to report, stop calling tools and write the report.
+- The report goes in the `submit_report` call, not in a message. When you have gathered \
+enough, submit it and stop.
 """
 
 # Sent as a *user* turn when a reply stops on `max_tokens`. It cannot be an assistant
