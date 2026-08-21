@@ -102,15 +102,17 @@ paraphrases and neither adds. So this metric has exactly one firing mode: *a rep
 requirements when the posting yielded none*. It is worth publishing as that specific guard, and
 it is not the general "is the report grounded" measurement its name suggests.
 
-**The same question one level down does fire.** Every `Evidence` in a report should be one the
-`github_evidence` tool actually returned, and nothing checks that: `citation_fidelity` scores
-the letter against the report, so an invented URL that reaches the *report* is a valid citation
-target. Instrumenting the tool over the recording found one — on `konux-senior-data-scientist`
-the loop's report carries `https://github.com/P0w3r223/P0w3r223` among 29 evidence links, and
-that string appears in the cassette only inside model output, never in a GitHub response. The
-letter happened not to cite it, so nothing was removed and fidelity still read 1.00. A report
-is a deliverable in its own right, and this one links to a repository no tool ever produced.
-That measurement is the natural successor to this one, at the same $0.
+**The same question one level down is worth asking, and was asked wrongly here first.** Every
+`Evidence` in a report should be one the `github_evidence` tool actually returned, and nothing
+checked that: `citation_fidelity` scores the letter against the report, so an invented URL that
+reaches the *report* is a valid citation target. An earlier revision of this ADR reported a
+catch — the loop's `konux` report citing `https://github.com/P0w3r223/P0w3r223`, "a string that
+appears in the cassette only inside model output". **That was wrong**, and the correction matters
+more than the claim: the repository *is* in the recorded GitHub responses, and the tool returned
+its README URL (`…/blob/main/README.md`) while the report cited the repository itself. Comparing
+raw URL strings counted one source as two. [ADR 0009](0009_evidence_grounding.md) implements the
+check at repository level for exactly that reason, and it finds nothing ungrounded in this
+recording.
 
 **Two limits worth naming.** Matching is the crude token containment coverage uses, so a
 fabricated requirement echoing the posting's wording counts as grounded — this bounds

@@ -46,10 +46,10 @@ safety budgets and a trajectory-evaluation harness.</p>
   <p>The harness runs each model end-to-end over the task set and records every metric from the
   logged trajectory. Cost is measured through a single token-accounting helper, not estimated.</p>
   <table>
-    <tr><th>Runner</th><th>Model</th><th>Completed</th><th>Req coverage</th><th>Report grounded</th><th>Citation fidelity</th><th>Cited</th><th>Median calls</th><th>Median cost</th></tr>
-    <tr><td>pipeline</td><td>claude-haiku-4-5</td><td>75%</td><td>0.76 (5)</td><td>1.00 (5)</td><td>0.75 (4)</td><td>0.29</td><td>4</td><td><strong>$0.0291</strong></td></tr>
-    <tr><td>pipeline</td><td>claude-opus-4-8</td><td>75%</td><td>0.62 (5)</td><td>1.00 (5)</td><td>1.00 (1)</td><td>0.11</td><td>4</td><td>$0.1827</td></tr>
-    <tr><td><strong>agent loop</strong></td><td>claude-haiku-4-5</td><td>62%</td><td>0.76 (5)</td><td>1.00 (5)</td><td><strong>1.00 (4)</strong></td><td><strong>0.45</strong></td><td>8</td><td>$0.0592</td></tr>
+    <tr><th>Runner</th><th>Model</th><th>Completed</th><th>Req coverage</th><th>Report grounded</th><th>Evidence grounded</th><th>Citation fidelity</th><th>Cited</th><th>Median calls</th><th>Median cost</th></tr>
+    <tr><td>pipeline</td><td>claude-haiku-4-5</td><td>75%</td><td>0.76 (5)</td><td>1.00 (5)</td><td>1.00 (3)</td><td>0.75 (4)</td><td>0.29</td><td>4</td><td><strong>$0.0291</strong></td></tr>
+    <tr><td>pipeline</td><td>claude-opus-4-8</td><td>75%</td><td>0.62 (5)</td><td>1.00 (5)</td><td>1.00 (1)</td><td>1.00 (1)</td><td>0.11</td><td>4</td><td>$0.1827</td></tr>
+    <tr><td><strong>agent loop</strong></td><td>claude-haiku-4-5</td><td>62%</td><td>0.76 (5)</td><td>1.00 (5)</td><td>1.00 (4)</td><td><strong>1.00 (4)</strong></td><td><strong>0.45</strong></td><td>8</td><td>$0.0592</td></tr>
   </table>
   <p class="sub">The loop row is recorded with prompt caching and the pipeline rows are not: on the
   same basis its median task costs $0.0741. It is also a fresh sample — re-recording it moved
@@ -64,6 +64,15 @@ safety budgets and a trajectory-evaluation harness.</p>
   that run would have shown. It no longer exists in the cassette — re-recording the loop produced a
   reply in which the model refuses to assess instead of inventing — so the column is a control that
   fired nowhere, pinned by unit tests rather than by the task set.</p>
+  <p class="sub"><strong>Evidence grounded</strong> closes the last link of the chain: tool retrieves
+  evidence &rarr; report cites it &rarr; letter cites the report. The citation columns score only the
+  last hop, so a fabricated link that reaches the report becomes a valid citation target and launders
+  itself into a perfect fidelity. This one scores the report's links against what
+  <code>github_evidence</code> actually returned, compared at repository level rather than by URL
+  string &mdash; the tool returns a README's link while a report may cite the repository root, and
+  treating those as two sources produced a false positive the first time this was measured by hand.
+  Scored properly it reads 1.00: every cited link in the recording traces to a repository the tools
+  retrieved.</p>
   <p class="sub">The bracketed number is how many tasks the mean is actually over: a task with no
   annotation has no coverage to measure, and a letter that cites nothing has no fidelity. Read the two
   citation columns together — separately each one lies. The strong model's perfect 1.00 rests on a

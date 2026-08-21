@@ -23,14 +23,15 @@ from apply_scout import config
 from apply_scout.budget import Budget
 from apply_scout.contracts import CVProfile, JobPosting
 from apply_scout.fetch import Extractor, Fetcher, HttpFetcher
-from apply_scout.github import GitHubClient
-from apply_scout.guardrail import guardrail_letter, requirement_grounding
+from apply_scout.github import DiskCache, GitHubClient
+from apply_scout.guardrail import evidence_grounding, guardrail_letter, requirement_grounding
 from apply_scout.llm import LLMClient
 from apply_scout.matching import mentions
 from apply_scout.pipeline import Assessment, PipelineError, assess
 from apply_scout.runner import run_assessment
 from apply_scout.structuring import AnthropicStructurer, Structurer
 from apply_scout.tools.fetch_job_posting import FetchJobPosting
+from apply_scout.tools.github_evidence import GithubEvidence
 from apply_scout.tools.submit_report import SubmitReport
 
 
@@ -57,6 +58,7 @@ class TaskMetrics:
     completed: bool
     requirement_coverage: float | None
     requirement_grounding: float | None
+    evidence_grounding: float | None
     citation_fidelity: float | None
     citation_rate: float | None
     llm_calls: int
@@ -70,12 +72,14 @@ class Aggregate:
     completion_rate: float
     mean_requirement_coverage: float | None
     mean_requirement_grounding: float | None
+    mean_evidence_grounding: float | None
     mean_citation_fidelity: float | None
     mean_citation_rate: float | None
     # How many tasks each mean is actually over — a 1.00 from one task is not a 1.00
     # from six, and the table has no business hiding which it is.
     scored_coverage: int
     scored_grounding: int
+    scored_evidence: int
     scored_fidelity: int
     median_llm_calls: float
     median_cost_usd: float
@@ -147,6 +151,10 @@ def evaluate_task(
         # Scored against the *fetched* postings, never `assessment.posting` — on the agent
         # path that one is rebuilt from the report, and a report always grounds itself.
         requirement_grounding=requirement_grounding(assessment.report, assessment.source_postings),
+        # One level down: the links the report itself cites, against what the tools retrieved.
+        # `citation_fidelity` cannot see this — it scores the letter against the report, so a
+        # link that reaches the report is already a valid citation target.
+        evidence_grounding=evidence_grounding(assessment.report, assessment.source_evidence),
         citation_fidelity=citation_fidelity(assessment),
         citation_rate=citation_rate(assessment),
         llm_calls=llm_calls,
@@ -169,6 +177,7 @@ def run_evaluation(tasks: list[EvalTask], assess_fn: AssessFn) -> list[TaskMetri
                     # Failure is already reported by the completion rate.
                     requirement_coverage=None,
                     requirement_grounding=None,
+                    evidence_grounding=None,
                     citation_fidelity=None,
                     citation_rate=None,
                     llm_calls=llm_calls,
@@ -184,6 +193,7 @@ def aggregate(model: str, metrics: list[TaskMetrics]) -> Aggregate:
     completed = [m for m in metrics if m.completed]
     coverage = [m.requirement_coverage for m in completed if m.requirement_coverage is not None]
     grounding = [m.requirement_grounding for m in completed if m.requirement_grounding is not None]
+    evidence = [m.evidence_grounding for m in completed if m.evidence_grounding is not None]
     fidelity = [m.citation_fidelity for m in completed if m.citation_fidelity is not None]
     rate = [m.citation_rate for m in completed if m.citation_rate is not None]
     return Aggregate(
@@ -192,10 +202,12 @@ def aggregate(model: str, metrics: list[TaskMetrics]) -> Aggregate:
         completion_rate=(len(completed) / len(metrics)) if metrics else 0.0,
         mean_requirement_coverage=mean(coverage) if coverage else None,
         mean_requirement_grounding=mean(grounding) if grounding else None,
+        mean_evidence_grounding=mean(evidence) if evidence else None,
         mean_citation_fidelity=mean(fidelity) if fidelity else None,
         mean_citation_rate=mean(rate) if rate else None,
         scored_coverage=len(coverage),
         scored_grounding=len(grounding),
+        scored_evidence=len(evidence),
         scored_fidelity=len(fidelity),
         median_llm_calls=median(m.llm_calls for m in completed) if completed else 0.0,
         median_cost_usd=median(m.cost_usd for m in completed) if completed else 0.0,
@@ -220,14 +232,15 @@ def format_comparison(aggregates: list[Aggregate]) -> str:
     the posting was found, grounding how much of the report came from the posting at all.
     A run can score well on the first while inventing its way to the second."""
     header = (
-        "| Model | Tasks | Completed | Req coverage | Report grounded | Citation fidelity "
-        "| Cited | Median LLM calls | Median cost |\n"
-        "|---|---|---|---|---|---|---|---|---|\n"
+        "| Model | Tasks | Completed | Req coverage | Report grounded | Evidence grounded "
+        "| Citation fidelity | Cited | Median LLM calls | Median cost |\n"
+        "|---|---|---|---|---|---|---|---|---|---|\n"
     )
     rows = "".join(
         f"| {a.model} | {a.n_tasks} | {a.completion_rate:.0%} "
         f"| {format_score(a.mean_requirement_coverage, a.scored_coverage)} "
         f"| {format_score(a.mean_requirement_grounding, a.scored_grounding)} "
+        f"| {format_score(a.mean_evidence_grounding, a.scored_evidence)} "
         f"| {format_score(a.mean_citation_fidelity, a.scored_fidelity)} "
         f"| {format_score(a.mean_citation_rate)} "
         f"| {a.median_llm_calls:g} | ${a.median_cost_usd:.4f} |\n"
@@ -311,10 +324,11 @@ def agent_assess_fn(
         max_tokens=config.EVAL_AGENT_MAX_TOKENS,
         max_cost_usd=config.EVAL_AGENT_MAX_COST_USD,
     )
-    # Resolved once, not per task: this fetcher is handed both to our own fetch tool and to
-    # the toolset, so a live run opens one client and its connection pool for the whole
+    # Resolved once, not per task: these are handed both to our own tool instances and to the
+    # toolset, so a live run opens one HTTP client (and one on-disk cache) for the whole
     # evaluation instead of two per task, none of which anything closes.
     fetcher = fetcher or HttpFetcher()
+    github = github or GitHubClient(cache=DiskCache(config.CACHE_DIR))
 
     def run(task: EvalTask) -> tuple[Assessment | None, float, int]:
         structurer = structurer_factory()
@@ -325,6 +339,7 @@ def agent_assess_fn(
         # structuring model the toolset would have chosen, so nothing about the requests
         # changes: a different model here would miss every recorded cassette entry.
         fetch = FetchJobPosting(fetcher=fetcher, structurer=structurer, extractor=extractor)
+        evidence = GithubEvidence(client=github)
         result = run_assessment(
             job_url=task.job_url,
             cv_path=task.cv_path,
@@ -338,6 +353,7 @@ def agent_assess_fn(
             extractor=extractor,
             submit=submit,
             fetch=fetch,
+            evidence=evidence,
         )
         cost = result.cost_usd + float(getattr(structurer, "cost_usd", 0.0) or 0.0)
         calls = result.steps + int(getattr(structurer, "calls", 0) or 0)
@@ -368,6 +384,7 @@ def agent_assess_fn(
             # report without ever successfully fetching the ad — which is exactly the run
             # the metric was added for, not a gap in the data.
             source_postings=fetch.postings,
+            source_evidence=evidence.returned,
         )
         return assessment, cost, calls
 
