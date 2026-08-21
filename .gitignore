@@ -28,3 +28,6 @@ Thumbs.db
 .codegraph/
 # Added by code-review-graph
 .code-review-graph/
+
+# Local Claude Code session notes (per-machine, not project documentation)
+.claude/sessions/
