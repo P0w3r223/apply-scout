@@ -116,9 +116,16 @@ safety budgets and a trajectory-evaluation harness.</p>
   posting thoroughly. This column used to report an exact-match F1 of 0.33 and 0.23; on this task set
   a flawless extraction could not have scored above 0.68 under that metric. Re-scoring cost nothing,
   because the metric is a pure function of the recorded runs below.</p>
-  <p class="sub">Completion is 75% rather than 100% because two of the eight advertisements were taken
-  down between the first run and this one and now return HTTP 404. Nothing in the pipeline regressed;
-  the web changed underneath the task set — which is what the cassette below exists to fix.</p>
+  <p class="sub">Completion is 62% rather than 100% because three of the eight postings produce no
+  deliverable. Two &mdash; The Athletic and HHAeXchange &mdash; now return HTTP 404: the ads were taken
+  down between the first run and this one. The third is the JavaScript-only page, which yields a posting
+  with no requirements and therefore a report that rates nothing. Nothing in the pipeline regressed; the
+  web changed underneath the task set &mdash; which is what the cassette below exists to fix.</p>
+  <p class="sub">All three rows read 62% because all three runners now answer the same question. They
+  did not: the pipeline rows used to read <strong>75%</strong>, counting that empty report as a success,
+  while the agent path &mdash; which requires a <code>submit_report</code> call &mdash; scored the same
+  task as a failure. Two definitions of &ldquo;Completed&rdquo; in adjacent rows of one table, and every
+  grounding column returns <code>n/a</code> there, so nothing else could have caught it.</p>
 </div>
 
 <div class="card">
