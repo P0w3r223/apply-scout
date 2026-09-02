@@ -121,7 +121,15 @@ the run itself should change, and expect to pay for it):
 python scripts/demo.py capture --url <recorded-url> --cv cv/candidate.md \
   --github-user P0w3r223 --cassette-mode replay
 python scripts/demo.py render      # docs/demo-cast.json -> docs/demo.svg
+python scripts/demo.py render-gif  # the same cast -> docs/demo.gif (needs Pillow)
 ```
+
+Both pictures come from one cast and both are committed. The SVG is the better artifact —
+text, a tenth the size, crisp at any zoom — and it is what the project page embeds, through
+`<object>` rather than `<img>` because a browser will not animate an SVG loaded as an image.
+The README needs the GIF: GitHub sanitises HTML, so `<object>` is unavailable there, and
+every row of this recording starts at `opacity: 0`. Re-render **both** after re-recording;
+a test fails on a GIF whose frame count no longer matches the cast.
 
 ## Roadmap (7 milestones)
 

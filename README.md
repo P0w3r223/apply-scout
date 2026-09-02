@@ -391,7 +391,12 @@ Honest and specific, because an agent that hides its failure modes is worse than
 A real `apply-scout run` against a live posting (Jeeves — *Senior AI Engineer*), matched against the
 synthetic candidate CV (`cv/candidate.md`) and the public `P0w3r223` GitHub:
 
-<img src="docs/demo.svg" alt="apply-scout run: the agent fetches the posting, reads the CV, probes GitHub for evidence, and prints a match report" width="876">
+<img src="docs/demo.gif" alt="apply-scout run: the agent fetches the posting, reads the CV, probes GitHub for evidence, and prints a match report" width="876">
+
+<sub>The same recording is also generated as an [animated SVG](docs/demo.svg) — sharper and a
+tenth the size — which is what the [project page](https://p0w3r223.github.io/apply-scout/) shows.
+It is a GIF here because GitHub renders an SVG as a static image, and every row of this one starts
+invisible.</sub>
 
 Recorded live on 2026-08-21 against `claude-opus-4-8` (**5 model calls, 33 `github_evidence` probes,
 49.0k+11.0k tokens, $0.4368 with prompt caching — $0.5195 without, 125 s**), then **rendered from a
