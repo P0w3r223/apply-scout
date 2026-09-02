@@ -27,6 +27,9 @@ dependencies = [
 dev = [
     "pytest>=8.3,<9",
     "ruff>=0.6",
+    # Renders docs/demo.gif from the same cast as the SVG. A documentation tool, not part
+    # of the agent — nothing under src/ imports it, and `capture` and `render` run without it.
+    "pillow>=10",
 ]
 
 [project.scripts]

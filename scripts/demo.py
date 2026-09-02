@@ -38,6 +38,7 @@ from apply_scout.trajectory import StepKind, TrajectoryStep
 DOCS_DIR = config.PROJECT_ROOT / "docs"
 CAST_PATH = DOCS_DIR / "demo-cast.json"
 SVG_PATH = DOCS_DIR / "demo.svg"
+GIF_PATH = DOCS_DIR / "demo.gif"
 # The final report is pages long; the demo shows its opening and says so.
 REPORT_PREVIEW_LINES = 14
 
@@ -162,6 +163,21 @@ def render(args: argparse.Namespace) -> int:
     return 0
 
 
+def gif(args: argparse.Namespace) -> int:
+    """The same cast as a GIF, for the places an SVG is shown but never animated.
+
+    Pillow is a dev dependency rather than a runtime one: this renders the picture, it is
+    not part of the agent. Imported here so `capture` and `render` still work without it.
+    """
+    from demo_gif import render_gif  # noqa: PLC0415 — optional, dev-only dependency
+
+    cast = Cast.load(Path(args.cast))
+    out = Path(args.out)
+    frames = render_gif(cast, out)
+    print(f"gif written: {out} ({frames} frames, {out.stat().st_size / 1024:.0f} KB)")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="demo", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -188,6 +204,11 @@ def main(argv: list[str] | None = None) -> int:
     ren.add_argument("--cast", default=str(CAST_PATH))
     ren.add_argument("--out", default=str(SVG_PATH))
     ren.set_defaults(func=render)
+
+    gif_cmd = sub.add_parser("render-gif", help="Turn a cast into an animated GIF.")
+    gif_cmd.add_argument("--cast", default=str(CAST_PATH))
+    gif_cmd.add_argument("--out", default=str(GIF_PATH))
+    gif_cmd.set_defaults(func=gif)
 
     args = parser.parse_args(argv)
     return args.func(args)
