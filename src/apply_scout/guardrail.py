@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 from apply_scout.contracts import (
     CoverLetterDraft,
@@ -30,6 +31,32 @@ from apply_scout.contracts import (
     MatchReport,
 )
 from apply_scout.matching import mentions
+
+
+def repo_of(url: str) -> str | None:
+    """The `owner/name` a GitHub URL points at, or `None` if it points at no repository.
+
+    Compared at repository level rather than by exact string, because the tool and the model
+    legitimately name the same repository differently: `github_evidence` returns a README's
+    `html_url` (`…/owner/name/blob/main/README.md`) while a report may cite the repository
+    itself (`…/owner/name`). Those are the same source, and scoring them as a fabrication
+    measures URL formatting, not provenance — a mistake made once by hand while investigating
+    this very gap, which is why the check is defined this way rather than on raw strings.
+
+    Parsed with `urlsplit` rather than by slicing on `"github.com/"`, because that slice got
+    every interesting case wrong in both directions: it kept `#readme` and `?tab=…` inside the
+    repository name (so a link the tools *did* return scored as fabricated), and it matched any
+    host merely containing the substring — `mygithub.com/owner/name`, or a redirector with
+    `?to=github.com/owner/name` — so an off-site link scored as grounded in a report printed for
+    a human to click. Owner and name are case-folded because GitHub treats them that way.
+    """
+    parts = urlsplit(url)
+    if parts.netloc.lower().removeprefix("www.") != "github.com":
+        return None
+    segments = [segment for segment in parts.path.split("/") if segment]
+    if len(segments) < 2:
+        return None
+    return f"{segments[0].casefold()}/{segments[1].casefold()}"
 
 
 def valid_evidence_urls(report: MatchReport) -> set[str]:
@@ -42,12 +69,27 @@ def valid_evidence_urls(report: MatchReport) -> set[str]:
     }
 
 
+def _cite_key(url: str) -> str:
+    """How a citation is compared: by repository for GitHub links, by exact string otherwise.
+
+    Held to the same standard as `evidence_grounding`, and for the same reason — the model
+    names one repository two ways (`…/owner/name` and `…/owner/name/blob/main/README.md`), and
+    the current recording contains both spellings of the same repo in a single report. Exact
+    matching here is harsher than in the metric: a sentence citing the repo root while the
+    report carries the blob URL would be **deleted from the letter** and counted against
+    `citation_fidelity`. Off-GitHub links keep exact comparison, because nothing is known about
+    how else they might be spelled.
+    """
+    return repo_of(url) or url
+
+
 def _is_grounded(sentence: LetterSentence, valid_urls: set[str]) -> bool:
     # No citation -> a connective sentence with no factual claim to verify -> keep.
     # Otherwise every cited URL must be a real evidence link from the report.
     if not sentence.evidence_urls:
         return True
-    return all(url in valid_urls for url in sentence.evidence_urls)
+    valid_keys = {_cite_key(url) for url in valid_urls}
+    return all(_cite_key(url) in valid_keys for url in sentence.evidence_urls)
 
 
 @dataclass(frozen=True)
@@ -129,22 +171,6 @@ def requirement_grounding(
     return sum(_traces_to(requirement, sources) for requirement in rated) / len(rated)
 
 
-def repo_of(url: str) -> str | None:
-    """The `owner/name` a GitHub URL points at, or `None` if it points at no repository.
-
-    Compared at repository level rather than by exact string, because the tool and the model
-    legitimately name the same repository differently: `github_evidence` returns a README's
-    `html_url` (`…/owner/name/blob/main/README.md`) while a report may cite the repository
-    itself (`…/owner/name`). Those are the same source, and scoring them as a fabrication
-    measures URL formatting, not provenance — a mistake made once by hand while investigating
-    this very gap, which is why the check is defined this way rather than on raw strings.
-    """
-    _, sep, rest = url.partition("github.com/")
-    if not sep:
-        return None
-    owner, _, tail = rest.partition("/")
-    name = tail.partition("/")[0]
-    return f"{owner}/{name}" if owner and name else None
 
 
 def evidence_grounding(report: MatchReport, retrieved: Sequence[Evidence]) -> float | None:

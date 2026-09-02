@@ -114,6 +114,11 @@ class AnthropicStructurer:
         self.calls = 0
         self.input_tokens = 0
         self.output_tokens = 0
+        # Kept separately as well as folded into `input_tokens`, so a recording seam can store
+        # the split and re-price it later. Without them a replay can only bill the whole prompt
+        # at the full rate — fine while structuring is uncached, wrong the moment it is not.
+        self.cache_read_tokens = 0
+        self.cache_write_tokens = 0
         self.cost_usd = 0.0
 
     def _ensure_client(self) -> object:
@@ -135,14 +140,18 @@ class AnthropicStructurer:
             output_config={"format": {"type": "json_schema", "schema": schema}},
         )
         # No `cache_control` here on purpose: every structuring call carries different
-        # content, and the shared prefix (instructions + schema) sits under the cheap
-        # model's 4096-token cache minimum, so a breakpoint would buy nothing. The counters
-        # are read defensively anyway — if that ever changes, cost must not silently drop.
+        # content, and the shared prefix (instructions + schema) sits under this model's
+        # minimum cacheable prefix, so a breakpoint would buy nothing. The threshold is
+        # `config.CACHE_MIN_PREFIX_TOKENS` — read from the table rather than restated here,
+        # because a number kept in two places drifts. The counters are read defensively
+        # anyway; if that ever changes, cost must not silently drop.
         cache_read = getattr(response.usage, "cache_read_input_tokens", 0) or 0
         cache_write = getattr(response.usage, "cache_creation_input_tokens", 0) or 0
         self.calls += 1
         self.input_tokens += response.usage.input_tokens + cache_read + cache_write
         self.output_tokens += response.usage.output_tokens
+        self.cache_read_tokens += cache_read
+        self.cache_write_tokens += cache_write
         self.cost_usd += config.token_cost(
             response.usage.input_tokens,
             response.usage.output_tokens,

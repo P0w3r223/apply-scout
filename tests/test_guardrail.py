@@ -201,3 +201,38 @@ def test_a_report_that_rates_nothing_has_no_grounding_to_measure():
     """No claim, nothing to ground — distinct from an ungrounded claim, and scored as such."""
     assert requirement_grounding(_rated(), (_posting("Python"),)) is None
     assert requirement_grounding(_rated(), ()) is None
+
+
+def test_repo_of_parses_the_url_rather_than_slicing_it():
+    """Every row here was wrong when `repo_of` sliced on `"github.com/"`, and each wrong row
+    is a false verdict: the first four are links the tools *did* return, scored as fabricated;
+    the last two are off-site links scored as retrieved, in a report a human is told to click."""
+    canonical = "p0w3r223/apply-scout"
+    assert repo_of("https://github.com/P0w3r223/apply-scout") == canonical
+    assert repo_of("https://github.com/P0w3r223/apply-scout#readme") == canonical
+    assert repo_of("https://github.com/P0w3r223/apply-scout?tab=readme-ov-file") == canonical
+    assert repo_of("https://github.com/p0w3r223/apply-scout") == canonical
+    assert repo_of("https://GitHub.com/P0w3r223/apply-scout") == canonical
+    assert repo_of("https://www.github.com/P0w3r223/apply-scout") == canonical
+    assert repo_of("https://github.com/P0w3r223/apply-scout/blob/main/README.md") == canonical
+
+    assert repo_of("https://mygithub.com/P0w3r223/apply-scout") is None
+    assert repo_of("https://phish.example/redir?to=github.com/P0w3r223/apply-scout") is None
+    assert repo_of("https://github.com/P0w3r223") is None  # a profile is not a repository
+
+
+def test_the_letter_check_matches_citations_by_repository_too():
+    """One hop below `evidence_grounding`, and a harsher consequence: an unmatched citation is
+    *deleted* from the deliverable and counted against `citation_fidelity`. The recording holds
+    both spellings of one repo in a single report, so the mismatch is reachable."""
+    report = _report("https://github.com/u/repo/blob/main/README.md")
+    letter = CoverLetterDraft(
+        sentences=(
+            LetterSentence(text="I built it.", evidence_urls=("https://github.com/u/repo",)),
+            LetterSentence(text="I ran a cluster.", evidence_urls=("https://github.com/u/other",)),
+        )
+    )
+    result = guardrail_letter(letter, report)
+
+    assert [s.text for s in result.filtered.sentences] == ["I built it."]
+    assert [s.text for s in result.removed] == ["I ran a cluster."]
