@@ -220,6 +220,18 @@ python scripts/demo.py render      # docs/demo-cast.json -> docs/demo.svg
    (ADR-0009). Reads 1.00 across the recording; cost $0. Deliberately *not* changed: per-requirement
    tightening of the letter check — measured first, and the one apparent cross-requirement citation
    turned out to be a correct multi-skill sentence, so the tightening would convict accurate writing.
+17. **Review pass: one definition of "Completed" (this milestone).** ✅ A code review found the published
+   table asking two different questions in one column: the agent path required a submission, the pipeline
+   only required that nothing raised — so the JavaScript-only task counted as a pipeline success with
+   **zero requirements, zero ratings and two sentences of boilerplate**, against its own fixture. Both
+   pipeline rows move **75% → 62%**; all three rows now agree (ADR-0010). Same pass: `repo_of` parsed URLs
+   by slicing on `"github.com/"`, so `#readme` / `?tab=` landed inside the repo name (a link the tools
+   *did* return scoring as fabricated) while `mygithub.com/owner/name` and a redirector's
+   `?to=github.com/...` scored as grounded — now `urlsplit` + case-folded host check. Also: the letter
+   guardrail compares GitHub citations by repository like the metric does; the structurer seam records its
+   cache split so a replay cannot re-price cached tokens at the full rate; `Cited` gained the denominator
+   every other column carries; `matching.tokens` stopped shattering Polish words (`różnych` →
+   `['r', 'nych']` made a one-letter needle match noise). Cost $0 — all of it re-scored from the cassette.
 
 ## What not to do
 

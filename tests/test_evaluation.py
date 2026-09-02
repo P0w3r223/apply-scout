@@ -223,6 +223,7 @@ def _aggregate(**overrides) -> Aggregate:
         scored_grounding=2,
         scored_evidence=2,
         scored_fidelity=2,
+        scored_rate=2,
         median_llm_calls=4,
         median_cost_usd=0.012,
     )
@@ -272,3 +273,42 @@ def test_two_model_comparison_makes_regression_visible():
     broken_row = next(line for line in table.splitlines() if "| broken |" in line)
     assert "1.00" in good_row  # perfect extraction + citations
     assert "0.00" in broken_row  # the regression is visible in the table
+
+
+def test_a_report_that_rates_nothing_is_not_a_completed_pipeline_run(tmp_path):
+    """Both runners have to answer the same question. The pipeline used to count the
+    JavaScript-only task — a posting with no requirements, a report with no ratings and two
+    sentences of boilerplate — as a success, while the agent path scored the same inputs as a
+    failure. The published completion rate read 75% where 62% is honest (ADR-0010)."""
+    import httpx
+    from fakes import ScriptedStructurer
+
+    from apply_scout.evaluation import pipeline_assess_fn
+    from apply_scout.fetch import HttpFetcher
+
+    cv_file = tmp_path / "cv.md"
+    cv_file.write_text("Patryk — Python.", encoding="utf-8")
+    handler = lambda request: httpx.Response(  # noqa: E731
+        200, headers={"content-type": "text/html"},
+        text="<html><body><article><p>Please enable JavaScript to view this page.</p>"
+             "</article></body></html>",
+    )
+    scripted = ScriptedStructurer([
+        '{"url": "https://x", "title": "Job Posting"}',   # a posting with no requirements
+        '{"name": "Patryk", "skills": ["Python"]}',
+        '{"job_title": "Job Posting", "job_url": "https://x"}',  # a report that rates nothing
+        '{"sentences": [{"text": "I am writing to express my interest."}]}',
+    ])
+    assess_fn = pipeline_assess_fn(
+        "claude-haiku-4-5",
+        structurer_factory=lambda: scripted,
+        fetcher=HttpFetcher(client=httpx.Client(transport=httpx.MockTransport(handler))),
+    )
+    task = EvalTask(
+        name="js-only", job_url="https://x", cv_path=str(cv_file), github_user="u",
+        expected_requirements=("Python",),
+    )
+    assessment, cost, calls = assess_fn(task)
+
+    assert assessment is None  # no deliverable, therefore not completed
+    assert calls >= 1  # the work it did is still reported against the task
