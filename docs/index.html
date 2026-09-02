@@ -15,7 +15,12 @@
   h2 { font-weight: 600; margin-top: 0; }
   .card { border: 1px solid #e3e7ee; border-radius: 12px; padding: 18px 20px; margin: 18px 0; }
   table { border-collapse: collapse; width: 100%; }
-  th, td { text-align: right; padding: 6px 10px; border-bottom: 1px solid #eef1f6; }
+  th, td { text-align: right; padding: 6px 10px; border-bottom: 1px solid #eef1f6;
+           white-space: nowrap; }
+  /* Ten columns do not fit a phone. Without this the widest table forced the whole page
+     518px wider than a 375px viewport, so every paragraph on it scrolled sideways too.
+     Wrapped, the table scrolls on its own and the prose stays put. */
+  .tablewrap { overflow-x: auto; }
   th:first-child, td:first-child { text-align: left; }
   code { background: #eef1f6; padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
   ul { padding-left: 1.1rem; } li { margin: 4px 0; }
@@ -31,8 +36,17 @@ safety budgets and a trajectory-evaluation harness.</p>
 
 <div class="card">
   <h2>One run, as it happened</h2>
-  <img src="demo.svg" width="876" style="width: 100%; height: auto; border-radius: 8px;"
-       alt="apply-scout run: the agent fetches the posting, reads the CV, probes GitHub for evidence, and prints a match report">
+  <!-- object, not img: the recording animates through CSS keyframes, and Chrome renders an SVG
+       loaded by <img> as a static image with its stylesheet's animations never started. Every row
+       here begins at opacity 0, so as an <img> this was a black rectangle for the whole visit —
+       the one piece of evidence on the page, showing nothing. An <object> loads it as a document,
+       where the keyframes run. The aspect ratio is the SVG's own 876x526, because an object has no
+       intrinsic size to derive height from the way an image does. -->
+  <object type="image/svg+xml" data="demo.svg"
+          style="display: block; width: 100%; aspect-ratio: 876 / 526; border-radius: 8px;"
+          aria-label="apply-scout run: the agent fetches the posting, reads the CV, probes GitHub for evidence, and prints a match report">
+    <a href="demo.svg">The recorded run, as an SVG</a>
+  </object>
   <p class="sub">A real run against a live posting on 2026-08-21: 5 model calls, 33 evidence probes,
   $0.4368 with prompt caching ($0.5195 without), 125 seconds. Generated from the recording rather than re-enacted. It ends by calling
   <code>submit_report</code> with a validated match report and cover letter — the deliverable is a
@@ -45,12 +59,14 @@ safety budgets and a trajectory-evaluation harness.</p>
   <h2>Evaluation: when is the cheaper model enough?</h2>
   <p>The harness runs each model end-to-end over the task set and records every metric from the
   logged trajectory. Cost is measured through a single token-accounting helper, not estimated.</p>
+  <div class="tablewrap">
   <table>
     <tr><th>Runner</th><th>Model</th><th>Completed</th><th>Req coverage</th><th>Report grounded</th><th>Evidence grounded</th><th>Citation fidelity</th><th>Cited</th><th>Median calls</th><th>Median cost</th></tr>
     <tr><td>pipeline</td><td>claude-haiku-4-5</td><td>62%</td><td>0.76 (5)</td><td>1.00 (5)</td><td>1.00 (3)</td><td>0.75 (4)</td><td>0.34 (5)</td><td>4</td><td><strong>$0.0306</strong></td></tr>
     <tr><td>pipeline</td><td>claude-opus-4-8</td><td>62%</td><td>0.62 (5)</td><td>1.00 (5)</td><td>1.00 (1)</td><td>1.00 (1)</td><td>0.13 (5)</td><td>4</td><td>$0.1910</td></tr>
     <tr><td><strong>agent loop</strong></td><td>claude-haiku-4-5</td><td>62%</td><td>0.76 (5)</td><td>1.00 (5)</td><td>1.00 (4)</td><td><strong>1.00 (4)</strong></td><td><strong>0.45 (5)</strong></td><td>8</td><td>$0.0592</td></tr>
   </table>
+  </div>
   <p class="sub">The loop row is recorded with prompt caching and the pipeline rows are not: on the
   same basis its median task costs $0.0741. It is also a fresh sample — re-recording it moved
   completion from 75% to 62% and the citation rate from 0.74 to 0.45 with no code change. Eight tasks
