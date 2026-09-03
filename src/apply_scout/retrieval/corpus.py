@@ -16,6 +16,7 @@ import base64
 import json
 from collections import defaultdict
 from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
 
 from apply_scout.github import ReadmeDoc, Repo
@@ -26,9 +27,19 @@ CASSETTE = Path("eval/cassettes/eval.jsonl")
 PUBLISHED_MODEL = "claude-haiku-4-5"
 
 
-@dataclass(frozen=True, slots=True)
+# Not `slots=True`: the derived views below are `cached_property`, which stores its result in the
+# instance `__dict__`. Frozen is fine — that write bypasses `__setattr__` — but slots removes the
+# dict it writes into.
+# `eq=False` gives identity equality and an identity hash, which is what makes this usable as a
+# cache key: the generated __hash__ would hash a list and a dict, and neither is hashable.
+@dataclass(frozen=True, eq=False)
 class Corpus:
-    """What the retriever searches, exactly as `github_evidence` was handed it."""
+    """What the retriever searches, exactly as `github_evidence` was handed it.
+
+    The derived views are computed once per corpus rather than per query. That is not premature:
+    the first version tokenised all thirteen READMEs inside every BM25 call, which is 72 times over
+    for one table — fast enough locally to look fine and slow enough on a CI runner to turn a
+    thirty-second job into five and a half minutes."""
 
     repos: list[Repo]
     readmes: dict[str, ReadmeDoc]
@@ -36,6 +47,31 @@ class Corpus:
     @property
     def names(self) -> list[str]:
         return [repo.full_name for repo in self.repos]
+
+    @cached_property
+    def documents(self) -> dict[str, str]:
+        """Everything a retriever may read about each repository: metadata plus README.
+
+        The same fields `find_evidence` looks at, so no retriever in the comparison is handicapped
+        by being given less of the document than the tool it stands for."""
+        documents = {}
+        for repo in self.repos:
+            readme = self.readmes.get(repo.full_name)
+            parts = [repo.name, repo.description or "", repo.language or "", " ".join(repo.topics)]
+            if readme is not None:
+                parts.append(readme.text)
+            documents[repo.full_name] = " ".join(parts)
+        return documents
+
+    @cached_property
+    def lowered(self) -> dict[str, str]:
+        return {name: text.lower() for name, text in self.documents.items()}
+
+    @cached_property
+    def tokenised(self) -> dict[str, list[str]]:
+        from apply_scout.matching import tokens
+
+        return {name: tokens(text) for name, text in self.documents.items()}
 
 
 @dataclass(frozen=True, slots=True)

@@ -20,8 +20,9 @@ from __future__ import annotations
 import math
 from collections import Counter
 from collections.abc import Callable
+from functools import lru_cache
 
-from apply_scout.matching import mentions, tokens
+from apply_scout.matching import tokens
 from apply_scout.retrieval.corpus import Corpus
 
 #: Words that carry no evidence about a skill. A requirement is mostly these, which is precisely
@@ -38,19 +39,6 @@ STOPWORDS = frozenset(_STOPWORD_TEXT.split())
 Retriever = Callable[[str, Corpus], list[str]]
 
 
-def _content(corpus: Corpus, full_name: str) -> str:
-    """Everything a retriever may read about one repository: metadata plus README.
-
-    The same fields `find_evidence` looks at, so the baseline row is not handicapped by being
-    given less of the document than the tool it stands for."""
-    repo = next(r for r in corpus.repos if r.full_name == full_name)
-    readme = corpus.readmes.get(full_name)
-    parts = [repo.name, repo.description or "", repo.language or "", " ".join(repo.topics)]
-    if readme is not None:
-        parts.append(readme.text)
-    return " ".join(parts)
-
-
 def _terms(query: str) -> list[str]:
     return [t for t in tokens(query) if t not in STOPWORDS and len(t) > 2]
 
@@ -62,19 +50,39 @@ def substring(query: str, corpus: Corpus) -> list[str]:
     a ranking and the metrics must not read it as one — which is exactly why MRR is meaningless
     for this row and is reported as such."""
     needle = query.strip().lower()
-    return [name for name in corpus.names if needle in _content(corpus, name).lower()]
+    return [name for name in corpus.names if needle in corpus.lowered[name]]
 
 
 def mentions_matcher(query: str, corpus: Corpus) -> list[str]:
-    """`matching.mentions`: consecutive-token containment, also unranked."""
-    return [name for name in corpus.names if mentions(_content(corpus, name), query)]
+    """`matching.mentions`'s rule: consecutive-token containment, also unranked.
+
+    The check is inlined over the corpus's pre-tokenised documents rather than calling `mentions`
+    directly, because that function tokenises its haystack on every call and the haystack here is a
+    whole README, re-read for all 72 queries. The rule is unchanged and
+    `test_the_fast_path_agrees_with_matching_mentions` pins it to the shared function."""
+    want = tokens(query)
+    if not want:
+        return []
+    found = []
+    for name in corpus.names:
+        got = corpus.tokenised[name]
+        span = len(want)
+        if any(got[i : i + span] == want for i in range(len(got) - span + 1)):
+            found.append(name)
+    return found
 
 
+@lru_cache(maxsize=4)
 def _idf(corpus: Corpus) -> dict[str, float]:
+    """Inverse document frequency over the corpus.
+
+    Cached on the corpus, because it depends on the corpus alone and every query would otherwise
+    pay for the whole thing again. `Corpus` is frozen, and identity is the right key here: two
+    loads of the same cassette are the same corpus, and one instance is what a run uses."""
     total = len(corpus.names)
     seen: Counter[str] = Counter()
-    for name in corpus.names:
-        for term in set(tokens(_content(corpus, name))):
+    for doc in corpus.tokenised.values():
+        for term in set(doc):
             seen[term] += 1
     return {t: math.log((total - c + 0.5) / (c + 0.5) + 1.0) for t, c in seen.items()}
 
@@ -86,7 +94,7 @@ def bm25(query: str, corpus: Corpus, *, k1: float = 1.5, b: float = 0.75) -> lis
     is missing a standard technique, not that it is missing a clever one. A tuned variant would
     make the comparison about the tuning."""
     idf = _idf(corpus)
-    docs = {name: tokens(_content(corpus, name)) for name in corpus.names}
+    docs = corpus.tokenised
     average = sum(len(d) for d in docs.values()) / max(len(docs), 1)
     want = _terms(query)
     scored: list[tuple[float, str]] = []

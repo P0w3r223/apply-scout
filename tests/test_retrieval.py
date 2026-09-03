@@ -11,12 +11,19 @@ from __future__ import annotations
 
 import pytest
 
+from apply_scout.matching import mentions
 from apply_scout.retrieval import metrics, report
 from apply_scout.retrieval.corpus import load_corpus, load_queries
 from apply_scout.retrieval.judgments import Judgment
 from apply_scout.retrieval.judgments import load as load_judgments
 from apply_scout.retrieval.metrics import Scored
-from apply_scout.retrieval.retrievers import RANKED, RETRIEVERS, bm25, substring
+from apply_scout.retrieval.retrievers import (
+    RANKED,
+    RETRIEVERS,
+    bm25,
+    mentions_matcher,
+    substring,
+)
 
 
 @pytest.fixture(scope="module")
@@ -139,6 +146,17 @@ def test_the_portfolios_own_matcher_recovers_nothing_over_the_substring(corpus, 
     assert metrics.found_any(scored["matching.mentions"]) == metrics.found_any(
         scored["substring (ships today)"]
     )
+
+
+def test_the_fast_path_agrees_with_matching_mentions(corpus, queries):
+    """`mentions_matcher` inlines the rule over pre-tokenised documents instead of calling
+    `matching.mentions`, which re-tokenises a whole README on every call. The speed-up is only
+    legitimate while the two agree on every query in the set, so that is asserted rather than
+    assumed — otherwise the row would stop standing for the function it is named after."""
+    for query in queries:
+        inlined = mentions_matcher(query.text, corpus)
+        direct = [n for n in corpus.names if mentions(corpus.documents[n], query.text)]
+        assert inlined == direct, query.text
 
 
 def test_bm25_finds_far_more_and_pays_for_it_in_noise(corpus, queries, judgments):
