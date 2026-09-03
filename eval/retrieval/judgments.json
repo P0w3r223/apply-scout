@@ -1,0 +1,695 @@
+{
+  "model": "claude-haiku-4-5",
+  "judgments": [
+    {
+      "id": "jeeves-ai-eng#1",
+      "posting": "https://jobs.lever.co/tryjeeves/2f00206f-6091-4eed-8b5f-1325afdbfe30",
+      "query": "Bachelor's degree in Computer Science, Engineering, or a related field — or equivalent practical experience",
+      "answerable": false,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "jeeves-ai-eng#2",
+      "posting": "https://jobs.lever.co/tryjeeves/2f00206f-6091-4eed-8b5f-1325afdbfe30",
+      "query": "5+ years of professional software engineering experience",
+      "answerable": false,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "jeeves-ai-eng#3",
+      "posting": "https://jobs.lever.co/tryjeeves/2f00206f-6091-4eed-8b5f-1325afdbfe30",
+      "query": "3+ years focused on AI/ML systems in production",
+      "answerable": false,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "jeeves-ai-eng#4",
+      "posting": "https://jobs.lever.co/tryjeeves/2f00206f-6091-4eed-8b5f-1325afdbfe30",
+      "query": "Hands-on experience building and deploying LLM-powered applications using APIs such as OpenAI, Anthropic, or Cohere in production",
+      "answerable": true,
+      "relevant": [
+        "P0w3r223/apply-scout",
+        "P0w3r223/pl-jobs-lora",
+        "P0w3r223/doc-extract"
+      ],
+      "note": ""
+    },
+    {
+      "id": "jeeves-ai-eng#5",
+      "posting": "https://jobs.lever.co/tryjeeves/2f00206f-6091-4eed-8b5f-1325afdbfe30",
+      "query": "Experience designing and operating RAG pipelines, including chunking strategies, embedding models, and vector database integration",
+      "answerable": true,
+      "relevant": [],
+      "note": "the portfolio's own RAG gap: nothing here builds a retrieval pipeline"
+    },
+    {
+      "id": "jeeves-ai-eng#6",
+      "posting": "https://jobs.lever.co/tryjeeves/2f00206f-6091-4eed-8b5f-1325afdbfe30",
+      "query": "Strong proficiency in Python for AI/ML workloads",
+      "answerable": true,
+      "relevant": [
+        "P0w3r223/pl-jobs-lora",
+        "P0w3r223/pl-review-sense",
+        "P0w3r223/car-price-ml",
+        "P0w3r223/mlops-car-price",
+        "P0w3r223/apply-scout",
+        "P0w3r223/doc-extract",
+        "P0w3r223/wroclaw-air-insights",
+        "P0w3r223/ab-lab",
+        "P0w3r223/it-job-radar"
+      ],
+      "note": ""
+    },
+    {
+      "id": "jeeves-ai-eng#7",
+      "posting": "https://jobs.lever.co/tryjeeves/2f00206f-6091-4eed-8b5f-1325afdbfe30",
+      "query": "Familiarity with AI orchestration framework (LangChain, LlamaIndex, or equivalent)",
+      "answerable": true,
+      "relevant": [],
+      "note": "apply-scout deliberately owns its loop instead (ADR-0001) - a documented absence"
+    },
+    {
+      "id": "jeeves-ai-eng#8",
+      "posting": "https://jobs.lever.co/tryjeeves/2f00206f-6091-4eed-8b5f-1325afdbfe30",
+      "query": "Experience with ML model serving infrastructure: REST or gRPC inference endpoints, input/output validation, latency budgeting, and monitoring",
+      "answerable": true,
+      "relevant": [
+        "P0w3r223/car-price-ml",
+        "P0w3r223/mlops-car-price"
+      ],
+      "note": ""
+    },
+    {
+      "id": "jeeves-ai-eng#9",
+      "posting": "https://jobs.lever.co/tryjeeves/2f00206f-6091-4eed-8b5f-1325afdbfe30",
+      "query": "REST APIs",
+      "answerable": true,
+      "relevant": [
+        "P0w3r223/car-price-ml"
+      ],
+      "note": "building only: car-price-ml serves a FastAPI endpoint; calling somebody else's API does not prove writing one"
+    },
+    {
+      "id": "jeeves-ai-eng#10",
+      "posting": "https://jobs.lever.co/tryjeeves/2f00206f-6091-4eed-8b5f-1325afdbfe30",
+      "query": "Relational databases (PostgreSQL preferred)",
+      "answerable": true,
+      "relevant": [],
+      "note": "full coverage only: DuckDB is SQL but not a relational server, and PostgreSQL appears nowhere"
+    },
+    {
+      "id": "jeeves-ai-eng#11",
+      "posting": "https://jobs.lever.co/tryjeeves/2f00206f-6091-4eed-8b5f-1325afdbfe30",
+      "query": "Async patterns",
+      "answerable": true,
+      "relevant": [],
+      "note": "building only: httpx is imported, async is argued in no README"
+    },
+    {
+      "id": "jeeves-ai-eng#12",
+      "posting": "https://jobs.lever.co/tryjeeves/2f00206f-6091-4eed-8b5f-1325afdbfe30",
+      "query": "Cloud infrastructure (AWS, GCP, or Azure)",
+      "answerable": true,
+      "relevant": [],
+      "note": "GitHub Actions and Pages only; no AWS, GCP or Azure anywhere"
+    },
+    {
+      "id": "jeeves-ai-eng#13",
+      "posting": "https://jobs.lever.co/tryjeeves/2f00206f-6091-4eed-8b5f-1325afdbfe30",
+      "query": "Experience with observability tooling: structured logging, distributed tracing, and building dashboards for AI system health",
+      "answerable": true,
+      "relevant": [],
+      "note": "full coverage only: drift detection is monitoring, but the requirement also names tracing and dashboards"
+    },
+    {
+      "id": "jeeves-ai-eng#14",
+      "posting": "https://jobs.lever.co/tryjeeves/2f00206f-6091-4eed-8b5f-1325afdbfe30",
+      "query": "Experience in fintech, financial services, or any regulated industry where AI reliability and auditability are critical",
+      "answerable": false,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "jeeves-ai-eng#15",
+      "posting": "https://jobs.lever.co/tryjeeves/2f00206f-6091-4eed-8b5f-1325afdbfe30",
+      "query": "Familiarity with prompt evaluation frameworks, A/B testing AI outputs, and tracking model performance degradation in production",
+      "answerable": true,
+      "relevant": [
+        "P0w3r223/ab-lab",
+        "P0w3r223/apply-scout",
+        "P0w3r223/mlops-car-price"
+      ],
+      "note": ""
+    },
+    {
+      "id": "jeeves-ai-eng#16",
+      "posting": "https://jobs.lever.co/tryjeeves/2f00206f-6091-4eed-8b5f-1325afdbfe30",
+      "query": "Experience with ML lifecycle management tools: MLflow, Weights & Biases, Vertex AI, or SageMaker",
+      "answerable": true,
+      "relevant": [
+        "P0w3r223/mlops-car-price"
+      ],
+      "note": ""
+    },
+    {
+      "id": "jeeves-ai-eng#17",
+      "posting": "https://jobs.lever.co/tryjeeves/2f00206f-6091-4eed-8b5f-1325afdbfe30",
+      "query": "Knowledge of real-time data streaming (Kafka, Kinesis) for event-driven AI pipelines",
+      "answerable": true,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "jeeves-ai-eng#18",
+      "posting": "https://jobs.lever.co/tryjeeves/2f00206f-6091-4eed-8b5f-1325afdbfe30",
+      "query": "Contributions to open-source AI tooling, published technical writing, or talks at AI/ML conferences",
+      "answerable": false,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "jeeves-ai-eng#19",
+      "posting": "https://jobs.lever.co/tryjeeves/2f00206f-6091-4eed-8b5f-1325afdbfe30",
+      "query": "Prior startup or scale-up experience",
+      "answerable": false,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "konux-ds#1",
+      "posting": "https://job-boards.greenhouse.io/konux/jobs/7805858003",
+      "query": "Degree in Mathematics, Statistics, Computer Science, Engineering, or a related field",
+      "answerable": false,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "konux-ds#2",
+      "posting": "https://job-boards.greenhouse.io/konux/jobs/7805858003",
+      "query": "5+ years of hands-on experience in data science",
+      "answerable": false,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "konux-ds#3",
+      "posting": "https://job-boards.greenhouse.io/konux/jobs/7805858003",
+      "query": "Built and tested statistical or ML models",
+      "answerable": true,
+      "relevant": [
+        "P0w3r223/car-price-ml",
+        "P0w3r223/pl-review-sense",
+        "P0w3r223/ab-lab",
+        "P0w3r223/wroclaw-air-insights",
+        "P0w3r223/mlops-car-price"
+      ],
+      "note": ""
+    },
+    {
+      "id": "konux-ds#4",
+      "posting": "https://job-boards.greenhouse.io/konux/jobs/7805858003",
+      "query": "Fluency in Python",
+      "answerable": true,
+      "relevant": [
+        "P0w3r223/pl-jobs-lora",
+        "P0w3r223/pl-review-sense",
+        "P0w3r223/car-price-ml",
+        "P0w3r223/mlops-car-price",
+        "P0w3r223/apply-scout",
+        "P0w3r223/doc-extract",
+        "P0w3r223/wroclaw-air-insights",
+        "P0w3r223/ab-lab",
+        "P0w3r223/it-job-radar"
+      ],
+      "note": ""
+    },
+    {
+      "id": "konux-ds#5",
+      "posting": "https://job-boards.greenhouse.io/konux/jobs/7805858003",
+      "query": "Experience with an additional programming language",
+      "answerable": true,
+      "relevant": [
+        "P0w3r223/mini-traceroute"
+      ],
+      "note": "C++ - the only non-Python repository"
+    },
+    {
+      "id": "konux-ds#6",
+      "posting": "https://job-boards.greenhouse.io/konux/jobs/7805858003",
+      "query": "Experience with dataframe-centric data manipulation tools such as pandas, PySpark, Polars",
+      "answerable": true,
+      "relevant": [
+        "P0w3r223/wroclaw-air-insights"
+      ],
+      "note": "named in the README only: pandas appears in wroclaw-air-insights; Polars and PySpark in none"
+    },
+    {
+      "id": "konux-ds#7",
+      "posting": "https://job-boards.greenhouse.io/konux/jobs/7805858003",
+      "query": "SQL",
+      "answerable": true,
+      "relevant": [
+        "P0w3r223/it-job-radar"
+      ],
+      "note": "DuckDB SQL"
+    },
+    {
+      "id": "konux-ds#8",
+      "posting": "https://job-boards.greenhouse.io/konux/jobs/7805858003",
+      "query": "Experience owning complex data science problems independently",
+      "answerable": false,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "konux-ds#9",
+      "posting": "https://job-boards.greenhouse.io/konux/jobs/7805858003",
+      "query": "Developed models for production systems",
+      "answerable": true,
+      "relevant": [
+        "P0w3r223/mlops-car-price",
+        "P0w3r223/car-price-ml",
+        "P0w3r223/wroclaw-air-insights"
+      ],
+      "note": ""
+    },
+    {
+      "id": "konux-ds#10",
+      "posting": "https://job-boards.greenhouse.io/konux/jobs/7805858003",
+      "query": "Familiarity with version control (Git)",
+      "answerable": true,
+      "relevant": [],
+      "note": "named in the README only: every repo uses git, no README argues version control as a skill"
+    },
+    {
+      "id": "konux-ds#11",
+      "posting": "https://job-boards.greenhouse.io/konux/jobs/7805858003",
+      "query": "Common software engineering best-practices",
+      "answerable": true,
+      "relevant": [
+        "P0w3r223/apply-scout",
+        "P0w3r223/it-job-radar",
+        "P0w3r223/pl-jobs-lora",
+        "P0w3r223/mini-traceroute",
+        "P0w3r223/pl-review-sense",
+        "P0w3r223/doc-extract",
+        "P0w3r223/car-price-ml",
+        "P0w3r223/auth-log-scan",
+        "P0w3r223/wroclaw-air-insights",
+        "P0w3r223/token-budget",
+        "P0w3r223/ab-lab"
+      ],
+      "note": "named in the README only: every README that names tests or CI"
+    },
+    {
+      "id": "konux-ds#12",
+      "posting": "https://job-boards.greenhouse.io/konux/jobs/7805858003",
+      "query": "Proactive, impact-driven attitude",
+      "answerable": false,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "konux-ds#13",
+      "posting": "https://job-boards.greenhouse.io/konux/jobs/7805858003",
+      "query": "Ability to thrive in a fast-paced, collaborative environment",
+      "answerable": false,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "konux-ds#14",
+      "posting": "https://job-boards.greenhouse.io/konux/jobs/7805858003",
+      "query": "Experience applying digital signal processing (DSP) techniques to extract features from sensor or time-series data",
+      "answerable": true,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "konux-ds#15",
+      "posting": "https://job-boards.greenhouse.io/konux/jobs/7805858003",
+      "query": "Understanding of model monitoring techniques",
+      "answerable": true,
+      "relevant": [
+        "P0w3r223/mlops-car-price"
+      ],
+      "note": ""
+    },
+    {
+      "id": "konux-ds#16",
+      "posting": "https://job-boards.greenhouse.io/konux/jobs/7805858003",
+      "query": "Software testing and CI/CD workflows",
+      "answerable": true,
+      "relevant": [
+        "P0w3r223/apply-scout",
+        "P0w3r223/doc-extract",
+        "P0w3r223/it-job-radar",
+        "P0w3r223/ab-lab"
+      ],
+      "note": ""
+    },
+    {
+      "id": "konux-ds#17",
+      "posting": "https://job-boards.greenhouse.io/konux/jobs/7805858003",
+      "query": "Worked with and trained models using diverse types of data (time-series, tabular, event logs, images, sensor data)",
+      "answerable": true,
+      "relevant": [],
+      "note": "full coverage only: the requirement names time-series, tabular, event logs, images and sensor data; images and sensor data appear nowhere"
+    },
+    {
+      "id": "konux-ds#18",
+      "posting": "https://job-boards.greenhouse.io/konux/jobs/7805858003",
+      "query": "Experience with state-space and survival modeling",
+      "answerable": true,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "konux-ds#19",
+      "posting": "https://job-boards.greenhouse.io/konux/jobs/7805858003",
+      "query": "Familiarity with statistical packages such as statsmodels, PyMC, or Stan",
+      "answerable": true,
+      "relevant": [],
+      "note": "full coverage only: ab-lab does bootstrap and power by hand; statsmodels, PyMC and Stan are named in no README"
+    },
+    {
+      "id": "konux-ds#20",
+      "posting": "https://job-boards.greenhouse.io/konux/jobs/7805858003",
+      "query": "Experience with AWS",
+      "answerable": true,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "konux-ds#21",
+      "posting": "https://job-boards.greenhouse.io/konux/jobs/7805858003",
+      "query": "Experience with Databricks",
+      "answerable": true,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "allegro-junior-ds#1",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999885325887-junior-data-scientist-data-ai-",
+      "query": "Experience in independent work as Data Scientist or similar position",
+      "answerable": false,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "allegro-junior-ds#2",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999885325887-junior-data-scientist-data-ai-",
+      "query": "Python for data processing and machine learning models (scikit-learn, pytorch, tensorflow, xgboost, catboost, light-gbm, pandas)",
+      "answerable": true,
+      "relevant": [
+        "P0w3r223/car-price-ml",
+        "P0w3r223/pl-review-sense",
+        "P0w3r223/mlops-car-price"
+      ],
+      "note": ""
+    },
+    {
+      "id": "allegro-junior-ds#3",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999885325887-junior-data-scientist-data-ai-",
+      "query": "Knowledge and understanding of machine learning algorithms and ability to apply them in practice",
+      "answerable": true,
+      "relevant": [
+        "P0w3r223/car-price-ml",
+        "P0w3r223/pl-review-sense",
+        "P0w3r223/ab-lab",
+        "P0w3r223/wroclaw-air-insights",
+        "P0w3r223/mlops-car-price"
+      ],
+      "note": ""
+    },
+    {
+      "id": "allegro-junior-ds#4",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999885325887-junior-data-scientist-data-ai-",
+      "query": "SQL",
+      "answerable": true,
+      "relevant": [
+        "P0w3r223/it-job-radar"
+      ],
+      "note": ""
+    },
+    {
+      "id": "allegro-junior-ds#5",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999885325887-junior-data-scientist-data-ai-",
+      "query": "Experience or interest in analytics in GCP/Hadoop ecosystem",
+      "answerable": true,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "allegro-junior-ds#6",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999885325887-junior-data-scientist-data-ai-",
+      "query": "Clear communication with business units",
+      "answerable": false,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "allegro-junior-ds#7",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999885325887-junior-data-scientist-data-ai-",
+      "query": "Researcher mindset - ability to break down complex problems and model them effectively",
+      "answerable": false,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "allegro-junior-ds#8",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999885325887-junior-data-scientist-data-ai-",
+      "query": "Strong desire to learn and develop knowledge",
+      "answerable": false,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "allegro-junior-ds#9",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999885325887-junior-data-scientist-data-ai-",
+      "query": "English language at B2 level or higher",
+      "answerable": false,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "allegro-junior-ds#10",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999885325887-junior-data-scientist-data-ai-",
+      "query": "GCP BigQuery",
+      "answerable": true,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "allegro-junior-ds#11",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999885325887-junior-data-scientist-data-ai-",
+      "query": "MLFlow",
+      "answerable": true,
+      "relevant": [
+        "P0w3r223/mlops-car-price"
+      ],
+      "note": ""
+    },
+    {
+      "id": "allegro-junior-ds#12",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999885325887-junior-data-scientist-data-ai-",
+      "query": "PySpark",
+      "answerable": true,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "allegro-ds#1",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999759633069-data-scientist-allegro-pay-",
+      "query": "2+ years of experience building data-driven solutions and machine learning techniques",
+      "answerable": false,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "allegro-ds#2",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999759633069-data-scientist-allegro-pay-",
+      "query": "Python",
+      "answerable": true,
+      "relevant": [
+        "P0w3r223/pl-jobs-lora",
+        "P0w3r223/pl-review-sense",
+        "P0w3r223/car-price-ml",
+        "P0w3r223/mlops-car-price",
+        "P0w3r223/apply-scout",
+        "P0w3r223/doc-extract",
+        "P0w3r223/wroclaw-air-insights",
+        "P0w3r223/ab-lab",
+        "P0w3r223/it-job-radar"
+      ],
+      "note": ""
+    },
+    {
+      "id": "allegro-ds#3",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999759633069-data-scientist-allegro-pay-",
+      "query": "scikit-learn",
+      "answerable": true,
+      "relevant": [
+        "P0w3r223/pl-review-sense",
+        "P0w3r223/car-price-ml"
+      ],
+      "note": ""
+    },
+    {
+      "id": "allegro-ds#4",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999759633069-data-scientist-allegro-pay-",
+      "query": "LightGBM",
+      "answerable": true,
+      "relevant": [
+        "P0w3r223/car-price-ml"
+      ],
+      "note": ""
+    },
+    {
+      "id": "allegro-ds#5",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999759633069-data-scientist-allegro-pay-",
+      "query": "pandas",
+      "answerable": true,
+      "relevant": [
+        "P0w3r223/wroclaw-air-insights"
+      ],
+      "note": "named in the README only: same as konux-ds#6"
+    },
+    {
+      "id": "allegro-ds#6",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999759633069-data-scientist-allegro-pay-",
+      "query": "hyperopt",
+      "answerable": true,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "allegro-ds#7",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999759633069-data-scientist-allegro-pay-",
+      "query": "FastAPI",
+      "answerable": true,
+      "relevant": [
+        "P0w3r223/car-price-ml"
+      ],
+      "note": ""
+    },
+    {
+      "id": "allegro-ds#8",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999759633069-data-scientist-allegro-pay-",
+      "query": "Machine learning algorithms (decision trees, random forests, Bayesian models, time series modeling)",
+      "answerable": true,
+      "relevant": [
+        "P0w3r223/car-price-ml",
+        "P0w3r223/wroclaw-air-insights",
+        "P0w3r223/ab-lab"
+      ],
+      "note": ""
+    },
+    {
+      "id": "allegro-ds#9",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999759633069-data-scientist-allegro-pay-",
+      "query": "Practical and theoretical knowledge of machine learning algorithms",
+      "answerable": true,
+      "relevant": [
+        "P0w3r223/car-price-ml",
+        "P0w3r223/pl-review-sense",
+        "P0w3r223/ab-lab"
+      ],
+      "note": ""
+    },
+    {
+      "id": "allegro-ds#10",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999759633069-data-scientist-allegro-pay-",
+      "query": "Experience working with real-world data of varying quality",
+      "answerable": true,
+      "relevant": [
+        "P0w3r223/car-price-ml",
+        "P0w3r223/it-job-radar"
+      ],
+      "note": ""
+    },
+    {
+      "id": "allegro-ds#11",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999759633069-data-scientist-allegro-pay-",
+      "query": "Independent decision-making and responsibility for code and models",
+      "answerable": false,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "allegro-ds#12",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999759633069-data-scientist-allegro-pay-",
+      "query": "Snowflake",
+      "answerable": true,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "allegro-ds#13",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999759633069-data-scientist-allegro-pay-",
+      "query": "Airflow",
+      "answerable": true,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "allegro-ds#14",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999759633069-data-scientist-allegro-pay-",
+      "query": "Tableau",
+      "answerable": true,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "allegro-ds#15",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999759633069-data-scientist-allegro-pay-",
+      "query": "Azure",
+      "answerable": true,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "allegro-ds#16",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999759633069-data-scientist-allegro-pay-",
+      "query": "Google Cloud Platform",
+      "answerable": true,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "allegro-ds#17",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999759633069-data-scientist-allegro-pay-",
+      "query": "BigQuery",
+      "answerable": true,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "allegro-ds#18",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999759633069-data-scientist-allegro-pay-",
+      "query": "Cloud Composer",
+      "answerable": true,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "allegro-ds#19",
+      "posting": "https://jobs.smartrecruiters.com/Allegro/743999759633069-data-scientist-allegro-pay-",
+      "query": "Dataflow",
+      "answerable": true,
+      "relevant": [],
+      "note": ""
+    },
+    {
+      "id": "reddit#1",
+      "posting": "https://job-boards.greenhouse.io/reddit/jobs/8018517",
+      "query": "French language proficiency",
+      "answerable": false,
+      "relevant": [],
+      "note": ""
+    }
+  ]
+}
