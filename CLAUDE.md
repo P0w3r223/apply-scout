@@ -4,7 +4,7 @@ Guidance for Claude Code (and any contributor) working in this repository.
 
 ## What this project is
 
-Portfolio project **P3** (the flagship). An LLM agent that, given a job-posting URL,
+Portfolio project **P3**. An LLM agent that, given a job-posting URL,
 fetches and structures the requirements, compares them against the candidate's CV and
 the evidence in their GitHub repositories, and produces a match report plus a
 cover-letter draft with cited sources — built on a **from-scratch tool loop** with
@@ -87,18 +87,16 @@ trajectory, the harness (later) scores the trajectory.
 - **Replay never falls back to the network.** An unrecorded request raises `CassetteMiss`.
   Serving it live would turn a reproducible evaluation back into a paid, unverifiable one.
 - **No secrets in code.** `ANTHROPIC_API_KEY` is read from the environment at call time.
-- **Untrusted input is not confined yet — know this before extending either tool.** Two tool
-  arguments are chosen by the model from a conversation that contains fetched web text, and
-  neither is bounded: `read_cv` takes a free path (`tools/read_cv.py:47` — no base-directory
-  join, no `resolve()`, no containment check) and returns the file to the model, and `fetch`
-  follows redirects with no scheme allowlist, no host allowlist and no loopback/link-local
-  rejection (`fetch.py:70–74`), with the content-type test applied only *after* the request.
-  Fetched text then re-enters the conversation undelimited. **Do not add a tool that widens
-  this** — a new tool taking a path, a URL, a command or a query inherits the same hole. The
-  fix is scoped (base-directory join and containment on the first, scheme allowlist plus
-  resolved-address rejection and per-hop redirect re-check on the second, then an
-  attack-success-rate suite over both); until it lands, the README names all three under
-  **Limitations** and that section is the contract.
+- **`real_tools()` puts all three legs of the lethal trifecta in one context.** It reads
+  untrusted web text (`fetch_job_posting`), reaches local files and a GitHub token (`read_cv`,
+  `github_evidence`), and makes outbound requests to a model-chosen URL (`fetch_job_posting`
+  again) — so an instruction injected into a posting has both a way to read and a way to send.
+  One leg is already cut on purpose: `submit_report` hands the deliverable to a human and no
+  application is ever sent. When adding or widening a tool, prefer the version that removes a
+  leg over the one that adds a capability; a new argument naming a file, a host, a command or a
+  query reconstitutes what that cut was for. The README's **Limitations** section carries the
+  current inventory with file references and is the contract — deliberately not repeated here,
+  because two copies of a line number is one copy that goes stale.
 - **Immutable contracts, no magic numbers.** Value objects are frozen; thresholds and
   model IDs live in `config.py`.
 
@@ -259,22 +257,21 @@ a test fails on a GIF whose frame count no longer matches the cast.
 - Do not let a tool raise into the loop — return a structured error instead.
 - Do not turn a budget breach into an exception — it is a controlled stop.
 - Do not embed a real CV, a real API key, or PolEmo-style dataset text in the repo.
-- Do not give the model a new tool argument that names a file, a host, a command or a query
-  without bounding it — see the untrusted-input rule above. Two such arguments are already
-  unbounded; a third is not a precedent to follow.
-- Do not run this against a real posting on a machine holding anything you would not hand to
-  the model, until the confinement lands.
+
+Until the confinement lands, run real assessments on a machine whose files you would be willing
+to hand to the model — `read_cv` reads what it is pointed at, and what points it is a
+conversation containing text from the internet.
 
 <!-- code-review-graph MCP tools -->
 ## MCP Tools: code-review-graph
 
-**IMPORTANT: This project has a knowledge graph. ALWAYS use the
-code-review-graph MCP tools BEFORE using Grep/Glob/Read to explore
-the codebase.** The graph is faster, cheaper (fewer tokens), and gives
-you structural context (callers, dependents, test coverage) that file
-scanning cannot.
+This project has a knowledge graph. Reach for the code-review-graph MCP
+tools ahead of Grep/Glob/Read when the question is **structural** — what
+calls this, what breaks if it changes, what covers it — because the graph
+answers those in one call, with callers, dependents and test coverage
+attached, for fewer tokens than reading the files.
 
-### When to use graph tools FIRST
+### Where the graph answers better
 
 - **Exploring code**: `semantic_search_nodes_tool` or `query_graph_tool` instead of Grep
 - **Understanding impact**: `get_impact_radius_tool` instead of manually tracing imports
@@ -282,7 +279,8 @@ scanning cannot.
 - **Finding relationships**: `query_graph_tool` with callers_of/callees_of/imports_of/tests_for
 - **Architecture questions**: `get_architecture_overview_tool` + `list_communities_tool`
 
-Fall back to Grep/Glob/Read **only** when the graph doesn't cover what you need.
+Grep, Glob and Read stay the right tools when the question is about text rather
+than structure, and when the graph has no answer for it.
 
 ### Key Tools
 

@@ -3,7 +3,7 @@
 **An LLM agent that matches a job posting against a candidate's CV and GitHub evidence —
 with a from-scratch tool loop, safety budgets, and a trajectory-evaluation harness.**
 
-Portfolio project **P3** (the flagship). Given a job-posting URL, apply-scout fetches and
+Portfolio project **P3**. Given a job-posting URL, apply-scout fetches and
 structures the requirements, compares them against the candidate's CV and the evidence in
 their GitHub repositories, and produces a **match report** (requirement → evidence → rating,
 with links) and a **cover-letter draft built only from facts it can cite**. It runs on a
@@ -312,6 +312,14 @@ re-check on `fetch`), and scoring an attack suite against them is the change aft
 this commit: this one exists because an eighteen-item limitations list that omitted the three items
 that matter was a **false completeness**, which is worse than a gap, and it was public while the fix
 was being scoped.
+
+**And the confinement will bound the third leg rather than close it, which is worth saying before it
+is built.** An allowlist restricts *where* a request may go; it does not restrict *what* a permitted
+request carries. A URL a model is free to compose can encode chosen data in its path or query and send
+it to an allowlisted host — so after the fix, `fetch` will still be an outbound channel, only a
+narrower one. Closing it needs the content leaving to be constrained, not just the destination. The
+honest end state for this project is *one leg cut and two narrowed*, and the attack suite is what will
+say by how much.
 
 - **JavaScript-only postings.** `fetch_job_posting` fetches static HTML with no headless browser, so a
   client-rendered page yields only its pre-hydration shell. In the eval, the deliberately JavaScript-only
