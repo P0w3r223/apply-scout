@@ -7,8 +7,11 @@ are tested — and they all share the same contracts, so the agent loop is uncha
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+from pathlib import Path
+
 from apply_scout import config
-from apply_scout.fetch import Extractor, Fetcher, HttpFetcher
+from apply_scout.fetch import Extractor, Fetcher, GuardedFetcher, HttpFetcher
 from apply_scout.github import DiskCache, GitHubClient
 from apply_scout.structuring import AnthropicStructurer, Structurer
 from apply_scout.tools.base import Tool
@@ -20,6 +23,7 @@ from apply_scout.tools.submit_report import SubmitReport
 
 def real_tools(
     *,
+    readable: Iterable[str | Path],
     fetcher: Fetcher | None = None,
     structurer: Structurer | None = None,
     github: GitHubClient | None = None,
@@ -37,7 +41,10 @@ def real_tools(
     arrangement at the other end of the run: pass instances to read back the postings the loop
     fetched and the evidence it was handed, which is what a deliverable has to be checked
     against."""
-    fetcher = fetcher or HttpFetcher()
+    # The guard wraps whatever fetcher the caller supplied — including a cassette's — so the URL
+    # policy applies in every mode. Inside the cassette it would be skipped on replay, which is
+    # the only mode CI runs.
+    fetcher = GuardedFetcher(fetcher or HttpFetcher())
     structurer = structurer or AnthropicStructurer()
     github = github or GitHubClient(cache=DiskCache(config.CACHE_DIR))
     return [
@@ -45,7 +52,7 @@ def real_tools(
         or FetchJobPosting(
             fetcher=fetcher, structurer=structurer, extractor=extractor, model=model
         ),
-        ReadCV(structurer=structurer, model=model),
+        ReadCV(structurer=structurer, readable=readable, model=model),
         evidence or GithubEvidence(client=github),
         submit or SubmitReport(),
     ]

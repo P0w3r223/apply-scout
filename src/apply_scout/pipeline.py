@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 from apply_scout import config
 from apply_scout.contracts import CoverLetterDraft, CVProfile, Evidence, JobPosting, MatchReport
-from apply_scout.fetch import Extractor, Fetcher, HttpFetcher
+from apply_scout.fetch import Extractor, Fetcher, GuardedFetcher, HttpFetcher
 from apply_scout.github import DiskCache, GitHubClient
 from apply_scout.guardrail import GuardrailResult, guardrail_letter
 from apply_scout.structuring import AnthropicStructurer, Structurer
@@ -76,7 +76,9 @@ def assess(
 
     `model` drives the higher-stakes report/letter; `structure_model` drives the cheaper
     fetch/CV extraction. The eval harness sets them equal to compare a model head to head."""
-    fetcher = fetcher or HttpFetcher()
+    # Same guard as the agent path (`real_tools`): the pipeline calls the same tools in a fixed
+    # order, so it needs the same URL policy — the order does not make the address trustworthy.
+    fetcher = GuardedFetcher(fetcher or HttpFetcher())
     structurer = structurer or AnthropicStructurer()
     github = github or GitHubClient(cache=DiskCache(config.CACHE_DIR))
 
@@ -89,7 +91,12 @@ def assess(
         JobPosting,
     )
     cv: CVProfile = _tool_json(  # type: ignore[assignment]
-        ReadCV(structurer=structurer, model=structure_model, max_attempts=max_attempts),
+        ReadCV(
+            structurer=structurer,
+            readable=[cv_path],
+            model=structure_model,
+            max_attempts=max_attempts,
+        ),
         {"path": cv_path},
         CVProfile,
     )

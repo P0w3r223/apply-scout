@@ -106,6 +106,15 @@ DEFAULT_EFFORT = "high"
 HTTP_USER_AGENT = "apply-scout/0.1 (+https://github.com/P0w3r223/apply-scout)"
 HTTP_TIMEOUT_S = 15.0
 HTTP_MAX_HTML_CHARS = 2_000_000  # ignore absurdly large pages defensively
+# The URL policy. `fetch_job_posting` takes its URL from a conversation that contains text
+# fetched off the internet, so the address is attacker-influenceable and the request has to be
+# bounded before it is made. Schemes are limited to the two that carry a job posting; `file:`
+# would turn the fetch tool into a second arbitrary-file reader, and the rest reach services
+# that have no business in this loop.
+HTTP_ALLOWED_SCHEMES = frozenset({"http", "https"})
+# Redirects are followed by hand rather than by httpx so that every hop is checked. A posting
+# behind more than a handful of hops is a redirect chain, not a job ad.
+HTTP_MAX_REDIRECTS = 5
 
 # --- Structuring (turning free text into a contract via an LLM) --------------
 # Structuring is a simpler task than the agent's own reasoning, so it defaults to the
