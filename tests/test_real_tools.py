@@ -151,6 +151,7 @@ def test_real_tools_uses_the_injected_fetch_instance(tmp_path):
         fetcher=_fetcher(POSTING_HTML), structurer=ScriptedStructurer([POSTING_JSON])
     )
     tools = real_tools(
+        readable=[tmp_path / "cv.md"],
         fetcher=_fetcher(POSTING_HTML),
         structurer=ScriptedStructurer([]),
         github=GitHubClient(cache=DiskCache(tmp_path)),
@@ -163,7 +164,7 @@ def test_read_cv_happy_path(tmp_path):
     cv_file = tmp_path / "cv.md"
     cv_file.write_text("Patryk — Python, FastAPI, SQL.", encoding="utf-8")
     cv_json = '{"name": "Patryk", "skills": ["Python", "FastAPI", "SQL"]}'
-    tool = ReadCV(structurer=ScriptedStructurer([cv_json]))
+    tool = ReadCV(structurer=ScriptedStructurer([cv_json]), readable=[cv_file])
 
     result = tool.run({"path": str(cv_file)})
     assert result.ok
@@ -173,8 +174,9 @@ def test_read_cv_happy_path(tmp_path):
 
 
 def test_read_cv_missing_file_is_structured(tmp_path):
-    tool = ReadCV(structurer=ScriptedStructurer([]))
-    result = tool.run({"path": str(tmp_path / "nope.md")})
+    missing = tmp_path / "nope.md"
+    tool = ReadCV(structurer=ScriptedStructurer([]), readable=[missing])
+    result = tool.run({"path": str(missing)})
     assert not result.ok
     assert "not found" in result.content
 
@@ -182,7 +184,84 @@ def test_read_cv_missing_file_is_structured(tmp_path):
 def test_read_cv_empty_file_is_structured(tmp_path):
     cv_file = tmp_path / "empty.md"
     cv_file.write_text("   \n", encoding="utf-8")
-    tool = ReadCV(structurer=ScriptedStructurer([]))
+    tool = ReadCV(structurer=ScriptedStructurer([]), readable=[cv_file])
     result = tool.run({"path": str(cv_file)})
     assert not result.ok
     assert "empty" in result.content
+
+
+# --- what `read_cv` may open ------------------------------------------------------------
+# The path is a tool argument the model picks out of a conversation that carries fetched web
+# text, and the file's contents go straight back to the model. The caller names the CV at
+# startup (`--cv`), so the argument is a selector over files already chosen, not a free path.
+
+
+def test_read_cv_refuses_a_file_outside_the_allowlist(tmp_path):
+    cv_file = tmp_path / "cv.md"
+    cv_file.write_text("Patryk — Python.", encoding="utf-8")
+    secret = tmp_path / "id_rsa"
+    secret.write_text("PRIVATE KEY", encoding="utf-8")
+
+    tool = ReadCV(structurer=ScriptedStructurer([]), readable=[cv_file])
+    result = tool.run({"path": str(secret)})
+
+    assert not result.ok
+    assert "may read" in result.content
+    assert "PRIVATE KEY" not in result.content
+
+
+def test_read_cv_refuses_a_traversal_that_lands_outside(tmp_path):
+    """`..` is resolved before the comparison, so a path that *spells* its way out is judged
+    by where it lands rather than by how it is written."""
+    inside = tmp_path / "cvs"
+    inside.mkdir()
+    cv_file = inside / "cv.md"
+    cv_file.write_text("Patryk — Python.", encoding="utf-8")
+    secret = tmp_path / "id_rsa"
+    secret.write_text("PRIVATE KEY", encoding="utf-8")
+
+    tool = ReadCV(structurer=ScriptedStructurer([]), readable=[cv_file])
+    result = tool.run({"path": str(inside / ".." / "id_rsa")})
+
+    assert not result.ok
+    assert "may read" in result.content
+
+
+def test_read_cv_accepts_another_spelling_of_the_allowed_file(tmp_path):
+    """The same normalisation cuts the other way: the allowed file stays readable when the
+    model writes its path differently from the way the caller did."""
+    inside = tmp_path / "cvs"
+    inside.mkdir()
+    cv_file = inside / "cv.md"
+    cv_file.write_text("Patryk — Python, FastAPI, SQL.", encoding="utf-8")
+    cv_json = '{"name": "Patryk", "skills": ["Python"]}'
+
+    tool = ReadCV(structurer=ScriptedStructurer([cv_json]), readable=[cv_file])
+    result = tool.run({"path": str(inside / ".." / "cvs" / "cv.md")})
+
+    assert result.ok
+
+
+def test_confining_read_cv_leaves_its_tool_spec_untouched():
+    """The sibling of the `fetch_job_posting` pin above, and the reason the allowlist is a
+    constructor argument rather than a second field on `ReadCVInput`. A cassette key hashes
+    `{model, system, messages, tools}`, so widening the input model to carry a base directory
+    would miss every recorded entry and turn a free replay into a paid re-record. What the
+    model sees is unchanged; what the tool honours is not."""
+    spec = ReadCV(structurer=ScriptedStructurer([]), readable=[]).spec()
+    assert spec == {
+        "name": "read_cv",
+        "description": "Parse the candidate's CV file into a structured, searchable profile.",
+        "input_schema": {
+            "type": "object",
+            "title": "ReadCVInput",
+            "properties": {
+                "path": {
+                    "description": "Path to the candidate's CV file (text or markdown).",
+                    "title": "Path",
+                    "type": "string",
+                }
+            },
+            "required": ["path"],
+        },
+    }

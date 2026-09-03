@@ -69,6 +69,7 @@ def run_assessment(
     llm = llm or AnthropicLLM()
     tools = tools or ToolRegistry(
         real_tools(
+            readable=[cv_path],
             fetcher=fetcher,
             structurer=structurer,
             github=github,
