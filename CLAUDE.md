@@ -87,6 +87,18 @@ trajectory, the harness (later) scores the trajectory.
 - **Replay never falls back to the network.** An unrecorded request raises `CassetteMiss`.
   Serving it live would turn a reproducible evaluation back into a paid, unverifiable one.
 - **No secrets in code.** `ANTHROPIC_API_KEY` is read from the environment at call time.
+- **Untrusted input is not confined yet — know this before extending either tool.** Two tool
+  arguments are chosen by the model from a conversation that contains fetched web text, and
+  neither is bounded: `read_cv` takes a free path (`tools/read_cv.py:47` — no base-directory
+  join, no `resolve()`, no containment check) and returns the file to the model, and `fetch`
+  follows redirects with no scheme allowlist, no host allowlist and no loopback/link-local
+  rejection (`fetch.py:70–74`), with the content-type test applied only *after* the request.
+  Fetched text then re-enters the conversation undelimited. **Do not add a tool that widens
+  this** — a new tool taking a path, a URL, a command or a query inherits the same hole. The
+  fix is scoped (base-directory join and containment on the first, scheme allowlist plus
+  resolved-address rejection and per-hop redirect re-check on the second, then an
+  attack-success-rate suite over both); until it lands, the README names all three under
+  **Limitations** and that section is the contract.
 - **Immutable contracts, no magic numbers.** Value objects are frozen; thresholds and
   model IDs live in `config.py`.
 
@@ -247,6 +259,11 @@ a test fails on a GIF whose frame count no longer matches the cast.
 - Do not let a tool raise into the loop — return a structured error instead.
 - Do not turn a budget breach into an exception — it is a controlled stop.
 - Do not embed a real CV, a real API key, or PolEmo-style dataset text in the repo.
+- Do not give the model a new tool argument that names a file, a host, a command or a query
+  without bounding it — see the untrusted-input rule above. Two such arguments are already
+  unbounded; a third is not a precedent to follow.
+- Do not run this against a real posting on a machine holding anything you would not hand to
+  the model, until the confinement lands.
 
 <!-- code-review-graph MCP tools -->
 ## MCP Tools: code-review-graph
