@@ -158,12 +158,25 @@ def test_an_unknown_placement_is_refused_rather_than_silently_dropped():
         pages.page("x", "watermark")
 
 
-def test_the_fallback_extractor_reads_placements_trafilatura_drops(tmp_path):
-    """The two-arm result in one assertion: `hidden` and `tail` are shut only by trafilatura
-    parsing a page the attacker wrote. Nothing in the harness stops them."""
-    for placement in ("hidden", "tail"):
-        assert not _attempt("benign", placement, arm="trafilatura", tmp_path=tmp_path).reached
-        assert _attempt("benign", placement, arm="fallback", tmp_path=tmp_path).reached
+def test_the_body_reaches_the_reader_under_every_extractor(tmp_path):
+    """The floor the whole grid stands on. If an ordinary paragraph stopped arriving, every zero
+    in the published table would be extraction's doing and none of it the guards'."""
+    for arm in ARMS:
+        assert _attempt("benign", "body", arm=arm, tmp_path=tmp_path).reached, arm
+
+
+def test_the_fallback_extractor_reads_at_least_what_trafilatura_does(tmp_path):
+    """The two-arm claim, stated so it survives a parser upgrade.
+
+    Asserting *which* placements trafilatura drops would be asserting a property of the installed
+    trafilatura and libxml2: `hidden` reaches under some builds and not others, which is the finding
+    rather than a fault, and pinning it turns somebody's dependency bump into a red build. What is
+    invariant is the direction — the stdlib strip keeps everything visible plus what trafilatura
+    chose to discard, so it can never read less."""
+    for placement in pages.PLACEMENTS:
+        trafilatura = _attempt("benign", placement, arm="trafilatura", tmp_path=tmp_path)
+        fallback = _attempt("benign", placement, arm="fallback", tmp_path=tmp_path)
+        assert fallback.reached >= trafilatura.reached, placement
 
 
 # --- the report says what happened --------------------------------------------------------------
@@ -197,13 +210,42 @@ def test_a_guarded_leg_that_succeeded_is_a_surprise():
     assert report.surprises(attempts) == attempts
 
 
+def test_a_payload_that_landed_nowhere_is_its_own_alarm():
+    """Distinct from a surprise, and the more dangerous of the two: nothing about the outcome
+    disagrees with the record, yet every zero it produced was extraction's and not the guards'."""
+    attempts = [_fake("read_secret", reached=False, succeeded=False)]
+    assert report.surprises(attempts) == []
+    assert "trafilatura/read_secret" in report.unlanded(attempts)
+
+
 def test_rates_carry_their_denominator():
     rates = report.by(lambda a: a.payload, [_fake("benign", reached=True, succeeded=False)] * 4)
     assert [(r.label, r.attempts, r.reached, r.succeeded) for r in rates] == [("benign", 4, 4, 0)]
 
 
-def test_the_table_names_both_arms_and_what_it_cannot_see():
-    text = report.markdown([_fake("benign", reached=True, succeeded=False)])
+@pytest.mark.parametrize(
+    ("reached", "succeeded", "expected"),
+    [(0, 0, "never reached"), (4, 0, "never succeeded"), (4, 4, "succeeded every time")],
+)
+def test_the_verdict_divides_the_extractor_out(reached, succeeded, expected):
+    rate = report.Rate(label="x", attempts=4, reached=reached, succeeded=succeeded)
+    assert expected in rate.verdict
+
+
+def test_the_approved_claim_carries_no_reach_counts(tmp_path):
+    """The reason CI can diff it at all. Reach moves with the installed trafilatura, so a count of
+    it in this file would make a dependency bump look like a change in what the guards permit."""
+    attempts = [
+        _attempt("benign", placement, arm=arm, tmp_path=tmp_path)
+        for arm in ARMS
+        for placement in pages.PLACEMENTS
+    ]
+    claim = report.markdown(attempts)
     for arm in ARMS:
-        assert f"## Arm: `{arm}`" in text
-    assert "check_resolved` never runs" in text
+        assert f"## Arm: `{arm}`" in claim
+    assert "check_resolved` never runs" in claim
+    for placement in pages.PLACEMENTS:
+        assert f"| `{placement}` |" not in claim
+    # The counts live here instead, printed rather than approved.
+    assert "trafilatura" in report.environment(attempts)
+    assert "| `hidden` |" in report.environment(attempts)

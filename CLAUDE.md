@@ -278,12 +278,15 @@ a test fails on a GIF whose frame count no longer matches the cast.
    because httpx walked the chain internally and returned only the final response. Then `attack/`
    turned the claim into a number: 5 payloads × 4 placements × 2 extractors against `real_tools()`,
    read by a reader that obeys everything, so the result is a property of the architecture and not of
-   whichever model was cheapest that day. **The two narrowed legs held 24/24. Exfiltration succeeded on
-   every attempt that reached the reader at all** — an allowlist bounds where a request goes, not what
-   it carries. And the guarded rows read `0 / 4` rather than `0 / 1` only because trafilatura drops a
-   comment, a `display:none` div and a footer: under the stdlib fallback — which ships, and which the
-   attacker's own page decides to trigger — `hidden` and `tail` arrive intact. Extraction is a
-   readability heuristic sitting where a control is not. Cost $0: no key, no network, no cassette.
+   whichever model was cheapest that day. **The two narrowed legs never succeeded; exfiltration
+   succeeded on every attempt that reached the reader** — an allowlist bounds where a request goes,
+   not what it carries. Third finding, from CI: **which placements reach the reader is not
+   reproducible.** A comment, a `display:none` div and a footer are dropped locally by trafilatura
+   2.1.0 and `hidden` arrives on the runner's newer build — the same hazard that once made a CI
+   runner's trafilatura miss every cassette entry. So the approved file states only what the guards
+   did with what arrived, and the reach counts are printed to the log with the trafilatura and
+   libxml2 that produced them. Freezing them would defend nothing and redden the build on a
+   dependency bump. Cost $0: no key, no network, no cassette.
 
 ## What not to do
 
