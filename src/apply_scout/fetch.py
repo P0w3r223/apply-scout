@@ -204,7 +204,12 @@ class HttpFetcher:
             if resolves:
                 check_resolved(url)
             try:
-                response = client.get(url)
+                # Per-request, not per-client: an injected client may have been built with
+                # `follow_redirects=True`, and httpx would then walk the chain internally and
+                # return only the final response — every hop unchecked, the loop below never
+                # reached. Overriding it here makes the guard independent of how the caller
+                # configured its client.
+                response = client.get(url, follow_redirects=False)
             except httpx.HTTPError as exc:
                 raise FetchError(f"request failed: {exc}") from exc
             if not response.is_redirect:

@@ -91,12 +91,19 @@ trajectory, the harness (later) scores the trajectory.
   untrusted web text (`fetch_job_posting`), reaches local files and a GitHub token (`read_cv`,
   `github_evidence`), and makes outbound requests to a model-chosen URL (`fetch_job_posting`
   again) — so an instruction injected into a posting has both a way to read and a way to send.
-  One leg is already cut on purpose: `submit_report` hands the deliverable to a human and no
-  application is ever sent. When adding or widening a tool, prefer the version that removes a
-  leg over the one that adds a capability; a new argument naming a file, a host, a command or a
-  query reconstitutes what that cut was for. The README's **Limitations** section carries the
-  current inventory with file references and is the contract — deliberately not repeated here,
-  because two copies of a line number is one copy that goes stale.
+  One leg is cut on purpose (`submit_report` hands the deliverable to a human) and two are now
+  narrowed: `read_cv` honours only the file `--cv` named, and `fetch` refuses non-public
+  addresses on every redirect hop. When adding or widening a tool, prefer the version that
+  removes a leg over the one that adds a capability; a new argument naming a file, a host, a
+  command or a query reconstitutes what that cut was for. The README's **Limitations** section
+  carries the current inventory and what the narrowing does *not* buy, and is the contract —
+  deliberately not repeated here, because two copies of a line number is one copy that goes stale.
+- **Two invariants hold that confinement up; both are easy to undo by accident.** The URL guard
+  is composed *outside* the cassette, because CI runs `replay` and nothing else — moved inside,
+  it would never execute in the only mode the build exercises. And the readable set is
+  constructor state rather than a field on `ReadCVInput`, because a cassette key hashes the tool
+  definitions along with the conversation: widening the schema misses every recorded entry and
+  turns a free replay into a paid re-record. A test pins each tool's spec so that breaks loudly.
 - **Immutable contracts, no magic numbers.** Value objects are frozen; thresholds and
   model IDs live in `config.py`.
 
@@ -258,9 +265,11 @@ a test fails on a GIF whose frame count no longer matches the cast.
 - Do not turn a budget breach into an exception — it is a controlled stop.
 - Do not embed a real CV, a real API key, or PolEmo-style dataset text in the repo.
 
-Until the confinement lands, run real assessments on a machine whose files you would be willing
-to hand to the model — `read_cv` reads what it is pointed at, and what points it is a
-conversation containing text from the internet.
+The confinement has landed, so `read_cv` reads only the file `--cv` named. What it does not do
+is stop an injected instruction arriving — fetched page text still enters the conversation
+undelimited, and nothing scores how often that succeeds. Read the README's **Limitations** for
+what the guards bound and what they leave; the honest reading is one leg cut, two narrowed, and
+the narrowing asserted rather than measured.
 
 <!-- code-review-graph MCP tools -->
 ## MCP Tools: code-review-graph

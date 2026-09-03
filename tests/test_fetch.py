@@ -196,3 +196,19 @@ def test_a_redirect_without_a_location_is_an_error():
     fetcher = _fetcher(lambda r: httpx.Response(302))
     with pytest.raises(FetchError, match="without a location"):
         fetcher.get("https://example.com/job")
+
+
+def test_a_client_configured_to_follow_redirects_does_not_bypass_the_guard():
+    """Redirects are refused per *request*, not per client. A client built with
+    `follow_redirects=True` would otherwise walk the chain inside httpx and hand back only the
+    final response — every hop unchecked and the guard's loop never entered. Found by running
+    the refusal against the unfixed source with exactly such a client, where it still fetched."""
+    handler = _redirect_then(
+        "http://169.254.169.254/latest/meta-data/",
+        httpx.Response(200, headers={"content-type": "text/html"}, text="secrets"),
+    )
+    fetcher = HttpFetcher(
+        client=httpx.Client(transport=httpx.MockTransport(handler), follow_redirects=True)
+    )
+    with pytest.raises(BlockedUrl):
+        fetcher.get("https://example.com/job")
