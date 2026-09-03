@@ -30,6 +30,16 @@ jobs:
         # so a failure here is a real change in behaviour, not a flaky call.
         run: pytest
 
+      - name: Re-measure the attack surface
+        # The security claims in the README are numbers, and this regenerates them from the
+        # production toolset — no key, no network, no cassette, so it runs in the same job as
+        # the tests rather than beside the replay. The diff is the point: a guard that quietly
+        # stops confining, or an extractor that starts letting a placement through, changes this
+        # table, and a table nobody compares is a screenshot.
+        run: |
+          python -m apply_scout.attack --out "$RUNNER_TEMP/attack.md"
+          diff -u eval/expected/attack.md "$RUNNER_TEMP/attack.md"
+
   replay:
     # Re-runs the real evaluation from the committed cassette: the same postings,
     # the same model responses, no network and no API key. This is what makes the

@@ -247,7 +247,14 @@ class _TextExtractor(HTMLParser):
         return "\n".join(self._chunks)
 
 
-def _strip_tags(html: str) -> str:
+def strip_tags(html: str) -> str:
+    """The fallback reading: every visible text node, script and style excluded.
+
+    Public because it is a *production path* rather than a helper — `extract_main_text` falls back
+    to it whenever trafilatura returns nothing, which is any template trafilatura cannot parse. The
+    attack suite drives it directly for that reason: what this function keeps and trafilatura drops
+    is the difference between the two arms of the published table, and an attacker writes the page
+    that decides which one runs."""
     parser = _TextExtractor()
     parser.feed(html)
     return parser.text()
@@ -262,9 +269,9 @@ def extract_main_text(html: str) -> str:
     try:
         import trafilatura  # imported lazily: only the fetch tool needs it
     except ImportError:  # pragma: no cover - trafilatura is a declared dependency
-        return _strip_tags(html)
+        return strip_tags(html)
 
     extracted = trafilatura.extract(html, include_comments=False, include_tables=True)
     if extracted and extracted.strip():
         return extracted.strip()
-    return _strip_tags(html)
+    return strip_tags(html)

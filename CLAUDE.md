@@ -50,6 +50,12 @@ src/apply_scout/
     submit_report.py      # terminal tool: the deliverable arrives as a contract, not prose
     real.py               # real_tools() factory (all four tools live)
     mock.py               # stand-ins matching the real tools' contracts (used by the loop tests)
+  attack/         # the security measurement: `python -m apply_scout.attack`
+    payloads.py           # what an attacker prints, and what counts as getting it (text+demand+judge)
+    pages.py              # the one base posting, and the four placements the payload is printed at
+    obey.py               # the reader that obeys everything — the model removed as a variable
+    suite.py              # the grid: 2 extractors x 5 payloads x 4 placements against real_tools()
+    report.py             # attempts -> the published tables, and the list of surprises
 scripts/
   demo.py         # capture (a real run -> docs/demo-cast.json) and render the README demo
   demo_svg.py     # pure: cast -> animated SVG (fixed-size scrolling terminal, CSS only)
@@ -57,6 +63,7 @@ tests/            # pytest; the loop is tested under a scripted fake model (no n
 eval/tasks.example.json  # annotated task fixtures (documents the eval format)
 eval/results/     # trajectory JSONL + eval markdown tables (gitignored)
 eval/cassettes/   # recorded external responses (COMMITTED — this is what replays in CI)
+eval/expected/    # the approved tables CI diffs against, attack.md among them (COMMITTED)
 docs/decisions/   # ADRs
 docs/demo.svg     # the README demo, generated from docs/demo-cast.json (both COMMITTED)
 ```
@@ -123,6 +130,14 @@ exported variable wins. A `--cassette-mode replay` run needs neither key nor net
 ```bash
 apply-scout run --url <posting-url> --cv path/to/cv.md --github-user <user> --verbose
 # streams each step, writes the trajectory JSONL to eval/results/, prints a summary
+```
+
+Re-measure the attack surface (no key, no network, no cassette — the reader is a function and the
+attacker's server is a transport, so it is free and deterministic). Exits non-zero when an outcome
+disagrees with what the payload declared:
+
+```bash
+python -m apply_scout.attack --out eval/expected/attack.md
 ```
 
 Evaluate over annotated tasks (writes a markdown table comparing two models):
@@ -257,6 +272,18 @@ a test fails on a GIF whose frame count no longer matches the cast.
    cache split so a replay cannot re-price cached tokens at the full rate; `Cited` gained the denominator
    every other column carries; `matching.tokens` stopped shattering Polish words (`różnych` →
    `['r', 'nych']` made a one-letter needle match noise). Cost $0 — all of it re-scored from the cassette.
+18. **The trifecta, confined and then measured (this milestone).** ✅ `read_cv` honours only the file
+   `--cv` named; `fetch_job_posting` refuses non-public addresses **on every redirect hop** — a red proof
+   found the first fix still fetched `169.254.169.254` through a client built `follow_redirects=True`,
+   because httpx walked the chain internally and returned only the final response. Then `attack/`
+   turned the claim into a number: 5 payloads × 4 placements × 2 extractors against `real_tools()`,
+   read by a reader that obeys everything, so the result is a property of the architecture and not of
+   whichever model was cheapest that day. **The two narrowed legs held 24/24. Exfiltration succeeded on
+   every attempt that reached the reader at all** — an allowlist bounds where a request goes, not what
+   it carries. And the guarded rows read `0 / 4` rather than `0 / 1` only because trafilatura drops a
+   comment, a `display:none` div and a footer: under the stdlib fallback — which ships, and which the
+   attacker's own page decides to trigger — `hidden` and `tail` arrive intact. Extraction is a
+   readability heuristic sitting where a control is not. Cost $0: no key, no network, no cassette.
 
 ## What not to do
 
@@ -265,11 +292,10 @@ a test fails on a GIF whose frame count no longer matches the cast.
 - Do not turn a budget breach into an exception — it is a controlled stop.
 - Do not embed a real CV, a real API key, or PolEmo-style dataset text in the repo.
 
-The confinement has landed, so `read_cv` reads only the file `--cv` named. What it does not do
-is stop an injected instruction arriving — fetched page text still enters the conversation
-undelimited, and nothing scores how often that succeeds. Read the README's **Limitations** for
-what the guards bound and what they leave; the honest reading is one leg cut, two narrowed, and
-the narrowing asserted rather than measured.
+The confinement is measured, not asserted: `python -m apply_scout.attack` runs every payload in
+every placement against a reader that obeys everything, and CI diffs the table against
+`eval/expected/attack.md`. The narrowed legs hold; the outbound leg does not, and neither does
+extraction. Read the README's **Limitations** for the numbers and what they still cannot see.
 
 <!-- code-review-graph MCP tools -->
 ## MCP Tools: code-review-graph

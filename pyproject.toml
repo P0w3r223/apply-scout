@@ -37,7 +37,7 @@ apply-scout = "apply_scout.cli:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
-packages = ["apply_scout", "apply_scout.tools"]
+packages = ["apply_scout", "apply_scout.attack", "apply_scout.tools"]
 
 [tool.pytest.ini_options]
 # "scripts" so the demo renderer (not part of the shipped package) is testable too.
