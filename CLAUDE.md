@@ -281,9 +281,10 @@ a test fails on a GIF whose frame count no longer matches the cast.
    whichever model was cheapest that day. **The two narrowed legs never succeeded; exfiltration
    succeeded on every attempt that reached the reader** — an allowlist bounds where a request goes,
    not what it carries. Third finding, from CI: **which placements reach the reader is not
-   reproducible.** A comment, a `display:none` div and a footer are dropped locally by trafilatura
-   2.1.0 and `hidden` arrives on the runner's newer build — the same hazard that once made a CI
-   runner's trafilatura miss every cassette entry. So the approved file states only what the guards
+   reproducible.** Same commit, two machines — under trafilatura 2.1.0 / libxml2 2.11.9 only the
+   body arrives; under 2.2.0 / 2.14.6 a `display:none` div arrives too. A patch bump of a content
+   extractor opened an injection placement with nothing in this project changing — the same hazard
+   that once made a CI runner's trafilatura miss every cassette entry. So the approved file states only what the guards
    did with what arrived, and the reach counts are printed to the log with the trafilatura and
    libxml2 that produced them. Freezing them would defend nothing and redden the build on a
    dependency bump. Cost $0: no key, no network, no cassette.

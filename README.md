@@ -337,14 +337,21 @@ real work — see the third point below. Three readings, and only the first is g
   restricts *where* a request may go, not *what* a permitted request carries. The reader composed a
   URL encoding the attacker's data in its query and sent it to a perfectly ordinary public host.
   Closing that needs the content leaving to be constrained, not just the destination.
-- **Extraction is not the third guard it looks like.** Of the four placements, only the page body
-  reached the reader under trafilatura on the machine this was written on; a comment, a
-  `display:none` div and a footer were dropped. Under the stdlib fallback, `hidden` and `tail`
-  arrive intact — and on the CI runner's newer trafilatura build, `hidden` arrives in *both* arms.
-  Those placements were never defended, they were **unparsed**, by a readability heuristic whose
-  behaviour changes with the version installed. That is why the approved file carries no count of
-  them: the run prints them into the log with the trafilatura and libxml2 that produced them, and
-  freezing them would turn a dependency bump into a failed build while defending nothing.
+- **Extraction is not the third guard it looks like — and it is not even stable.** Which of the four
+  placements reach the reader was measured twice, on two machines, from the same commit:
+
+  | | trafilatura 2.1.0 / libxml2 2.11.9 | trafilatura 2.2.0 / libxml2 2.14.6 (CI) |
+  |---|---|---|
+  | trafilatura arm | `body` | `body`, **`hidden`** |
+  | stdlib fallback arm | `body`, `hidden`, `tail` | `body`, `hidden`, `tail` |
+
+  A **patch-level bump of a content extractor opened a placement**: a `display:none` div, invisible
+  to any human reading the posting, now reaches the model in the production path. Nothing in this
+  project changed. Those placements were never defended, they were **unparsed** — by a readability
+  heuristic, on a page the attacker wrote, in whichever version the deployment happens to have. That
+  is why the approved file carries no count of them: the run prints them into the log beside the
+  versions that produced them, and freezing them would turn somebody's dependency bump into a failed
+  build while defending nothing.
 
 Two things the suite still cannot see, named rather than left to be assumed:
 
