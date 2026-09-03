@@ -42,6 +42,15 @@ jobs:
           python -m apply_scout.attack --out "$RUNNER_TEMP/attack.md"
           diff -u eval/expected/attack.md "$RUNNER_TEMP/attack.md"
 
+      - name: Re-score the retriever against the judgments
+        # The one link in the pipeline that used to be diagnosed in prose and scored by nothing.
+        # Corpus, queries and ground truth are all committed, so this is another $0 offline
+        # check -- and the diff is what stops the judgment set and the retriever drifting apart
+        # silently, which is the only way a retrieval number quietly stops meaning anything.
+        run: |
+          python -m apply_scout.retrieval --out "$RUNNER_TEMP/retrieval.md"
+          diff -u eval/expected/retrieval.md "$RUNNER_TEMP/retrieval.md"
+
   replay:
     # Re-runs the real evaluation from the committed cassette: the same postings,
     # the same model responses, no network and no API key. This is what makes the

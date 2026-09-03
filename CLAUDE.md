@@ -50,6 +50,12 @@ src/apply_scout/
     submit_report.py      # terminal tool: the deliverable arrives as a contract, not prose
     real.py               # real_tools() factory (all four tools live)
     mock.py               # stand-ins matching the real tools' contracts (used by the loop tests)
+  retrieval/      # the retrieval evaluation: `python -m apply_scout.retrieval`
+    corpus.py             # repos, READMEs and queries read back out of the committed cassette
+    judgments.py          # the hand-annotated ground truth, and the three rules that decided it
+    retrievers.py         # substring (ships), matching.mentions (the predicted fix), BM25
+    metrics.py            # recall@k / MRR / nDCG, scored only where retrieval is possible
+    report.py             # attempts -> the published table and the decomposition of the 87%
   attack/         # the security measurement: `python -m apply_scout.attack`
     payloads.py           # what an attacker prints, and what counts as getting it (text+demand+judge)
     pages.py              # the one base posting, and the four placements the payload is printed at
@@ -64,6 +70,7 @@ eval/tasks.example.json  # annotated task fixtures (documents the eval format)
 eval/results/     # trajectory JSONL + eval markdown tables (gitignored)
 eval/cassettes/   # recorded external responses (COMMITTED — this is what replays in CI)
 eval/expected/    # the approved tables CI diffs against, attack.md among them (COMMITTED)
+eval/retrieval/   # relevance judgments: which repo proves which requirement (COMMITTED)
 docs/decisions/   # ADRs
 docs/demo.svg     # the README demo, generated from docs/demo-cast.json (both COMMITTED)
 ```
@@ -140,6 +147,14 @@ exported variable wins. A `--cassette-mode replay` run needs neither key nor net
 ```bash
 apply-scout run --url <posting-url> --cv path/to/cv.md --github-user <user> --verbose
 # streams each step, writes the trajectory JSONL to eval/results/, prints a summary
+```
+
+Score the retriever against the committed judgments (corpus, queries and ground truth are all in
+the repository, so this is offline and free). Exits non-zero if a judgment names a repository the
+corpus does not contain, or a query has no judgment:
+
+```bash
+python -m apply_scout.retrieval --out eval/expected/retrieval.md
 ```
 
 Re-measure the attack surface (no key, no network, no cassette — the reader is a function and the
@@ -298,6 +313,20 @@ a test fails on a GIF whose frame count no longer matches the cast.
    did with what arrived, and the reach counts are printed to the log with the trafilatura and
    libxml2 that produced them. Freezing them would defend nothing and redden the build on a
    dependency bump. Cost $0: no key, no network, no cassette.
+
+19. **The retriever, finally scored (this milestone).** ✅ Every link of the RAG chain had a column in
+   the published table except the first: `evidence_grounding` scores the report *against what the
+   retriever returned*, so a miss by `find_evidence` is invisible to the harness. The corpus and the
+   queries were already in the cassette, so `retrieval/` scores it offline for $0 against committed
+   relevance judgments (ADR-0011). **It corrects the README in both directions**: of the published
+   63 misses, **44 are the tool behaving correctly** — a degree, a tenure, a language, or a skill the
+   portfolio genuinely lacks — so 87 % overstated the defect; and the recoverable misses are **19**,
+   not the 48 claimed, which overstated the remedy. The real number is **8 of 27**. **It also
+   corrects `0005` § 3.1**, which named the unwired `matching.mentions` as a defect implying a fix:
+   it scores *identically* to the substring, because it needs the query's tokens consecutively. BM25
+   finds all 27 and returns noise for 33 of 45. **The defect is the absence of ranking, not the
+   matcher** — which is why MRR and nDCG read `n/a` for the shipped retriever rather than a number.
+   `find_evidence` is deliberately untouched: its output is hashed into every cassette key.
 
 ## What not to do
 

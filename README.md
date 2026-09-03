@@ -12,7 +12,7 @@ machine-readable trajectory log, and a proper evaluation are possible.
 
 > Status: **complete — published, with a real evaluation that anyone can re-run.**
 > The full agent, the three real tools, the structured deliverables, the measured anti-hallucination
-> guardrail, and the evaluation harness are built and tested (255 tests, no network or key required).
+> guardrail, and the evaluation harness are built and tested (271 tests, no network or key required).
 > The table under **Evaluation** comes from a real paid run over 8 annotated postings on two models —
 > and every external response is **recorded to a committed cassette**, so `--cassette-mode replay`
 > reproduces that exact table offline, with no API key and at no cost. CI does this on every
@@ -68,7 +68,7 @@ no API key** — which is exactly how the tests drive it.
 ```bash
 python -m venv .venv
 .venv/Scripts/python -m pip install -e ".[dev]"   # Windows
-pytest        # 255 tests, all under fakes — no ANTHROPIC_API_KEY needed
+pytest        # 271 tests, all under fakes — no ANTHROPIC_API_KEY needed
 ruff check .
 ```
 
@@ -382,18 +382,33 @@ much reaches*.
 - **Evidence is repo + README only.** `github_evidence` matches a requirement against repo metadata
   and README text — not full code search. A skill demonstrated only deep in a source file, with no
   mention in the README, is missed (rated `none`, honestly).
-- **And the match is the *whole requirement* as a literal substring, which is the bigger miss.**
-  `find_evidence` tests `requirement.lower() in readme.lower()`, so a requirement phrased as a sentence
-  — which is how postings phrase them — can only match if a README contains that sentence verbatim.
-  Measured over the committed cassette: **63 of 72 probes (87%) return no evidence, and 48 of those 63
-  contain a distinctive keyword that *is* present in one of the READMEs** — `qlora`, `mlflow`,
-  `langchain`, `transformer`, `guardrails`, `docker`, `sentiment` among them. So a large share of the
-  `none` ratings, and of the low citation rates in the table, are a **retrieval artifact rather than an
-  honest absence of proof**. The 48 is an upper bound on what better probing could recover, not a
-  promise — some keyword hits would be noise. Fixing it (a sharper tool description telling the agent to
-  probe one technology at a time, or token-level matching inside the tool) changes what the tool returns,
-  which changes the conversation every cassette entry is keyed on — so it costs a full re-record and is
-  named here rather than quietly patched.
+- **And the match is the *whole requirement* as a literal substring — now scored, and the number is
+  not the one this bullet used to carry.** `find_evidence` tests `requirement.lower() in
+  readme.lower()`, so a requirement phrased as a sentence can only match a README containing that
+  sentence verbatim. **63 of 72 probes return no evidence** — that reproduces exactly. What this
+  bullet used to claim, and what `python -m apply_scout.retrieval` now measures against committed
+  relevance judgments ([ADR-0011](docs/decisions/0011_scoring_the_retriever.md),
+  [`eval/expected/retrieval.md`](eval/expected/retrieval.md)):
+
+  | | |
+  |---|---|
+  | of those 63 misses, the tool behaving **correctly** | **44** — a degree, a tenure, a language, or a skill this portfolio genuinely lacks |
+  | genuinely recoverable misses | **19**, not the 48 this bullet claimed |
+  | queries a repository actually proves | 27 |
+  | of those, the shipped retriever finds one | **8** |
+
+  So the 87 % **overstated the defect** by counting correct silence as failure, and the 48
+  **overstated the remedy** — most of those keyword hits were collisions on `field`, `system`,
+  `production`. The original 48 was never reproducible: no committed code produced it.
+
+  **And the defect is not the matcher.** Wiring in the portfolio's own `matching.mentions` — the
+  obvious repair — scores *identically* to the substring, because it needs the query's tokens
+  consecutively. A standard BM25 finds a relevant repository for **all 27**, and returns something
+  for 33 of the 45 queries that should have got nothing. The missing piece is **ranking**:
+  `find_evidence` returns every match in repository-list order, with no score and no top-*k*, which
+  is why MRR and nDCG read `n/a` for it rather than a number. Still unfixed here on purpose — the
+  tool's output is hashed into every cassette key, so ranking it costs a full paid re-record, and
+  measuring first keeps *what is wrong* separate from *what changing it costs*.
 - **Extraction is only as good as the model.** Odd posting layouts can drop or merge requirements; the
   coverage metric exists precisely to quantify this rather than assume it away. The Reddit posting is
   the worked example — it yields a single extracted requirement and scores **0.00 coverage**.
