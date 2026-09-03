@@ -22,7 +22,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 from apply_scout import config
 from apply_scout.budget import Budget
 from apply_scout.contracts import CVProfile, JobPosting
-from apply_scout.fetch import Extractor, Fetcher, HttpFetcher
+from apply_scout.fetch import Extractor, Fetcher, GuardedFetcher, HttpFetcher
 from apply_scout.github import DiskCache, GitHubClient
 from apply_scout.guardrail import evidence_grounding, guardrail_letter, requirement_grounding
 from apply_scout.llm import LLMClient
@@ -340,7 +340,11 @@ def agent_assess_fn(
     # Resolved once, not per task: these are handed both to our own tool instances and to the
     # toolset, so a live run opens one HTTP client (and one on-disk cache) for the whole
     # evaluation instead of two per task, none of which anything closes.
-    fetcher = fetcher or HttpFetcher()
+    # Guarded here, not left to `real_tools`: this function builds its own `FetchJobPosting`
+    # below and passes it in as `fetch=`, which replaces the one `real_tools` would have wrapped.
+    # Same reasoning as `pipeline.assess` — running the tools in a fixed order, or reading the
+    # postings back afterwards, does not make the address the model chose any more trustworthy.
+    fetcher = GuardedFetcher(fetcher or HttpFetcher())
     github = github or GitHubClient(cache=DiskCache(config.CACHE_DIR))
 
     def run(task: EvalTask) -> tuple[Assessment | None, float, int]:

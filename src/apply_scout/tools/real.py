@@ -45,6 +45,17 @@ def real_tools(
     # policy applies in every mode. Inside the cassette it would be skipped on replay, which is
     # the only mode CI runs.
     fetcher = GuardedFetcher(fetcher or HttpFetcher())
+    if fetch is not None and not isinstance(fetch.fetcher, GuardedFetcher):
+        # A caller passing `fetch` replaces the tool this function would have built, and with it
+        # the guard built two lines up — which is silent, because everything still works. It is
+        # how the evaluation harness ran unguarded through a whole stage of security work: the
+        # inner `HttpFetcher` re-checks each hop on a live run, so nothing looked wrong, while a
+        # cassette in `replay` has no inner fetcher and checked nothing at all. Refusing the
+        # combination is the only version of this that cannot be forgotten again.
+        raise ValueError(
+            "fetch= replaces the guarded fetcher this function builds; wrap its fetcher in "
+            "GuardedFetcher before passing it in"
+        )
     structurer = structurer or AnthropicStructurer()
     github = github or GitHubClient(cache=DiskCache(config.CACHE_DIR))
     return [

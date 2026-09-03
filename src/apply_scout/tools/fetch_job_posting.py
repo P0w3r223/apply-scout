@@ -60,6 +60,12 @@ class FetchJobPosting(PydanticTool):
         # the model had already superseded — a maximum fabrication verdict for a correct run.
         self.postings: tuple[JobPosting, ...] = ()
 
+    @property
+    def fetcher(self) -> Fetcher:
+        """The fetcher this tool will use. Read by `real_tools` to check that an injected
+        instance carries the URL guard rather than quietly replacing it."""
+        return self._fetcher
+
     def _run(self, data: FetchJobPostingInput) -> ToolResult:  # type: ignore[override]
         try:
             html = self._fetcher.get(data.url)

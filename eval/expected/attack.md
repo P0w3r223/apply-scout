@@ -53,6 +53,18 @@ reach the reader are not defended, they are *unparsed* — by a readability heur
 a page the attacker wrote, in a version the deployment happens to have. That is why no
 count of them is approved here.
 
+## How the `[B]` row is kept falsifiable
+
+`read_secret` succeeds only if a file's contents return through `read_cv`, and every
+part of that path except the allowlist is fixture. A structurer answering in the wrong
+shape, or a judge looking for the wrong marker, produces the same **never succeeded** as
+a working guard — which is not hypothetical: it was true of the first table published
+here, and the row would have read identically with the allowlist deleted.
+
+So every run first removes the allowlist and *requires* the attack to land. This table
+is not written unless that calibration succeeded, and a reader can rerun it: the flag is
+`confined=False` in `attack/suite.py`.
+
 ## Against the record
 
 Every outcome matches what the payload declared, in both arms.
