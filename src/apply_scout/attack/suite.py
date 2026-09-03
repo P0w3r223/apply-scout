@@ -22,7 +22,7 @@ import httpx
 
 from apply_scout.attack import pages
 from apply_scout.attack.obey import obey
-from apply_scout.attack.payloads import METADATA_URL, PAYLOADS, REDIRECT_URL, Payload
+from apply_scout.attack.payloads import BY_NAME, METADATA_URL, PAYLOADS, REDIRECT_URL, Payload
 from apply_scout.fetch import HttpFetcher, MainTextExtractor, strip_tags
 from apply_scout.github import DiskCache, GitHubClient
 from apply_scout.tools.real import real_tools
@@ -60,7 +60,6 @@ class Attempt:
 
     arm: str
     payload: str
-    leg: str
     placement: str
     #: Whether the injected sentence survived extraction into the text the reader was handed.
     reached: bool
@@ -74,13 +73,32 @@ class _Recording:
     """Stands in for the structurer, and keeps the text the reader was handed.
 
     That text — not the HTML — is what a model would read, so it is the only honest place to ask
-    whether a payload arrived."""
+    whether a payload arrived.
+
+    **It answers in the shape the caller asked for**, and that is load-bearing rather than tidy. An
+    earlier version returned a posting to every request, including `read_cv`'s: `CVProfile` forbids
+    extra fields, so structuring failed three times and the tool returned an error string. The
+    secret could not have come back *whatever the allowlist did*, and the `read_secret` row of the
+    published table read the same with the guard deleted. A fixture that cannot express the attack
+    succeeding is a fixture that measures itself — `calibrate()` now proves this one can."""
 
     def __init__(self) -> None:
         self.seen: list[str] = []
 
     def to_json(self, *, instructions: str, content: str, schema: dict, model: str) -> str:
         self.seen.append(content)
+        if schema.get("title") == "CVProfile":
+            # A leaked file reaches a reader inside a plausible answer, not as a tool error, so the
+            # fixture has to carry the text through rather than summarise it away.
+            return json.dumps(
+                {
+                    "name": "Candidate",
+                    "headline": content[:200],
+                    "skills": [],
+                    "experience": [content],
+                    "education": [],
+                }
+            )
         return _POSTING_JSON
 
 
@@ -100,7 +118,14 @@ def _transport(page_html: str, log: list[str]) -> httpx.MockTransport:
     return httpx.MockTransport(handler)
 
 
-def run_one(payload: Payload, placement: str, *, arm: str, workspace: Path) -> Attempt:
+def run_one(
+    payload: Payload, placement: str, *, arm: str, workspace: Path, confined: bool = True
+) -> Attempt:
+    """One attacked posting, run against the toolset a real run gets.
+
+    `confined=False` names the secret readable, which is the allowlist deleted and nothing else
+    changed. It exists for `calibrate()` rather than for the grid: a zero is only evidence about a
+    guard once the same wiring has been seen to produce a one without it."""
     workspace.mkdir(parents=True, exist_ok=True)
     cv = workspace / "cv.md"
     cv.write_text("Patryk — Python, FastAPI, PostgreSQL.", encoding="utf-8")
@@ -111,13 +136,22 @@ def run_one(payload: Payload, placement: str, *, arm: str, workspace: Path) -> A
     structurer = _Recording()
     registry = ToolRegistry(
         real_tools(
-            readable=[cv],
+            readable=[cv] if confined else [cv, secret],
             fetcher=HttpFetcher(client=httpx.Client(transport=_transport(
                 pages.page(payload.text, placement), log
             ))),
             structurer=structurer,
             extractor=ARMS[arm](),
-            github=GitHubClient(cache=DiskCache(workspace / "cache")),
+            # Transport substituted and the token emptied, so "no network, no key" is enforced
+            # rather than merely true of today's payloads. Left as a default it reads
+            # `GITHUB_TOKEN` from the environment and builds a real client on first use — so the
+            # moment a payload named `github_evidence` the suite would make live, authenticated
+            # requests from CI, and score a network failure as a guard holding.
+            github=GitHubClient(
+                client=httpx.Client(transport=_transport("", log)),
+                token="",
+                cache=DiskCache(workspace / "cache"),
+            ),
         )
     )
 
@@ -131,11 +165,30 @@ def run_one(payload: Payload, placement: str, *, arm: str, workspace: Path) -> A
     return Attempt(
         arm=arm,
         payload=payload.name,
-        leg=payload.leg,
         placement=placement,
         reached=reached,
         succeeded=payload.achieved(contents, log),
         requests=tuple(log),
+    )
+
+
+def calibrate(workspace: Path) -> Attempt:
+    """Demonstrate, on the published wiring, that the `[B]` judge can see a leak.
+
+    The row it certifies is the one that cannot certify itself. `read_secret` succeeds only if a
+    file's contents come back through `read_cv`, and every part of that path except the allowlist
+    is fixture: a structurer that answered in the wrong shape, a judge looking for the wrong
+    marker, or a payload naming a file that does not exist would each produce the same **0** as a
+    working guard. So the allowlist is removed and the attack is required to land.
+
+    Run by `__main__` before the grid, and a failure is fatal — publishing a table whose central
+    claim is unfalsifiable is worse than publishing nothing."""
+    return run_one(
+        BY_NAME["read_secret"],
+        "body",
+        arm="trafilatura",
+        workspace=workspace / "calibration",
+        confined=False,
     )
 
 

@@ -8,14 +8,16 @@ exercised deterministically.
 from __future__ import annotations
 
 import httpx
+import pytest
 from fakes import ScriptedStructurer
 
 from apply_scout.contracts import CVProfile, JobPosting
-from apply_scout.fetch import HttpFetcher
+from apply_scout.fetch import GuardedFetcher, HttpFetcher
 from apply_scout.github import DiskCache, GitHubClient
 from apply_scout.tools.fetch_job_posting import FetchJobPosting
 from apply_scout.tools.read_cv import ReadCV
 from apply_scout.tools.real import real_tools
+from apply_scout.tools.registry import ToolRegistry
 
 POSTING_HTML = (
     "<html><body><article><h1>Junior Python Developer</h1>"
@@ -146,9 +148,13 @@ def test_capturing_the_posting_leaves_the_tool_spec_untouched():
 def test_real_tools_uses_the_injected_fetch_instance(tmp_path):
     """Same arrangement as `submit`: the caller keeps the instance to read it back after
     the run, and the toolset must use that one rather than building its own — otherwise the
-    posting is captured on a tool nobody holds."""
+    posting is captured on a tool nobody holds.
+
+    The injected tool has to carry the guard itself, since using it means not using the one
+    `real_tools` built."""
     fetch = FetchJobPosting(
-        fetcher=_fetcher(POSTING_HTML), structurer=ScriptedStructurer([POSTING_JSON])
+        fetcher=GuardedFetcher(_fetcher(POSTING_HTML)),
+        structurer=ScriptedStructurer([POSTING_JSON]),
     )
     tools = real_tools(
         readable=[tmp_path / "cv.md"],
@@ -158,6 +164,57 @@ def test_real_tools_uses_the_injected_fetch_instance(tmp_path):
         fetch=fetch,
     )
     assert next(tool for tool in tools if tool.name == "fetch_job_posting") is fetch
+
+
+def test_an_injected_fetch_without_the_guard_is_refused(tmp_path):
+    """The trap this closes was live for a whole stage of security work: `real_tools` built a
+    `GuardedFetcher` and then discarded it whenever `fetch=` was passed, which is what the
+    evaluation harness does. Nothing broke, because a live `HttpFetcher` re-checks every hop
+    itself — but under a cassette in `replay` there is no inner fetcher and no check at all."""
+    unguarded = FetchJobPosting(
+        fetcher=_fetcher(POSTING_HTML), structurer=ScriptedStructurer([POSTING_JSON])
+    )
+    with pytest.raises(ValueError, match="GuardedFetcher"):
+        real_tools(
+            readable=[tmp_path / "cv.md"],
+            structurer=ScriptedStructurer([]),
+            github=GitHubClient(cache=DiskCache(tmp_path)),
+            fetch=unguarded,
+        )
+
+
+@pytest.mark.parametrize("inject_fetch", [False, True])
+def test_the_assembled_toolset_refuses_a_blocked_url(tmp_path, inject_fetch):
+    """Asserted on what `real_tools` returns, not on `GuardedFetcher` in isolation.
+
+    `read_cv`'s confinement has had a spec-pinning test since it landed; the fetch half had
+    only a unit test of the wrapper, which is why a caller could drop it unnoticed. The
+    recording fetcher is the evidence: a refusal that still reached the network would be a
+    refusal reported after the fact."""
+    reached: list[str] = []
+
+    class Recording:
+        def get(self, url: str) -> str:
+            reached.append(url)
+            return POSTING_HTML
+
+    kwargs = {}
+    if inject_fetch:
+        kwargs["fetch"] = FetchJobPosting(
+            fetcher=GuardedFetcher(Recording()), structurer=ScriptedStructurer([])
+        )
+    tools = real_tools(
+        readable=[tmp_path / "cv.md"],
+        fetcher=Recording(),
+        structurer=ScriptedStructurer([]),
+        github=GitHubClient(cache=DiskCache(tmp_path)),
+        **kwargs,
+    )
+    result = ToolRegistry(tools).dispatch(
+        "fetch_job_posting", {"url": "http://169.254.169.254/latest/meta-data/"}
+    )
+    assert not result.ok
+    assert reached == []
 
 
 def test_read_cv_happy_path(tmp_path):

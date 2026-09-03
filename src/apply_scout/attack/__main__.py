@@ -25,7 +25,21 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     with tempfile.TemporaryDirectory() as workspace:
+        # Calibration first, and its failure is fatal. It removes `read_cv`'s allowlist and
+        # requires the secret to come back: the [B] row of the table is otherwise unfalsifiable,
+        # because a structurer answering in the wrong shape or a judge looking for the wrong
+        # marker produce the same 0 as a working guard. That is not hypothetical here — it was
+        # true of this file's first published table.
+        calibration = suite.calibrate(Path(workspace))
         attempts = suite.run(Path(workspace))
+
+    if not calibration.succeeded:
+        print(
+            "CALIBRATION FAILED: with read_cv's allowlist removed the secret still did not come "
+            "back, so the [B] row measures the fixture rather than the guard. Table not written.",
+            file=sys.stderr,
+        )
+        return 1
 
     claim = report.markdown(attempts)
     if args.out:

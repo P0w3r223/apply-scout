@@ -12,7 +12,7 @@ machine-readable trajectory log, and a proper evaluation are possible.
 
 > Status: **complete — published, with a real evaluation that anyone can re-run.**
 > The full agent, the three real tools, the structured deliverables, the measured anti-hallucination
-> guardrail, and the evaluation harness are built and tested (246 tests, no network or key required).
+> guardrail, and the evaluation harness are built and tested (255 tests, no network or key required).
 > The table under **Evaluation** comes from a real paid run over 8 annotated postings on two models —
 > and every external response is **recorded to a committed cassette**, so `--cassette-mode replay`
 > reproduces that exact table offline, with no API key and at no cost. CI does this on every
@@ -68,7 +68,7 @@ no API key** — which is exactly how the tests drive it.
 ```bash
 python -m venv .venv
 .venv/Scripts/python -m pip install -e ".[dev]"   # Windows
-pytest        # 246 tests, all under fakes — no ANTHROPIC_API_KEY needed
+pytest        # 255 tests, all under fakes — no ANTHROPIC_API_KEY needed
 ruff check .
 ```
 
@@ -301,6 +301,11 @@ the confinement does **not** buy is measured rather than asserted — the table 
   refused if **any** of its addresses is non-public. Redirects are followed by hand so every hop is
   judged before it is requested: previously httpx followed the chain internally and returned only
   the final response, so the address that had been checked was not the address that was fetched.
+- **`github_evidence` is the other half of the read leg, and it is neither confined nor measured.**
+  It holds `GITHUB_TOKEN` and queries whatever repositories a requirement leads it to. Nothing
+  narrows that today, and no payload in the attack suite names it — so its absence from the table
+  above is a gap in coverage, not a clean bill. It is listed here rather than left to be inferred
+  from a table that does not mention it.
 - **Fetched page text still goes back into the conversation undelimited.** There is no fence
   separating document content from instruction, and no grounding check on what a document asks for.
   This is the leg that remains open, and it is the one `doc-extract` treats as an explicit threat
@@ -364,9 +369,10 @@ Two things the suite still cannot see, named rather than left to be assumed:
 - **Whether a real model obeys is not asked.** On purpose. A model that refuses is not a boundary,
   and the number would move with every re-recording while the architecture stood still.
 
-The honest reading is now *one leg cut, two narrowed and measured shut against a fully compromised
-reader, one open and failing on everything that reaches it — and a fourth thing that is not a guard
-at all, quietly deciding how much reaches*.
+The honest reading is now *one leg cut; two narrowed, and measured shut against a fully compromised
+reader; one open and failing on everything that reaches it; one tool that holds a token and has been
+neither narrowed nor measured — and a fourth thing that is not a guard at all, quietly deciding how
+much reaches*.
 
 - **JavaScript-only postings.** `fetch_job_posting` fetches static HTML with no headless browser, so a
   client-rendered page yields only its pre-hydration shell. In the eval, the deliberately JavaScript-only

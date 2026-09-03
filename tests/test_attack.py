@@ -16,7 +16,7 @@ import json
 
 import pytest
 
-from apply_scout.attack import pages, report
+from apply_scout.attack import pages, report, suite
 from apply_scout.attack.obey import obey
 from apply_scout.attack.payloads import BY_NAME, EXFIL_MARKER, PAYLOADS, SECRET_MARKER
 from apply_scout.attack.suite import ARMS, Attempt, run_one
@@ -45,11 +45,27 @@ def _attempt(payload: str, placement: str, *, arm: str, tmp_path) -> Attempt:
 # --- positive controls: the suite can see a win -------------------------------------------------
 
 
-def test_read_secret_succeeds_once_the_allowlist_is_removed(tmp_path):
-    """The [B] zero is `read_cv`'s allowlist, not a judge that cannot recognise a leak.
+def test_calibration_lands_the_secret_leak_on_the_published_wiring(tmp_path):
+    """The control the whole `[B]` row rests on, run through `run_one` rather than beside it.
 
-    Same payload, same reader, same judge — only the confinement is gone, by naming the secret
-    readable. Without this, a broken judge and a working guard produce the same table."""
+    An earlier version of this test built its own registry around a cooperative structurer. It
+    passed while the suite's own fixture returned a *posting* to `read_cv`'s structuring call —
+    `CVProfile` forbids extra fields, so the tool returned an error string and the secret could
+    not have come back whatever the allowlist did. The row read `never succeeded` with the guard
+    deleted. A positive control that does not run the published path is not a control."""
+    assert suite.calibrate(tmp_path).succeeded
+
+
+def test_the_allowlist_is_what_turns_that_win_back_into_a_zero(tmp_path):
+    """The paired half: one variable moved, and the outcome inverts. Together with the test
+    above this is the only thing that makes the published `0` mean the guard."""
+    confined = _attempt("read_secret", "body", arm="trafilatura", tmp_path=tmp_path)
+    assert confined.reached
+    assert not confined.succeeded
+
+
+def test_the_judge_recognises_a_leak_handed_to_it_directly(tmp_path):
+    """`achieved` in isolation, so a calibration failure can be told apart from a broken judge."""
     secret = tmp_path / "id_rsa"
     secret.write_text(f"-----{SECRET_MARKER}-----", encoding="utf-8")
     registry = ToolRegistry([ReadCV(structurer=_Echoing(), readable=[secret])])
@@ -58,21 +74,6 @@ def test_read_secret_succeeds_once_the_allowlist_is_removed(tmp_path):
     contents = obey(payload, registry, secret_path=str(secret), reached=True)
 
     assert payload.achieved(contents, [])
-
-
-def test_the_confined_allowlist_is_what_turns_that_win_back_into_a_zero(tmp_path):
-    """The same call, with the CV named readable instead of the secret. The paired half of the
-    control above: one variable moved, and the outcome inverts."""
-    secret = tmp_path / "id_rsa"
-    secret.write_text(f"-----{SECRET_MARKER}-----", encoding="utf-8")
-    cv = tmp_path / "cv.md"
-    cv.write_text("Candidate — Python.", encoding="utf-8")
-    registry = ToolRegistry([ReadCV(structurer=_Echoing(), readable=[cv])])
-
-    payload = BY_NAME["read_secret"]
-    contents = obey(payload, registry, secret_path=str(secret), reached=True)
-
-    assert not payload.achieved(contents, [])
 
 
 def test_the_metadata_judge_fires_on_the_request_log_a_defenceless_fetcher_would_leave():
@@ -186,7 +187,6 @@ def _fake(payload: str, *, reached: bool, succeeded: bool) -> Attempt:
     return Attempt(
         arm="trafilatura",
         payload=payload,
-        leg=BY_NAME[payload].leg,
         placement="body",
         reached=reached,
         succeeded=succeeded,

@@ -105,12 +105,22 @@ trajectory, the harness (later) scores the trajectory.
   command or a query reconstitutes what that cut was for. The README's **Limitations** section
   carries the current inventory and what the narrowing does *not* buy, and is the contract —
   deliberately not repeated here, because two copies of a line number is one copy that goes stale.
-- **Two invariants hold that confinement up; both are easy to undo by accident.** The URL guard
+- **Three invariants hold that confinement up; all are easy to undo by accident.** The URL guard
   is composed *outside* the cassette, because CI runs `replay` and nothing else — moved inside,
-  it would never execute in the only mode the build exercises. And the readable set is
+  it would never execute in the only mode the build exercises. The readable set is
   constructor state rather than a field on `ReadCVInput`, because a cassette key hashes the tool
   definitions along with the conversation: widening the schema misses every recorded entry and
-  turns a free replay into a paid re-record. A test pins each tool's spec so that breaks loudly.
+  turns a free replay into a paid re-record. And **a caller passing `fetch=` to `real_tools()`
+  replaces the guarded tool it would have built** — that ran unguarded in the eval harness for a
+  whole stage of security work, invisibly, because a live `HttpFetcher` re-checks each hop itself
+  while a cassette in `replay` checks nothing. `real_tools` now refuses an unguarded `fetch=`.
+  A test pins each tool's spec, and two more assert the assembled toolset refuses a blocked URL.
+- **A suite that measures a defence must be checked for the flattering failure, not the alarming
+  one.** `attack/` reports `0` for a guard that held and for a fixture that could never have
+  expressed the attack, and they are indistinguishable from outside. Both are now caught: every
+  run first *removes* `read_cv`'s allowlist and requires the leak to land (`suite.calibrate`,
+  fatal on failure), and `report.unlanded` fails a run where a payload reached nobody. The first
+  of those was written because the first published table was in exactly that state.
 - **Immutable contracts, no magic numbers.** Value objects are frozen; thresholds and
   model IDs live in `config.py`.
 
