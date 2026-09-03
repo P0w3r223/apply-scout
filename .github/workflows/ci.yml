@@ -30,6 +30,18 @@ jobs:
         # so a failure here is a real change in behaviour, not a flaky call.
         run: pytest
 
+      - name: Re-measure the attack surface
+        # The security claims in the README are numbers, and this regenerates them from the
+        # production toolset — no key, no network, no cassette, so it runs beside the tests
+        # rather than beside the replay. Two outputs on purpose: the diffed file states what the
+        # guards permitted, which is the same on every machine, while the run prints how much of
+        # each page this runner's trafilatura let through, which is not. Approving that second
+        # half would turn somebody's dependency bump into a red build — this repository has
+        # already been bitten once by trafilatura extracting differently on a newer runner.
+        run: |
+          python -m apply_scout.attack --out "$RUNNER_TEMP/attack.md"
+          diff -u eval/expected/attack.md "$RUNNER_TEMP/attack.md"
+
   replay:
     # Re-runs the real evaluation from the committed cassette: the same postings,
     # the same model responses, no network and no API key. This is what makes the
