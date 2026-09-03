@@ -12,7 +12,7 @@ machine-readable trajectory log, and a proper evaluation are possible.
 
 > Status: **complete — published, with a real evaluation that anyone can re-run.**
 > The full agent, the three real tools, the structured deliverables, the measured anti-hallucination
-> guardrail, and the evaluation harness are built and tested (271 tests, no network or key required).
+> guardrail, and the evaluation harness are built and tested (272 tests, no network or key required).
 > The table under **Evaluation** comes from a real paid run over 8 annotated postings on two models —
 > and every external response is **recorded to a committed cassette**, so `--cassette-mode replay`
 > reproduces that exact table offline, with no API key and at no cost. CI does this on every
@@ -68,7 +68,7 @@ no API key** — which is exactly how the tests drive it.
 ```bash
 python -m venv .venv
 .venv/Scripts/python -m pip install -e ".[dev]"   # Windows
-pytest        # 271 tests, all under fakes — no ANTHROPIC_API_KEY needed
+pytest        # 272 tests, all under fakes — no ANTHROPIC_API_KEY needed
 ruff check .
 ```
 
