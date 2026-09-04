@@ -99,6 +99,10 @@ class _Rendered(HTMLParser):
     """
 
     _SKIPPED = frozenset({"style", "script"})
+    #: Elements HTML never closes. Pushing them onto the open-element stack below would
+    #: leave them open forever and make every later table look wrapped.
+    _VOID = frozenset({"area", "base", "br", "col", "embed", "hr", "img", "input", "link",
+                       "meta", "param", "source", "track", "wbr"})
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
@@ -107,6 +111,9 @@ class _Rendered(HTMLParser):
         self.headline = ""
         self.tables: list[list[list[str]]] = []
         self.cards: dict[str, str] = {}
+        self.table_ancestors: list[frozenset[str]] = []
+        self.metas: list[dict[str, str]] = []
+        self._open: list[frozenset[str]] = []
         self._skipped = 0
         self._depth = 0
         self._card_depth: int | None = None
@@ -118,6 +125,12 @@ class _Rendered(HTMLParser):
         self._cell: list[str] | None = None
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag == "meta":
+            self.metas.append({name: value or "" for name, value in attrs})
+        if tag == "table":
+            self.table_ancestors.append(frozenset().union(*self._open))
+        if tag not in self._VOID:
+            self._open.append(frozenset((dict(attrs).get("class") or "").split()))
         if tag in self._SKIPPED:
             self._skipped += 1
         elif tag == "div":
@@ -134,6 +147,8 @@ class _Rendered(HTMLParser):
             self._heading = []
 
     def handle_endtag(self, tag: str) -> None:
+        if tag not in self._VOID and self._open:
+            self._open.pop()
         if tag in self._SKIPPED:
             self._skipped = max(self._skipped - 1, 0)
         elif tag == "div":
@@ -157,6 +172,15 @@ class _Rendered(HTMLParser):
             else:
                 self._card_heading = heading
             self._heading = None
+
+    @property
+    def unclosed(self) -> int:
+        """Elements still open when the parse ran out of page.
+
+        Any number but zero means a tag went unclosed and every ancestry recorded after it
+        is wrong — a wrapper that never closes makes the tables below it read as wrapped.
+        """
+        return len(self._open)
 
     def handle_data(self, data: str) -> None:
         if self._skipped:
@@ -617,6 +641,96 @@ def test_the_page_quotes_the_two_costs_it_compares():
     assert compared.group(2) == strong[0]["median cost"], (
         f"the page compares against {compared.group(2)!r} where pipeline.md prints "
         f"{strong[0]['median cost']!r} for {strong[0]['model']}"
+    )
+
+
+# --------------------------------------------------------------------------------------
+# The shape a phone reads the page in
+# --------------------------------------------------------------------------------------
+
+
+def _scrolling_classes() -> set[str]:
+    """Every class the page's own stylesheet gives a horizontal scrollbar.
+
+    Read out of the `<style>` block rather than named here, so renaming the wrapper carries
+    this check along with it instead of breaking it.
+    """
+    style = re.search(r"<style>(.*?)</style>", PAGE, re.S)
+    assert style, "the page has no stylesheet, so nothing on it can be given a scrollbar"
+    css = re.sub(r"/\*.*?\*/", " ", style.group(1), flags=re.S)
+    classes: set[str] = set()
+    for selector, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
+        if re.search(r"overflow(?:-x)?\s*:\s*(?:auto|scroll)", body):
+            classes.update(re.findall(r"\.([\w-]+)", selector))
+    return classes
+
+
+def test_every_table_scrolls_inside_its_own_wrapper_rather_than_the_page():
+    """The structure the 375px fix established, which shipped without a test of its own.
+
+    **This is a structural check on the source, not a measurement of a rendered page.** It
+    reads the markup and the stylesheet; it never lays anything out, so it cannot and does not
+    prove the page fits a phone. What it holds is the one invariant the measurement produced:
+    a table wide enough to overflow is inside a container the stylesheet scrolls, so the
+    overflow belongs to that container instead of dragging every paragraph beside it sideways.
+    Only a re-measurement at 375px can say the page fits; this says the fix is still wired in.
+
+    `0e7b871` measured 893px at a 375px viewport, wrapped the ten-column evaluation table, and
+    re-measured 518px of overflow down to 0 — with no test, while two sibling repositories
+    fixing the same defect that week each pinned theirs. The page has since grown from one
+    table to three, so the untested class of defect now has three times the surface. The
+    wrapper is identified by what the stylesheet does to it rather than by its name, so
+    renaming `.tablewrap` keeps this green and dropping the rule turns it red.
+    """
+    scrolling = _scrolling_classes()
+    assert scrolling, (
+        "no rule in the page's stylesheet scrolls anything horizontally — the ten-column "
+        "table has nothing to overflow into, so the page will scroll instead of it"
+    )
+    assert RENDER.unclosed == 0, (
+        f"{RENDER.unclosed} element(s) are still open at the end of docs/index.html; which "
+        "table sits inside which wrapper cannot be read off markup that does not close"
+    )
+    assert RENDER.table_ancestors, (
+        "the page renders no table at all — this would otherwise pass by having nothing to "
+        "check, and every table on this page is a published measurement"
+    )
+    unwrapped = [position for position, ancestors in enumerate(RENDER.table_ancestors, start=1)
+                 if not ancestors & scrolling]
+    assert not unwrapped, (
+        f"table {unwrapped} of {len(RENDER.table_ancestors)} on the page is not inside any of "
+        f"{sorted(scrolling)} — it will widen the whole page at a phone's viewport, which is "
+        "the defect 0e7b871 measured at 893px and fixed without a test"
+    )
+
+
+def test_the_page_asks_a_phone_for_the_phones_own_width():
+    """The precondition that makes the wrapper above something a reader can feel.
+
+    Without `width=device-width` a phone lays this page out at roughly 980 CSS pixels and
+    scales the result down. The wrapper still exists and still scrolls, but nothing overflowed
+    a 980px viewport in the first place, so nothing about the fix reaches the reader: delete
+    this one tag and the test above stays green while the behaviour it protects is gone. That
+    is the same false green, in the same direction, as a wrapper left unclosed.
+
+    **The two tests together cover the markup half of the 375px fix** — the page asks for the
+    device's width, and every table that would overflow it sits inside something that scrolls.
+    **Neither lays anything out.** No width is asserted from the source here and none can be:
+    whether what results fits a phone is a measurement, and only a measurement can make it.
+    """
+    viewports = [meta for meta in RENDER.metas if meta.get("name", "").lower() == "viewport"]
+    assert len(viewports) == 1, (
+        f"the page carries {len(viewports)} viewport declarations rather than one — with "
+        "none, a phone lays the page out at about 980px and the table wrapper changes "
+        "nothing a reader can feel; with more than one, the width the page asks for is "
+        "whichever of them the browser takes"
+    )
+    declared = viewports[0].get("content", "").split(",")
+    directives = {"".join(part.split()).lower() for part in declared}
+    assert "width=device-width" in directives, (
+        f"the viewport declares {sorted(directives)} and never takes its width from the device "
+        "— the page is laid out at a default viewport and scaled down, so the wrapped tables "
+        "scroll against a width no phone has"
     )
 
 

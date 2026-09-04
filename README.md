@@ -79,7 +79,7 @@ no API key** — which is exactly how the tests drive it.
 ```bash
 python -m venv .venv
 .venv/Scripts/python -m pip install -e ".[dev]"   # Windows
-pytest        # 272 tests, all under fakes — no ANTHROPIC_API_KEY needed
+pytest        # all under fakes — no ANTHROPIC_API_KEY needed
 ruff check .
 ```
 
