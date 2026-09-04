@@ -94,6 +94,11 @@ trajectory, the harness (later) scores the trajectory.
   completion rate reads — it has to mean what it says.
 - **No hallucinated evidence.** A cover-letter/report claim must trace to an `Evidence`
   with a real, checkable URL. No evidence → rated `none`; do not paper over the gap.
+- **`pyproject.toml`'s `keywords` lead; the GitHub topics copy them.** A topic is a fact
+  about what is in this repository, not an editorial choice about how to present it, so
+  the repository is the original and the account is the copy — the opposite of the
+  profile's pins, which the author owns and no commit can record. Add a keyword only with
+  the code that backs it.
 - **The page quotes; it never retypes.** Every number in `docs/index.html` is a verbatim
   cell of a committed artifact under `eval/expected/` or the recorded demo cast. To
   publish a new number, extend the generator that prints it and let CI diff the
