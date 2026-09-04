@@ -504,6 +504,8 @@ much reaches*.
 - [ADR-0008 — ground the report in the posting, and measure it before enforcing it](docs/decisions/0008_grounding_the_report.md)
 - [ADR-0009 — ground the report's evidence in what the tools retrieved, compared by repository](docs/decisions/0009_evidence_grounding.md)
 - [ADR-0010 — one definition of "Completed" for both runners](docs/decisions/0010_one_definition_of_completed.md)
+- [ADR-0011 — score the retriever, and score it only where retrieval is possible](docs/decisions/0011_scoring_the_retriever.md)
+- [ADR-0012 — the page quotes the artifacts; it never retypes them](docs/decisions/0012_the_page_quotes_the_artifacts.md)
 
 ## Demo
 
