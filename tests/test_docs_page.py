@@ -177,8 +177,17 @@ class _Rendered(HTMLParser):
     def unclosed(self) -> int:
         """Elements still open when the parse ran out of page.
 
-        Any number but zero means a tag went unclosed and every ancestry recorded after it
-        is wrong — a wrapper that never closes makes the tables below it read as wrapped.
+        Any number but zero means the ancestry recorded after that point is wrong — a wrapper
+        that never closes makes every table below it read as wrapped, which is a false green in
+        the direction that matters, so the wrapper test refuses to draw a conclusion instead.
+
+        **This counts every non-void tag as needing an explicit close, which HTML5 does not
+        require.** `<li>`, `<p>`, `<tr>` and `<td>` may all omit their end tag, and this page
+        happens to close all of them; markup that legally omits one would be reported here and
+        redden the wrapper test. That fails closed, which is the right direction, but the
+        failure names wrappers — so a contributor who has just written a perfectly valid
+        `<li>` will go hunting a wrapper bug that does not exist. Teaching this parser HTML5's
+        implied end tags is the fix if that day comes; until then the message points here.
         """
         return len(self._open)
 
@@ -421,35 +430,55 @@ def _artifact_table(name: str, first_column: str) -> dict[str, dict[str, str]]:
     return _keyed(_table_headed(_markdown_tables(_artifact(name)), first_column))
 
 
-def _found_at_all() -> tuple[str, str]:
-    """`(found, total)` for the retriever that ships, out of its `found at all` cell."""
-    rows = _artifact_table("retrieval.md", "retriever")
-    shipped = [label for label in rows if "ships today" in label]
+def _found_at_all_cells() -> dict[str, tuple[str, str]]:
+    """`{retriever: (found, total)}` out of every `found at all` cell retrieval.md prints.
+
+    All of them, not only the shipped retriever's: BM25's `100% (27/27)` is as much a published
+    cell as `30% (8/27)`, and a sentence quoting it is a quotation rather than a contradiction.
+    """
+    cells: dict[str, tuple[str, str]] = {}
+    for label, row in _artifact_table("retrieval.md", "retriever").items():
+        counted = re.fullmatch(r"\d+% \((\d+)/(\d+)\)", row["found at all"])
+        assert counted, (
+            f"{label!r} has a found-at-all cell reading {row['found at all']!r} and no longer "
+            "prints the fraction the page's sentences are made of"
+        )
+        cells[label] = (counted.group(1), counted.group(2))
+    return cells
+
+
+def _shipped_found_at_all() -> tuple[str, str]:
+    """`(found, total)` for the retriever the table marks as the one that ships."""
+    cells = _found_at_all_cells()
+    shipped = [label for label in cells if "ships today" in label]
     assert len(shipped) == 1, (
         f"retrieval.md marks {len(shipped)} retrievers as shipping today, so the page's "
         "headline no longer has one row to quote"
     )
-    cell = rows[shipped[0]]["found at all"]
-    counted = re.fullmatch(r"\d+% \((\d+)/(\d+)\)", cell)
-    assert counted, (
-        f"the shipped retriever's found-at-all cell reads {cell!r} and no longer prints the "
-        "fraction the page's headline is a sentence about"
-    )
-    return counted.group(1), counted.group(2)
+    return cells[shipped[0]]
 
 
 def test_the_headline_ratio_is_the_shipped_retrievers_cell_wherever_the_prose_states_it():
     """One page, one statement of the finding it leads with.
 
-    The headline, the tile beside it and the Limitations bullet all state the same fraction,
-    which is what the retrieval table prints for the retriever that ships. The check is over
-    every ratio in the prose with that denominator rather than over three known sentences, so
-    a fourth restatement is covered the moment someone writes it — and a re-scored retriever
-    moves all of them together instead of leaving the loudest one behind. This is the shape of
-    the defect that reached the public page: the same two cells, described two ways, eleven
-    lines apart, with nothing comparing one to the other.
+    The headline, the tile beside it and the Limitations bullet all state the shipped
+    retriever's fraction. The check is over every ratio in the prose with that denominator
+    rather than over three known sentences, so a fourth restatement is covered the moment
+    someone writes it — and a re-scored retriever moves all of them together instead of leaving
+    the loudest one behind. This is the shape of the defect that reached the public page: the
+    same measurement, described two ways, eleven lines apart, with nothing comparing them.
+
+    A prose ratio has to be *some* retriever's published cell, not the shipped one's. BM25's
+    `100% (27/27)` is committed too, and "BM25 finds 27 of the 27 provable requirements" is
+    exactly the quotation the rule asks for; an earlier version of this assertion keyed on the
+    denominator alone and reddened it, which made this test an obstacle to the behaviour it
+    exists to enforce. What that costs is attribution: this cannot tell which retriever a
+    sentence is about, so it would accept the shipped retriever being credited with BM25's
+    fraction. The headline assertion below is what pins the sentence that matters to the row
+    that matters.
     """
-    found, total = _found_at_all()
+    found, total = _shipped_found_at_all()
+    published = {f"{f}/{t}" for f, t in _found_at_all_cells().values()}
     stated = re.findall(r"(\d+)\s*(?:/|of the )\s*(\d+)", PROSE)
     over_total = [f"{numerator}/{denominator}" for numerator, denominator in stated
                   if denominator == total]
@@ -457,10 +486,11 @@ def test_the_headline_ratio_is_the_shipped_retrievers_cell_wherever_the_prose_st
         f"no sentence on the page states a ratio out of {total} any more — the finding the "
         "page is built to lead with is no longer in its prose"
     )
-    contradicting = sorted({ratio for ratio in over_total if ratio != f"{found}/{total}"})
-    assert not contradicting, (
-        f"the page states {contradicting} where retrieval.md scores the shipped retriever at "
-        f"{found}/{total} — two statements of one measurement is how the last one got published"
+    unpublished = sorted(set(over_total) - published)
+    assert not unpublished, (
+        f"the page states {unpublished} where no retriever's found-at-all cell reads that "
+        f"(retrieval.md prints {sorted(published)}) — a second version of one measurement is "
+        "how the last one got published"
     )
     assert f"{found} of the {total}" in RENDER.headline, (
         f"the headline reads {RENDER.headline!r} and no longer states the {found}/{total} the "
@@ -481,7 +511,7 @@ def test_each_headline_tile_quotes_the_cell_it_summarises():
     number here to get wrong. Each is matched by its own caption, so re-ordering the strip
     does not quietly re-point an assertion at a different tile.
     """
-    found, total = _found_at_all()
+    found, total = _shipped_found_at_all()
     loop = _only_row("agent.md")
     attempts = re.search(r"= (\d+) attempts", _artifact("attack.md"))
     assert attempts, "attack.md no longer states its own grid total, which the last tile quotes"
@@ -510,9 +540,23 @@ def test_the_published_retrieval_table_is_the_committed_one():
     Every number in this table is also a number somewhere in `retrieval.md`, so swapping
     recall@1 with recall@3, or moving BM25's row onto the retriever that ships, passes the
     page-wide rule above and would publish the opposite finding.
+
+    Read in both directions, because only one of them is about numbers being wrong. Deleting
+    BM25's row leaves every remaining cell correct and still unpublishes the finding: the page's
+    own text says both columns are printed because neither is honest alone, and a table showing
+    only the retriever that ships is the complaint without the argument. The attack and
+    evaluation tables above say the same thing in their messages — a row that is not on the page
+    is a result not published.
     """
     artifact = _artifact_table("retrieval.md", "retriever")
-    for label, row in _page_table("retriever").items():
+    published = _page_table("retriever")
+    unpublished = sorted(set(artifact) - set(published))
+    assert not unpublished, (
+        f"retrieval.md scores {unpublished}, which the page does not publish — a retriever "
+        "that is not on the page is a result not published, and the comparison this card "
+        "argues from needs every row that was scored"
+    )
+    for label, row in published.items():
         assert label in artifact, (
             f"the page publishes a retriever {label!r} that retrieval.md does not score"
         )
@@ -688,8 +732,10 @@ def test_every_table_scrolls_inside_its_own_wrapper_rather_than_the_page():
         "table has nothing to overflow into, so the page will scroll instead of it"
     )
     assert RENDER.unclosed == 0, (
-        f"{RENDER.unclosed} element(s) are still open at the end of docs/index.html; which "
-        "table sits inside which wrapper cannot be read off markup that does not close"
+        f"{RENDER.unclosed} element(s) are still open at the end of docs/index.html, so "
+        "which table sits inside which wrapper cannot be read off it. Either a tag is "
+        "genuinely unclosed, or one legally omits an end tag HTML5 makes optional (`</li>`, "
+        "`</p>`, `</tr>`) and this parser does not imply — see `_Rendered.unclosed`"
     )
     assert RENDER.table_ancestors, (
         "the page renders no table at all — this would otherwise pass by having nothing to "
@@ -734,8 +780,13 @@ def test_the_page_asks_a_phone_for_the_phones_own_width():
     )
 
 
-#: Ways of saying a number the page did not quote but worked out. Each of these was published
-#: on this page, in prose, over cells that were themselves correct.
+#: Ways of saying a number the page did not quote but worked out. **A denylist of phrasings,
+#: not a rule about quotients**: every entry is a form that was actually published on this
+#: page, over cells that were themselves correct. It cannot recognise arithmetic it has not
+#: seen — "a shade over a quarter of the price" passes this list. What backstops it is the
+#: page-wide token rule, which catches any derivation that carries a digit; a derivation
+#: spelled entirely in words and phrased in a new way is not caught by either, and the honest
+#: reading of a green here is "none of the five known phrasings is present".
 DERIVED = (
     r"\ba (?:third|quarter|fifth) of\b",
     r"\bhalf (?:the|of|a)\b",

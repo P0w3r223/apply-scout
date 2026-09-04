@@ -108,6 +108,14 @@ def _grid(attempts: Sequence[Attempt]) -> str:
     CI diffs, and a dependency bump cannot redden it."""
     payloads = {a.payload for a in attempts}
     placements = {a.placement for a in attempts}
+    if len(payloads) * len(placements) * len(ARMS) != len(attempts):
+        # The sentence below is an equation, and it lands in a file CI diffs. If `run()` ever
+        # stops producing the unfiltered cross product, an unchecked format string would print
+        # arithmetic that is simply false and the diff would adopt it as the new expected value.
+        raise ValueError(
+            f"the grid is not the cross product it prints: {len(payloads)} payloads × "
+            f"{len(placements)} placements × {len(ARMS)} extractors is not {len(attempts)} attempts"
+        )
     return (
         f"**{len(payloads)} payloads × {len(placements)} placements × {len(ARMS)} extractors "
         f"= {len(attempts)} attempts.**"

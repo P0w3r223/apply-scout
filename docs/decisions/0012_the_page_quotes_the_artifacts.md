@@ -100,9 +100,20 @@ between the page asserting something and the page reporting something.
 sit on it — what each evaluation column caught, what re-recording moved — now lives one link away in
 the README. A reader with sixty seconds did not reach the eleventh explanatory paragraph anyway.
 
-**What it does not cover.** The rule is about numbers. A page can still be stale in prose, name the
-wrong cause in words, or omit a card entirely, and no test here will notice — the corrected
-limitation in this pass was found by reading, not by a check. Whether the page should be generated
+**What it does not cover, stated precisely, because the rule is easier to overclaim than to
+enforce.** The page-wide check establishes *non-fabrication of distinctive figures*, not
+provenance. Its vocabulary is every token any artifact prints — sample-size parentheticals, model
+identifiers and metric names all contribute — so a sentence assembled entirely from numbers the
+artifacts happen to contain passes it. Provenance for a particular claim comes from the per-claim
+tests, which compare a published table or headline against the cell it quotes; those are the ones
+to extend when a claim starts carrying weight. Two further blind spots are known and left open:
+**numbers written as words** ("three of the eight postings") are invisible to a digit matcher, and
+the derived-ratio check is a short denylist of phrasings that were actually published rather than a
+rule about quotients.
+
+The rule is also only about numbers. A page can still be stale in prose, name the wrong cause in
+words, or omit a card entirely, and no test here will notice — the corrected limitation in this
+pass was found by reading, not by a check. Whether the page should be generated
 outright, as five sibling projects in this portfolio already do, is deliberately left open: the
 portfolio's page design spec is being written, and freezing a structure weeks before it is rewritten
 would buy the wrong thing. The trigger to revisit is that spec landing.

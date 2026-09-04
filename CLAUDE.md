@@ -99,13 +99,18 @@ trajectory, the harness (later) scores the trajectory.
   the repository is the original and the account is the copy — the opposite of the
   profile's pins, which the author owns and no commit can record. Add a keyword only with
   the code that backs it.
-- **The page quotes; it never retypes.** Every number in `docs/index.html` is a verbatim
-  cell of a committed artifact under `eval/expected/` or the recorded demo cast. To
-  publish a new number, extend the generator that prints it and let CI diff the
-  artifact — never type it onto the page. Ratios and comparisons are *arguments*, not
-  cells, and belong in the README. A test enforces this; the alternative is what the
-  page actually did, which was to state the same ratio two different ways eleven lines
-  apart and carry a whole paragraph of figures no committed file contained.
+- **The page quotes; it never retypes.** To publish a number on `docs/index.html`, extend
+  the generator that prints it and let CI diff the artifact — never type it onto the page.
+  Ratios and comparisons are *arguments*, not cells, and belong in the README. The
+  alternative is what the page actually did: state the same ratio two different ways
+  eleven lines apart, and carry a whole paragraph of figures no committed file contained.
+
+  **Know what the tests actually establish, because it is less than this rule asks for.**
+  The page-wide check requires every numeric token on the page to be one an artifact
+  prints — which catches a fabricated figure, and does *not* catch a fabricated sentence
+  built from tokens the artifacts happen to contain. Provenance for a specific claim comes
+  from the per-claim tests, which compare a table or a headline against the cell it
+  quotes. Write those for anything load-bearing rather than trusting the class check.
 - **Every prompt/loop change ⇒ re-run the harness.** Results land in `eval/results/`
   with the date and commit hash so regressions are visible (later milestone). The
   cassette key hashes the whole request, prompt included, so a prompt edit misses every

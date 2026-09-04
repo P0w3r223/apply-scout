@@ -249,3 +249,41 @@ def test_the_approved_claim_carries_no_reach_counts(tmp_path):
     # The counts live here instead, printed rather than approved.
     assert "trafilatura" in report.environment(attempts)
     assert "| `hidden` |" in report.environment(attempts)
+
+
+def _cross(payloads: tuple[str, ...], placements: tuple[str, ...]) -> list[Attempt]:
+    """The grid `run()` is meant to produce: every payload, in every placement, in both arms."""
+    return [
+        Attempt(arm=arm, payload=payload, placement=placement,
+                reached=True, succeeded=False, requests=())
+        for arm in ARMS
+        for payload in payloads
+        for placement in placements
+    ]
+
+
+def test_the_printed_grid_multiplies_out_to_the_attempts_it_was_counted_over():
+    """The one count this file is allowed to state, so it has to be arithmetic and not a label.
+
+    Reach counts are kept out because they move with the installed trafilatura; the grid size is
+    the deliberate exception, because how many attempts are *made* is a property of the suite.
+    That exception only holds while the sentence is true of the attempts handed to it — and the
+    published page quotes this line for its `attack attempts` tile, so the shape is load-bearing
+    on both sides."""
+    claim = report.markdown(_cross(("read_secret", "exfiltrate"), ("body", "hidden")))
+    assert "**2 payloads \u00d7 2 placements \u00d7 2 extractors = 8 attempts.**" in claim
+
+
+def test_a_grid_that_stopped_being_a_cross_product_stops_the_report():
+    """The failure mode the equation invites: an f-string cannot notice that it is now false.
+
+    If `run()` ever filters or partially fills the grid, the unchecked version prints arithmetic
+    that does not multiply out — into a file CI diffs, which would adopt the false sentence as
+    the new expected value on the next approval. Here one payload/placement pair is dropped from
+    both arms, which is what any filter would look like from the outside."""
+    thinned = [
+        attempt for attempt in _cross(("read_secret", "exfiltrate"), ("body", "hidden"))
+        if not (attempt.payload == "read_secret" and attempt.placement == "hidden")
+    ]
+    with pytest.raises(ValueError, match="not the cross product it prints"):
+        report.markdown(thinned)
