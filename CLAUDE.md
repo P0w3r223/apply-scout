@@ -4,7 +4,7 @@ Guidance for Claude Code (and any contributor) working in this repository.
 
 ## What this project is
 
-Portfolio project **P3**. An LLM agent that, given a job-posting URL,
+An LLM agent that, given a job-posting URL,
 fetches and structures the requirements, compares them against the candidate's CV and
 the evidence in their GitHub repositories, and produces a match report plus a
 cover-letter draft with cited sources — built on a **from-scratch tool loop** with
@@ -94,6 +94,23 @@ trajectory, the harness (later) scores the trajectory.
   completion rate reads — it has to mean what it says.
 - **No hallucinated evidence.** A cover-letter/report claim must trace to an `Evidence`
   with a real, checkable URL. No evidence → rated `none`; do not paper over the gap.
+- **`pyproject.toml`'s `keywords` lead; the GitHub topics copy them.** A topic is a fact
+  about what is in this repository, not an editorial choice about how to present it, so
+  the repository is the original and the account is the copy — the opposite of the
+  profile's pins, which the author owns and no commit can record. Add a keyword only with
+  the code that backs it.
+- **The page quotes; it never retypes.** To publish a number on `docs/index.html`, extend
+  the generator that prints it and let CI diff the artifact — never type it onto the page.
+  Ratios and comparisons are *arguments*, not cells, and belong in the README. The
+  alternative is what the page actually did: state the same ratio two different ways
+  eleven lines apart, and carry a whole paragraph of figures no committed file contained.
+
+  **Know what the tests actually establish, because it is less than this rule asks for.**
+  The page-wide check requires every numeric token on the page to be one an artifact
+  prints — which catches a fabricated figure, and does *not* catch a fabricated sentence
+  built from tokens the artifacts happen to contain. Provenance for a specific claim comes
+  from the per-claim tests, which compare a table or a headline against the cell it
+  quotes. Write those for anything load-bearing rather than trusting the class check.
 - **Every prompt/loop change ⇒ re-run the harness.** Results land in `eval/results/`
   with the date and commit hash so regressions are visible (later milestone). The
   cassette key hashes the whole request, prompt included, so a prompt edit misses every

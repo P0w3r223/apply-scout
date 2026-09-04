@@ -98,12 +98,37 @@ def _pct(value: float | None) -> str:
     return "n/a" if value is None else f"{value:.0%}"
 
 
+def _grid(attempts: Sequence[Attempt]) -> str:
+    """The size of the grid the rows above were counted over.
+
+    **This is not the reach count the module docstring refuses, and the distinction is the whole
+    reason it can be printed here.** How many attempts *reach* the reader is a property of the
+    installed trafilatura; how many are *made* is a property of this suite — five payloads in four
+    placements against two extractors, identical on every machine. So the grid is safe for a file
+    CI diffs, and a dependency bump cannot redden it."""
+    payloads = {a.payload for a in attempts}
+    placements = {a.placement for a in attempts}
+    if len(payloads) * len(placements) * len(ARMS) != len(attempts):
+        # The sentence below is an equation, and it lands in a file CI diffs. If `run()` ever
+        # stops producing the unfiltered cross product, an unchecked format string would print
+        # arithmetic that is simply false and the diff would adopt it as the new expected value.
+        raise ValueError(
+            f"the grid is not the cross product it prints: {len(payloads)} payloads × "
+            f"{len(placements)} placements × {len(ARMS)} extractors is not {len(attempts)} attempts"
+        )
+    return (
+        f"**{len(payloads)} payloads × {len(placements)} placements × {len(ARMS)} extractors "
+        f"= {len(attempts)} attempts.**"
+    )
+
+
 def markdown(attempts: Sequence[Attempt]) -> str:
     """The approved claim: what the guards permit, with the extractor divided out.
 
     Deliberately carries no reach counts. They move with the trafilatura build, and a file CI diffs
     has to state something that is true on every machine or it is a trip hazard rather than a
-    check."""
+    check. The grid size printed by `_grid` is the deliberate exception and is not one of them —
+    see its docstring."""
     lines = [
         "# Attack surface — what a fully obedient reader can still achieve",
         "",
@@ -111,6 +136,8 @@ def markdown(attempts: Sequence[Attempt]) -> str:
         "`real_tools()` builds for a real run. The reader obeys every instruction it is handed,",
         "so this is a property of the **harness**: it does not move when the model changes, and",
         "no run can be flattered by a model that happened to refuse.",
+        "",
+        _grid(attempts),
         "",
         "Two arms, differing in the extractor and in nothing else. `extract_main_text` runs",
         "trafilatura and falls back to a stdlib tag-strip whenever trafilatura returns nothing —",

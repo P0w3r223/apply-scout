@@ -9,7 +9,18 @@ description = "An LLM agent that matches a job posting against a candidate's CV 
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-keywords = ["llm-agent", "function-calling", "tool-use", "agent-evaluation", "anthropic"]
+# This list leads and the GitHub topics copy it — the repository is the original, because a
+# topic is a fact about what is in here rather than an editorial choice about how to present
+# it. Every entry is backed by code: `rag`/`retrieval-evaluation`/`information-retrieval`/`bm25`
+# by `retrieval/`, `prompt-injection`/`llm-security`/`ssrf` by `attack/` and `fetch.py`'s URL
+# policy. Deliberately absent: `embeddings` and `vector-search` — there is no dense retriever
+# here, and a topic asserting one would be the mistake `doc-extract` avoided with `ocr`.
+keywords = [
+    "llm-agent", "ai-agent", "agentic", "anthropic", "claude", "python",
+    "function-calling", "tool-use", "agent-evaluation", "evaluation", "llm",
+    "rag", "retrieval-evaluation", "information-retrieval", "bm25",
+    "prompt-injection", "llm-security", "ssrf",
+]
 dependencies = [
     # The agent talks to Claude via the official SDK. The tool loop is written
     # from scratch (see docs/decisions/0001) — the SDK is used only as the model

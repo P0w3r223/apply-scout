@@ -119,6 +119,43 @@ def test_noise_is_counted_when_something_comes_back_for_nothing():
     assert metrics.noise(scored) == 1
 
 
+def test_the_found_at_all_counts_come_back_found_first_over_the_proved_queries():
+    """Two bare ints in one tuple, so the order is the whole contract and swapping it is silent.
+
+    The published cell would read `50% (2/1)` — a fraction above 1 that still looks like a
+    result — and nothing downstream would notice: `docs/index.html` quotes this pair as `8 of the
+    27` in its headline. The denominator is also pinned here, because it is the correction this
+    module exists to make: the unanswerable query below must leave both numbers alone rather
+    than count as a miss."""
+    scored = [
+        Scored(judgment=_judgment(relevant=("a/b",)), ranking=("a/b",)),
+        Scored(judgment=_judgment(relevant=("a/c",)), ranking=()),
+        Scored(judgment=_judgment(relevant=(), answerable=False), ranking=()),
+    ]
+    assert metrics.found_any_counts(scored) == (1, 2)
+    assert metrics.found_any(scored) == 0.5
+
+
+def test_the_found_at_all_cell_prints_the_rate_and_the_fraction_under_it():
+    """`30% (8/27)` exactly, because two things away from here parse that shape.
+
+    The page quotes the fraction out of this cell for its headline and its first tile, and
+    `tests/test_docs_page.py` reads the fraction back out of this exact shape to check them.
+    Left to the CI artifact diff alone, a format change would redden that diff and both of those
+    at once, with nothing naming the cause — so the format is pinned where it is produced."""
+    scored = [
+        Scored(judgment=_judgment(relevant=("a/b",)), ranking=("a/b",)),
+        Scored(judgment=_judgment(relevant=("a/c",)), ranking=()),
+    ]
+    assert report._found(scored) == "50% (1/2)"
+
+
+def test_a_cell_with_no_proved_query_behind_it_reads_n_a_rather_than_zero():
+    """The same discipline as the metrics: no data is not a score of nothing found."""
+    assert report._found([Scored(judgment=_judgment(relevant=(), answerable=False),
+                                 ranking=())]) == "n/a"
+
+
 # --- the metrics themselves ---------------------------------------------------------------------
 
 

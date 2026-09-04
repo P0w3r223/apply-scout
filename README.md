@@ -3,7 +3,11 @@
 **An LLM agent that matches a job posting against a candidate's CV and GitHub evidence —
 with a from-scratch tool loop, safety budgets, and a trajectory-evaluation harness.**
 
-Portfolio project **P3**. Given a job-posting URL, apply-scout fetches and
+**[Live page](https://p0w3r223.github.io/apply-scout/)** — it opens with the measurement this
+project is proudest of and least comfortable about: the retriever finds the evidence for **8 of the
+27** requirements a repository can prove, and nothing in the harness could see that.
+
+Given a job-posting URL, apply-scout fetches and
 structures the requirements, compares them against the candidate's CV and the evidence in
 their GitHub repositories, and produces a **match report** (requirement → evidence → rating,
 with links) and a **cover-letter draft built only from facts it can cite**. It runs on a
@@ -12,11 +16,18 @@ machine-readable trajectory log, and a proper evaluation are possible.
 
 > Status: **complete — published, with a real evaluation that anyone can re-run.**
 > The full agent, the three real tools, the structured deliverables, the measured anti-hallucination
-> guardrail, and the evaluation harness are built and tested (272 tests, no network or key required).
+> guardrail, and the evaluation harness are built and tested — no network or key required.
 > The table under **Evaluation** comes from a real paid run over 8 annotated postings on two models —
 > and every external response is **recorded to a committed cassette**, so `--cassette-mode replay`
 > reproduces that exact table offline, with no API key and at no cost. CI does this on every
 > pull request and every push to `main`.
+>
+> Two more properties are scored rather than asserted, and neither costs anything to re-run:
+> the **retriever** is measured against committed relevance judgments
+> ([`eval/expected/retrieval.md`](eval/expected/retrieval.md)), and the **injection surface** is
+> measured by running attacks through the toolset a real run builds
+> ([`eval/expected/attack.md`](eval/expected/attack.md)). CI regenerates both tables on every push
+> and fails on any difference, so each is a regression test rather than a paragraph.
 
 ## Why it's built this way
 
@@ -68,7 +79,7 @@ no API key** — which is exactly how the tests drive it.
 ```bash
 python -m venv .venv
 .venv/Scripts/python -m pip install -e ".[dev]"   # Windows
-pytest        # 272 tests, all under fakes — no ANTHROPIC_API_KEY needed
+pytest        # all under fakes — no ANTHROPIC_API_KEY needed
 ruff check .
 ```
 
@@ -379,13 +390,15 @@ much reaches*.
   Ashby posting still *completed* on every runner — robustness to thin input rather than crashing — but
   there was almost no text to read, so anything reported for such a page is unreliable, and the agent
   loop went further and invented requirements outright (see below).
-- **Evidence is repo + README only.** `github_evidence` matches a requirement against repo metadata
-  and README text — not full code search. A skill demonstrated only deep in a source file, with no
-  mention in the README, is missed (rated `none`, honestly).
-- **And the match is the *whole requirement* as a literal substring — now scored, and the number is
-  not the one this bullet used to carry.** `find_evidence` tests `requirement.lower() in
-  readme.lower()`, so a requirement phrased as a sentence can only match a README containing that
-  sentence verbatim. **63 of 72 probes return no evidence** — that reproduces exactly. What this
+- **Evidence is repo + README only, and the match is the *whole requirement* as a literal
+  substring — now scored, and the number is not the one this bullet used to carry.**
+  `github_evidence` reads repo metadata and README text rather than searching code, so a skill
+  demonstrated only deep in a source file, with no mention in the README, is missed (rated `none`,
+  honestly). **That scope is the smaller half.** It is also the half this project's own published
+  page used to name as the whole cause, which the measurement below contradicts: what loses the
+  evidence is how the matching works, not how far the corpus reaches. `find_evidence` tests
+  `requirement.lower() in readme.lower()`, so a requirement phrased as a sentence can only match a
+  README containing that sentence verbatim. **63 of 72 probes return no evidence** — that reproduces exactly. What this
   bullet used to claim, and what `python -m apply_scout.retrieval` now measures against committed
   relevance judgments ([ADR-0011](docs/decisions/0011_scoring_the_retriever.md),
   [`eval/expected/retrieval.md`](eval/expected/retrieval.md)):
@@ -491,6 +504,8 @@ much reaches*.
 - [ADR-0008 — ground the report in the posting, and measure it before enforcing it](docs/decisions/0008_grounding_the_report.md)
 - [ADR-0009 — ground the report's evidence in what the tools retrieved, compared by repository](docs/decisions/0009_evidence_grounding.md)
 - [ADR-0010 — one definition of "Completed" for both runners](docs/decisions/0010_one_definition_of_completed.md)
+- [ADR-0011 — score the retriever, and score it only where retrieval is possible](docs/decisions/0011_scoring_the_retriever.md)
+- [ADR-0012 — the page quotes the artifacts; it never retypes them](docs/decisions/0012_the_page_quotes_the_artifacts.md)
 
 ## Demo
 
