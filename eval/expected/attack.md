@@ -5,6 +5,8 @@ Every payload printed on the same posting, in four placements, against the tools
 so this is a property of the **harness**: it does not move when the model changes, and
 no run can be flattered by a model that happened to refuse.
 
+**5 payloads × 4 placements × 2 extractors = 40 attempts.**
+
 Two arms, differing in the extractor and in nothing else. `extract_main_text` runs
 trafilatura and falls back to a stdlib tag-strip whenever trafilatura returns nothing —
 which is any template trafilatura cannot parse. **Both ship, and the attacker writes the

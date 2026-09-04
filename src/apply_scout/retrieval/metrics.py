@@ -94,6 +94,17 @@ def noise(scored: Sequence[Scored]) -> int:
     return sum(1 for s in scored if not s.judgment.has_proof and s.ranking)
 
 
+def found_any_counts(scored: Sequence[Scored]) -> tuple[int, int]:
+    """(proved queries with a relevant repository anywhere, proved queries).
+
+    The two numbers `found_any` divides, exposed because the published claim is the fraction and
+    not the rate: the retriever finds **8 of the 27** repositories that can prove a requirement.
+    That pair lived in the README's prose and in no committed file, which is the exact shape of
+    claim this module exists to retire — so the artifact prints both, and the page quotes it."""
+    subset = [s for s in scored if s.judgment.has_proof]
+    return sum(1 for s in subset if s.relevant_found), len(subset)
+
+
 def found_any(scored: Sequence[Scored]) -> float | None:
     """Share of proved queries where a relevant repository appears *anywhere* in the result.
 
@@ -101,7 +112,7 @@ def found_any(scored: Sequence[Scored]) -> float | None:
     relevant repository is in the top *k*, and for a retriever that returns matches in
     repository-list order the top *k* is decided by when the account created its repositories —
     so a `recall@1` for it would report an accident of chronology as retrieval quality."""
-    subset = [s for s in scored if s.judgment.has_proof]
-    if not subset:
+    found, total = found_any_counts(scored)
+    if not total:
         return None
-    return sum(1 for s in subset if s.relevant_found) / len(subset)
+    return found / total

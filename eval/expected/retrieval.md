@@ -25,9 +25,9 @@ where retrieval is possible, the defect is smaller than published — and worse.
 
 | retriever | ranks? | found at all | recall@1 | recall@3 | MRR | nDCG@3 | correct silence | noise |
 |---|:-:|---:|---:|---:|---:|---:|---:|---:|
-| `substring (ships today)` | **no** | 30% | n/a | n/a | n/a | n/a | 44/45 | 1 |
-| `matching.mentions` | **no** | 30% | n/a | n/a | n/a | n/a | 44/45 | 1 |
-| `BM25` | yes | 100% | 52% | 93% | 0.72 | 0.62 | 12/45 | 33 |
+| `substring (ships today)` | **no** | 30% (8/27) | n/a | n/a | n/a | n/a | 44/45 | 1 |
+| `matching.mentions` | **no** | 30% (8/27) | n/a | n/a | n/a | n/a | 44/45 | 1 |
+| `BM25` | yes | 100% (27/27) | 52% | 93% | 0.72 | 0.62 | 12/45 | 33 |
 
 Recall, MRR and nDCG are over the **27 queries a repository actually
 proves**;

@@ -31,6 +31,18 @@ def _num(value: float | None) -> str:
     return "n/a" if value is None else f"{value:.2f}"
 
 
+def _found(results: list[Scored]) -> str:
+    """The found-at-all rate with the count that produced it — `30% (8/27)`.
+
+    The rate alone is what this table used to print, and the fraction underneath it is the
+    sentence the project actually makes about its retriever. Printing one without the other is how
+    `8 of 27` came to live in the README and nowhere a diff could reach."""
+    found, total = metrics.found_any_counts(results)
+    if not total:
+        return "n/a"
+    return f"{_pct(metrics.found_any(results))} ({found}/{total})"
+
+
 def markdown(
     corpus: Corpus, queries: list[Query], judgments: dict[str, Judgment]
 ) -> str:
@@ -89,7 +101,7 @@ def markdown(
 
         lines.append(
             f"| `{name}` | {'yes' if ranked else '**no**'} "
-            f"| {_pct(metrics.found_any(results))} "
+            f"| {_found(results)} "
             f"| {rank_only(metrics.recall_at(results, 1))} "
             f"| {rank_only(metrics.recall_at(results, TOP_K))} "
             f"| {_num(metrics.mrr(results)) if ranked else 'n/a'} "
