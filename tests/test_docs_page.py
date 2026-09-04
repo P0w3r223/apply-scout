@@ -516,7 +516,7 @@ def test_each_headline_tile_quotes_the_cell_it_summarises():
     attempts = re.search(r"= (\d+) attempts", _artifact("attack.md"))
     assert attempts, "attack.md no longer states its own grid total, which the last tile quotes"
     expected = {
-        "repositories found": f"{found}/{total}",
+        "finds proof for": f"{found}/{total}",
         "median cost": loop["median cost"],
         "produces a deliverable": loop["completed"],
         "attack attempts": attempts.group(1),

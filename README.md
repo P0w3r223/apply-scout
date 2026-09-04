@@ -4,8 +4,8 @@
 with a from-scratch tool loop, safety budgets, and a trajectory-evaluation harness.**
 
 **[Live page](https://p0w3r223.github.io/apply-scout/)** — it opens with the measurement this
-project is proudest of and least comfortable about: the retriever finds **8 of the 27** repositories
-that can prove a requirement, and nothing in the harness could see that.
+project is proudest of and least comfortable about: the retriever finds the evidence for **8 of the
+27** requirements a repository can prove, and nothing in the harness could see that.
 
 Given a job-posting URL, apply-scout fetches and
 structures the requirements, compares them against the candidate's CV and the evidence in

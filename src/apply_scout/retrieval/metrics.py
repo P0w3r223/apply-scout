@@ -98,9 +98,12 @@ def found_any_counts(scored: Sequence[Scored]) -> tuple[int, int]:
     """(proved queries with a relevant repository anywhere, proved queries).
 
     The two numbers `found_any` divides, exposed because the published claim is the fraction and
-    not the rate: the retriever finds **8 of the 27** repositories that can prove a requirement.
-    That pair lived in the README's prose and in no committed file, which is the exact shape of
-    claim this module exists to retire — so the artifact prints both, and the page quotes it."""
+    not the rate: the retriever finds the evidence for **8 of the 27** requirements a repository
+    can prove. Both counts are over *queries*, never over repositories — a published sentence
+    saying "8 of the 27 repositories" names the wrong unit, which is a mistake this page's
+    headline made until it was read against this docstring. That pair lived in the README's prose
+    and in no committed file, which is the shape of claim this module exists to retire — so the
+    artifact prints both, and the page quotes it."""
     subset = [s for s in scored if s.judgment.has_proof]
     return sum(1 for s in subset if s.relevant_found), len(subset)
 

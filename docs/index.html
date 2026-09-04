@@ -19,7 +19,12 @@
      Session 4 design spec unifies them. `.kpi` is the majority, so it is what this page uses
      until that spec lands. */
   .kpis { display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0 4px; padding: 0; list-style: none; }
-  .kpi { flex: 1 1 150px; border: 1px solid #e3e7ee; border-radius: 12px; padding: 12px 14px; }
+  /* `box-sizing` is load-bearing, not tidiness. The page sets it nowhere else, so `flex-basis`
+     addressed the content box and each tile really claimed 150 + 28 padding + 2 border = 180px:
+     two would not fit a 320px phone column (measured — one per row, a 484px wall of tiles before
+     the demo), and at 768px four became a 3 + 1 with the last tile spanning the full width. */
+  .kpi { box-sizing: border-box; flex: 1 1 150px; border: 1px solid #e3e7ee; border-radius: 12px;
+         padding: 12px 14px; }
   .kpi b { display: block; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
   .kpi span { color: #667085; font-size: 0.85rem; }
   table { border-collapse: collapse; width: 100%; }
@@ -39,14 +44,15 @@
 <body>
 <p class="eyebrow">apply-scout — an LLM agent that matches a job posting against a candidate's CV and
 GitHub evidence, then drafts a match report and a grounded cover letter.</p>
-<h1>This agent's retriever finds 8 of the 27 repositories that can prove a requirement</h1>
+<h1>This agent's retriever finds the evidence for 8 of the 27 requirements a repository can
+prove</h1>
 <p class="sub">Nothing in the harness could see that. Every grounding metric scores the report
 against what the retriever returned, so the retrieval <em>is</em> the ground truth and a miss by it
 is invisible: a report cannot cite what it was never given. Scored against committed relevance
 judgments, offline and at no cost.</p>
 
 <ul class="kpis">
-  <li class="kpi"><b>8/27</b><span>repositories found, of those that prove a requirement</span></li>
+  <li class="kpi"><b>8/27</b><span>requirements it finds proof for, of those provable</span></li>
   <li class="kpi"><b>$0.0592</b><span>median cost of a grounded, cited report and letter</span></li>
   <li class="kpi"><b>62%</b><span>of the task set produces a deliverable</span></li>
   <li class="kpi"><b>40</b><span>attack attempts against the production toolset</span></li>
