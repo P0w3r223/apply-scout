@@ -3,42 +3,80 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>apply-scout — an LLM job-matching agent that scores its own retriever</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<title>This agent's retriever finds the evidence for 8 of the 27 requirements a repository can prove</title>
+<meta name="description" content="An LLM job-matching agent with a from-scratch tool loop, and an evaluation that scores its own retriever and its own attack surface — offline, from a committed recording.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="This agent's retriever finds the evidence for 8 of the 27 requirements a repository can prove">
+<meta property="og:description" content="Every grounding metric scores the report against what the retriever returned, so a miss by the retriever is invisible. Scored against committed relevance judgments, offline and at no cost.">
+<meta property="og:url" content="https://p0w3r223.github.io/apply-scout/">
+<meta name="twitter:card" content="summary">
+<!-- An inline SVG favicon, so the page makes no request for it and there is no binary artifact
+     with no committed source — the rule ADR-0012 states about every other figure here. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%232563eb'/%3E%3Cpath d='M4 8.5l2.5 2.5L12 5.5' stroke='%23fff' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <style>
-  body { font: 16px/1.55 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* The house palette, by name. This page had the same design system transcribed as literals
+     and had drifted on two roles: `#667085` where `--muted` is `#5b6472`, and `#eef1f6` where
+     `--surface` is `#f6f8fa`. Named here, they cannot drift again silently.
+
+     One literal carried two roles, which is the trap in a migration done by value: `#eef1f6`
+     was both `code`'s background (surface) and the table separator. Seven sibling pages write
+     `border-bottom: 1px solid var(--border)` and the two untokenised ones carry `#eef1f6` in
+     that same rule, so in a hand-typed page that literal *is* the border role. Mapping it to
+     `--surface` by similarity put the row rules at 1.09:1 in dark, on three tables that are
+     this page's whole argument.
+
+     `--accent-soft` and `--positive` are declared and painted nowhere. That is deliberate: the
+     values below are the *measured* ones the spec pins rather than the majority ones that fail
+     — light 3.12:1 against 1.80:1, and 5.48:1 against 3.77:1; dark 3.30:1 and 9.69:1 — so a
+     later edit reaching for a soft blue or a green finds the corrected value already here
+     instead of hand-typing the failing one. */
+  :root {
+    --bg: #ffffff; --surface: #f6f8fa; --border: #e3e7ee; --text: #1c2430;
+    --muted: #5b6472; --accent: #2563eb; --accent-soft: #5b93e4; --positive: #047857;
+    --warn: #b45309; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1319; --surface: #161c25; --border: #263041; --text: #e6eaf2;
+      --muted: #98a3b6; --accent: #6ea8fe; --accent-soft: #4167a6; --positive: #34d399;
+      --warn: #fbbf24;
+    }
+  }
+  body { font: 16px/1.55 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
          -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
-         max-width: 820px; margin: 0 auto; padding: 32px 20px 56px; color: #1c2430; }
-  h1 { margin-bottom: 2px; font-weight: 700; letter-spacing: -0.01em; } .sub { color: #667085; margin-top: 0; }
+         max-width: 820px; margin: 0 auto; padding: 32px 20px 56px;
+         color: var(--text); background: var(--bg); }
+  h1 { margin-bottom: 2px; font-weight: 700; letter-spacing: -0.01em; } .sub { color: var(--muted); margin-top: 0; }
   h2 { font-weight: 600; margin-top: 0; }
-  .eyebrow { color: #667085; font-size: 0.9rem; margin: 0 0 6px; text-transform: none; }
-  .card { border: 1px solid #e3e7ee; border-radius: 12px; padding: 18px 20px; margin: 18px 0; }
-  /* Provisional: three tile conventions exist across the portfolio's twelve pages and the
-     Session 4 design spec unifies them. `.kpi` is the majority, so it is what this page uses
-     until that spec lands. */
+  .eyebrow { color: var(--muted); font-size: 0.9rem; margin: 0 0 6px; text-transform: none; }
+  .card { border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; margin: 18px 0; }
+  /* `.kpi` is the name the spec settled on. It was chosen here as the majority before that
+     document existed; docs/audit/0007 §5 clause 2 makes it the rule. */
   .kpis { display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0 4px; padding: 0; list-style: none; }
   /* `box-sizing` is load-bearing, not tidiness. The page sets it nowhere else, so `flex-basis`
      addressed the content box and each tile really claimed 150 + 28 padding + 2 border = 180px:
      two would not fit a 320px phone column (measured — one per row, a 484px wall of tiles before
      the demo), and at 768px four became a 3 + 1 with the last tile spanning the full width. */
-  .kpi { box-sizing: border-box; flex: 1 1 150px; border: 1px solid #e3e7ee; border-radius: 12px;
+  .kpi { box-sizing: border-box; flex: 1 1 150px; border: 1px solid var(--border); border-radius: var(--radius);
          padding: 12px 14px; }
   .kpi b { display: block; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
-  .kpi span { color: #667085; font-size: 0.85rem; }
+  .kpi span { color: var(--muted); font-size: 0.85rem; }
   table { border-collapse: collapse; width: 100%; }
-  th, td { text-align: right; padding: 6px 10px; border-bottom: 1px solid #eef1f6;
+  th, td { text-align: right; padding: 6px 10px; border-bottom: 1px solid var(--border);
            white-space: nowrap; }
   /* Ten columns do not fit a phone. Without this the widest table forced the whole page
      518px wider than a 375px viewport, so every paragraph on it scrolled sideways too.
      Wrapped, the table scrolls on its own and the prose stays put. */
-  .tablewrap { overflow-x: auto; }
+  .table-wrap { overflow-x: auto; }
   th:first-child, td:first-child { text-align: left; }
-  code { background: #eef1f6; padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
+  /* 4px and the 8px on the demo below are deliberately *not* `--radius`: an inline code
+     chip and an embedded recording are not cards, and the house token is the card
+     radius. They are second values rather than the token inlined — which is the thing
+     §5 clause 1 calls `wroclaw` out for. Naming them is a §9 row 6 item, not this one. */
+  code { background: var(--surface); padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
   ul { padding-left: 1.1rem; } li { margin: 4px 0; }
-  footer { color: #667085; font-size: 0.85rem; margin-top: 24px; }
-  a { color: #2563eb; }
+  footer { color: var(--muted); font-size: 0.85rem; margin-top: 24px; }
+  a { color: var(--accent); }
 </style>
 </head>
 <body>
@@ -90,7 +128,7 @@ continuous integration regenerates and diffs on every push.</p>
   real skill this portfolio lacks, and 19 — a degree, a tenure, a language — nothing could prove.
   A rate over all of them counts correct silence as failure. Scored only where retrieval is
   possible, the defect is smaller than published, and worse:</p>
-  <div class="tablewrap">
+  <div class="table-wrap">
   <table>
     <tr><th>Retriever</th><th>Ranks?</th><th>Found at all</th><th>recall@1</th><th>recall@3</th><th>MRR</th><th>nDCG@3</th><th>Correct silence</th><th>Noise</th></tr>
     <tr><td>substring <em>(ships today)</em></td><td><strong>no</strong></td><td>30% (8/27)</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>44/45</td><td>1</td></tr>
@@ -118,7 +156,7 @@ continuous integration regenerates and diffs on every push.</p>
   four placements, against two extractors, and run through the toolset a real run builds — with a
   reader that obeys every instruction it is handed. That removes the model from the answer: no run
   can be flattered by a model that happened to refuse.</p>
-  <div class="tablewrap">
+  <div class="table-wrap">
   <table>
     <tr><th>Payload</th><th>Leg</th><th>Outcome</th></tr>
     <tr><td><code>read_secret</code></td><td>read a file it was not given</td><td>never succeeded</td></tr>
@@ -143,7 +181,7 @@ continuous integration regenerates and diffs on every push.</p>
   <h2>Evaluation: when is the cheaper model enough?</h2>
   <p>The harness runs each model end-to-end over the task set and records every metric from the
   logged trajectory. Cost is measured through a single token-accounting helper, not estimated.</p>
-  <div class="tablewrap">
+  <div class="table-wrap">
   <table>
     <tr><th>Runner</th><th>Model</th><th>Completed</th><th>Req coverage</th><th>Report grounded</th><th>Evidence grounded</th><th>Citation fidelity</th><th>Cited</th><th>Median calls</th><th>Median cost</th></tr>
     <tr><td>pipeline</td><td>claude-haiku-4-5</td><td>62%</td><td>0.76 (5)</td><td>1.00 (5)</td><td>1.00 (3)</td><td>0.75 (4)</td><td>0.34 (5)</td><td>4</td><td><strong>$0.0306</strong></td></tr>

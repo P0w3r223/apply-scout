@@ -18,7 +18,9 @@ pinned in this file, so a re-recording moves the assertion instead of merely red
 
 from __future__ import annotations
 
+import difflib
 import json
+import os
 import re
 from html.parser import HTMLParser
 from pathlib import Path
@@ -812,3 +814,262 @@ def test_the_page_states_no_ratio_it_worked_out_from_two_cells():
         f"the page works out {worked_out} from cells instead of quoting them — move the "
         "comparison to the README and print the two figures the reader can check"
     )
+
+
+# --------------------------------------------------------------------------------------
+# The design spec, as this repository's own acceptance test
+# --------------------------------------------------------------------------------------
+#
+# `docs/audit/0007` §5 is the portfolio's page spec and `ADR-0004` settles what carries it:
+# one checker in the private index, plus assertions here in the seven repositories that
+# already have a page test. This block is this repository's half of that.
+#
+# It exists because the index checker is in a different repository, is not in this CI, and
+# only sees this page after somebody bumps a submodule pointer. Everything below can regress
+# inside this repository, on a green build, with nothing to notice it until then.
+
+#: Clause 1's ten, not nine. `--radius` was the one token the session that wrote this block
+#: singled out as accident-prone — `--radius: var(--radius)` is one line from `--warn` in the
+#: very place a find-and-replace lands — and it was the one token this dict omitted, so this
+#: carrier covered nine of the ten while the index checker covered a different eight.
+HOUSE_PALETTE = {
+    "bg": "#ffffff", "surface": "#f6f8fa", "border": "#e3e7ee", "text": "#1c2430",
+    "muted": "#5b6472", "accent": "#2563eb", "accent-soft": "#5b93e4",
+    "positive": "#047857", "warn": "#b45309", "radius": "10px",
+}
+#: `--radius` is deliberately absent here and present above: `0007` §5 clause 1 says it does
+#: not vary by scheme and no page redefines it, so asserting a dark value would assert a
+#: declaration the spec says should not exist.
+HOUSE_DARK = {
+    "bg": "#0f1319", "surface": "#161c25", "border": "#263041", "text": "#e6eaf2",
+    "muted": "#98a3b6", "accent": "#6ea8fe", "accent-soft": "#4167a6",
+    "positive": "#34d399", "warn": "#fbbf24",
+}
+
+
+def _root_blocks() -> tuple[str, str]:
+    r"""The light `:root` and the one inside `prefers-color-scheme: dark`.
+
+    The dark block is found by walking braces rather than by a non-greedy match, because
+    `@media` nests and `\{([^}]*)\}` returns the inner `:root` opening and nothing else.
+    """
+    style = re.search(r"<style>(.*?)</style>", PAGE, re.S)
+    assert style, "the page has no stylesheet"
+    css = re.sub(r"/\*.*?\*/", " ", style.group(1), flags=re.S)
+
+    media = re.search(r"@media[^{]*prefers-color-scheme\s*:\s*dark[^{]*\{", css)
+    assert media, "the page declares no dark scheme, so half its palette is never checked"
+    depth, index = 0, media.end() - 1
+    while index < len(css):
+        depth += 1 if css[index] == "{" else -1 if css[index] == "}" else 0
+        if depth == 0:
+            break
+        index += 1
+    dark = css[media.end():index]
+    light = css[:media.start()] + css[index:]
+    return light, dark
+
+
+def _declared(block: str) -> dict[str, str]:
+    root = re.search(r":root\s*\{([^}]*)\}", block, re.S)
+    assert root, "no :root block"
+    return {name: value.strip().lower()
+            for name, value in re.findall(r"--([\w-]+)\s*:\s*([^;}]+)", root.group(1))}
+
+
+def test_the_page_declares_the_house_palette_by_name_in_both_schemes():
+    """Clause 1. The literals this page used to carry had drifted on two roles, and a value
+    with no name cannot be compared against anything."""
+    light, dark = _root_blocks()
+    for scheme, block, expected in (("light", light, HOUSE_PALETTE), ("dark", dark, HOUSE_DARK)):
+        declared = _declared(block)
+        for name, value in expected.items():
+            assert declared.get(name) == value, (
+                f"{scheme} --{name} is {declared.get(name)!r}, and the house value is {value!r}"
+            )
+
+
+def test_no_token_refers_to_itself_or_to_a_token_that_does_not_exist():
+    """The defect that made this test necessary, pinned in the repository that produced it.
+
+    A find-and-replace migrating literals onto tokens hit the token block and wrote
+    `--border: var(--border)`. Every name stayed *declared*, so a check that reads names
+    reported the page conformant while CSS discarded the property, and everything painted
+    with it, as a cycle.
+    """
+    for block in _root_blocks():
+        declared = _declared(block)
+        for name, value in declared.items():
+            for referenced in re.findall(r"var\(\s*--([\w-]+)", value):
+                assert referenced != name, f"--{name} refers to itself"
+                assert referenced in declared, f"--{name} names --{referenced}, undeclared"
+
+
+def test_no_colour_is_written_as_a_literal_outside_the_token_block():
+    """Clause 1's other half: a hex outside `:root` is a value with no name, which is how
+    this page came to hold two roles the house had already settled differently.
+
+    **Both schemes.** This read the light half only, so a literal inside the dark block was
+    outside `:root` and invisible to the one carrier that checked for literals at all — the
+    index checker had no such clause until `0008` §3.6 was closed. The dark half is where a
+    literal is least likely to be noticed by eye, because most reviewing happens in light.
+    """
+    for scheme, block in zip(("light", "dark"), _root_blocks(), strict=True):
+        outside = re.sub(r":root\s*\{[^}]*\}", " ", block)
+        assert not re.findall(r"#[0-9a-fA-F]{3,8}\b", outside), (
+            f"the {scheme} half writes a hex outside the token block")
+
+
+def test_the_page_carries_its_card_metadata_and_a_favicon():
+    """Clause 5. Named individually because `og:*` passes on any single tag."""
+    present = {meta.get("name") or meta.get("property") for meta in RENDER.metas}
+    for key in ("description", "og:type", "og:title", "og:description", "og:url",
+                "twitter:card"):
+        assert key in present, f"the page carries no {key}"
+    assert re.search(r'<link[^>]+rel="icon"', PAGE), "no favicon"
+
+
+def test_the_title_states_the_claim_rather_than_naming_the_directory():
+    """Clause 4. This page is the case the spec names: its `h1` was fixed in #32 and its
+    `<title>` was not, and the two are different surfaces with different readers.
+
+    **The second half asserted that the title's first word appears in the `h1`.** That word is
+    *"This"*, so every title beginning with it passed — a check reading as coverage while
+    holding nothing, which is worse than no check because it stops anyone writing a real one.
+
+    What it holds now is the invariant the #32 defect actually violated: the two surfaces
+    state the *same claim*, so one is contained in the other once whitespace is normalised.
+    A future page wanting a shorter `<title>` still passes; one wanting a differently-worded
+    claim turns this red, and that page and this line land in the same pull request, which is
+    the whole reason a per-repository carrier can hold a per-page expectation at all.
+    """
+    title = " ".join(re.search(r"<title>(.*?)</title>", PAGE, re.S).group(1).split())
+    headline = " ".join(RENDER.headline.split())
+    assert not title.lower().startswith("apply-scout")
+    assert title.lower() in headline.lower() or headline.lower() in title.lower(), (
+        f"<title> {title!r} and <h1> {headline!r} state different claims; clause 4 asks the "
+        "title to carry the page's claim, and #32 fixed one of these two and not the other")
+
+
+def test_the_page_fetches_no_type_from_a_third_party():
+    """Clause 7. A page whose subject is provenance, making a request to a third party for
+    its own letterforms — checked across `<link>`, `@import` and `@font-face` alike."""
+    assert "fonts.googleapis.com" not in PAGE
+    assert "fonts.gstatic.com" not in PAGE
+    assert not re.search(r"(?:@import|src\s*:)[^;{}]*url\(\s*[\"']?(?:https?:)?//", PAGE, re.I)
+
+
+# --------------------------------------------------------------------------------------
+# The usage-site snapshot — `0008` §3.6's HIGH, this repository's half.
+#
+# Every check above reads the `:root` block. That is how the defect this branch repairs got
+# in: the separator was migrated by *value* rather than by *role*, `#eef1f6` having served
+# both `code`'s background and the table separator, so `var(--surface)` landed where seven
+# sibling pages write `var(--border)`. No `:root` byte changed and no literal appeared, so
+# every token test stayed green and the index checker reported the page `clear`.
+#
+# This is the other shape of guard, and it is deliberately not a rule: it approves *what this
+# page paints*, cell by cell, and a diff is what a reviewer reads. The index checker holds the
+# rule — it can compare against nine sibling pages and this file cannot. Its value rests
+# entirely on the diff being read rather than re-approved, and that is worth saying in the
+# file it protects rather than only in a plan nobody opens.
+# --------------------------------------------------------------------------------------
+
+SNAPSHOT = ROOT / "tests" / "expected" / "docs_page_tokens.md"
+_TOKEN_PROPERTIES = ("background", "background-color", "color", "border", "border-color",
+                     "border-top", "border-right", "border-bottom", "border-left",
+                     "border-radius", "fill", "stroke", "outline")
+
+
+def _resolve(role: str, palette: dict[str, str]) -> str:
+    """What `var(--role)` finally paints, following aliases; `-` when CSS discards it."""
+    seen: set[str] = set()
+    value = palette.get(role)
+    while value is not None:
+        reference = re.search(r"var\(\s*--([\w-]+)", value)
+        if reference is None:
+            return value.strip()
+        target = reference.group(1)
+        if target in seen or target == role:
+            return "-"
+        seen.add(target)
+        value = palette.get(target)
+    return "-"
+
+
+def _painted() -> list[tuple[str, str, str, str, str]]:
+    """`(selector, property, role, light, dark)` for every token painted outside `:root`."""
+    light_block, dark_block = _root_blocks()
+    light, dark = _declared(light_block), dict(_declared(light_block))
+    dark.update(_declared(dark_block))
+
+    style = re.search(r"<style>(.*?)</style>", PAGE, re.S)
+    css = re.sub(r"/\*.*?\*/", " ", style.group(1), flags=re.S)
+    rows: list[tuple[str, str, str, str, str]] = []
+    for selector, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
+        if ":root" in selector:
+            continue
+        for declaration in body.split(";"):
+            prop, _, value = declaration.partition(":")
+            prop = prop.strip().lower()
+            if prop not in _TOKEN_PROPERTIES or "var(" not in value:
+                continue
+            for role in re.findall(r"var\(\s*--([\w-]+)", value):
+                rows.append((" ".join(selector.split()), prop, role,
+                             _resolve(role, light), _resolve(role, dark)))
+    return sorted(set(rows))
+
+
+def _snapshot_text() -> str:
+    lines = ["# What `docs/index.html` paints, by role",
+             "",
+             "Generated by `tests/test_docs_page.py`. Regenerate with",
+             "`UPDATE_PAGE_TOKENS=1 pytest tests/test_docs_page.py`, and **read the diff** — a",
+             "changed hex here is a changed page, and a changed *role* is the defect `0008`",
+             "§3.6 records: a token that is declared, resolvable, and the wrong one.",
+             "",
+             "| selector | property | role | light | dark |",
+             "|---|---|---|---|---|"]
+    for selector, prop, role, light, dark in _painted():
+        lines.append(f"| `{selector}` | `{prop}` | `--{role}` | `{light}` | `{dark}` |")
+    return "\n".join(lines) + "\n"
+
+
+def test_the_page_paints_the_roles_this_repository_approved():
+    """The snapshot. A role swapped for another declared role changes a cell here and nothing
+    else in this file, which is precisely the gap that let `0008` §3.6's HIGH through.
+
+    Proved by the mutation it is written for: `sed -i 's/1px solid var(--border)/1px solid
+    var(--surface)/' docs/index.html` moves three rows of this table and turns this red. That
+    is a different mutation from *a literal creeping back into `th, td`* — the one an earlier
+    commit message claimed as proof, which is easier and which the other tests already catch.
+    """
+    produced = _snapshot_text()
+    if os.environ.get("UPDATE_PAGE_TOKENS"):
+        SNAPSHOT.parent.mkdir(parents=True, exist_ok=True)
+        SNAPSHOT.write_text(produced, encoding="utf-8", newline="\n")
+    assert SNAPSHOT.exists(), f"{SNAPSHOT} is missing; regenerate with UPDATE_PAGE_TOKENS=1"
+    approved = SNAPSHOT.read_text(encoding="utf-8")
+    if approved != produced:
+        diff = "".join(difflib.unified_diff(
+            approved.splitlines(keepends=True), produced.splitlines(keepends=True),
+            fromfile="approved", tofile="the page today"))
+        raise AssertionError(
+            "the page paints something this repository has not approved.\n\n" + diff
+            + "\nIf every changed row is intended, regenerate with "
+              "`UPDATE_PAGE_TOKENS=1 pytest tests/test_docs_page.py` — and read the diff "
+              "first: a changed *role* is the defect this snapshot exists to catch.")
+
+
+def test_the_snapshot_covers_the_declaration_the_defect_landed_on():
+    """A snapshot that happened to omit the separator would be a file nobody could fail.
+
+    The row is identified by what it is — a table cell's bottom border — rather than by the
+    selector text, so renaming carries the check instead of breaking it.
+    """
+    borders = [row for row in _painted()
+               if row[1] == "border-bottom" and "td" in row[0]]
+    assert borders, "no table-cell bottom border is in the snapshot at all"
+    assert all(row[2] == "border" for row in borders), (
+        f"a table separator is painted with {[row[2] for row in borders]}, and the house role "
+        "for a border is --border; this is the defect 0008 §3.6 records")
