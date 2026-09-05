@@ -914,7 +914,7 @@ def test_no_colour_is_written_as_a_literal_outside_the_token_block():
     index checker had no such clause until `0008` §3.6 was closed. The dark half is where a
     literal is least likely to be noticed by eye, because most reviewing happens in light.
     """
-    for scheme, block in zip(("light", "dark"), _root_blocks()):
+    for scheme, block in zip(("light", "dark"), _root_blocks(), strict=True):
         outside = re.sub(r":root\s*\{[^}]*\}", " ", block)
         assert not re.findall(r"#[0-9a-fA-F]{3,8}\b", outside), (
             f"the {scheme} half writes a hex outside the token block")
@@ -1047,7 +1047,7 @@ def test_the_page_paints_the_roles_this_repository_approved():
     produced = _snapshot_text()
     if os.environ.get("UPDATE_PAGE_TOKENS"):
         SNAPSHOT.parent.mkdir(parents=True, exist_ok=True)
-        SNAPSHOT.write_text(produced, encoding="utf-8")
+        SNAPSHOT.write_text(produced, encoding="utf-8", newline="\n")
     assert SNAPSHOT.exists(), f"{SNAPSHOT} is missing; regenerate with UPDATE_PAGE_TOKENS=1"
     approved = SNAPSHOT.read_text(encoding="utf-8")
     if approved != produced:

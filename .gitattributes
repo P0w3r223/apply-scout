@@ -14,3 +14,7 @@ eval/*.json text eol=lf
 # without this a Windows checkout stores CRLF and the documented `diff -u` command reports
 # every line as changed — a check nobody can run locally is a check that stops being run.
 eval/expected/*.md text eol=lf
+
+# The page's approved role table, for the same reason as the block above — it is generated
+# and diffed, and `tests/expected/` was outside every rule here when it was added.
+tests/expected/*.md text eol=lf
