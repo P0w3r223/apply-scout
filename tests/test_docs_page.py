@@ -812,3 +812,118 @@ def test_the_page_states_no_ratio_it_worked_out_from_two_cells():
         f"the page works out {worked_out} from cells instead of quoting them — move the "
         "comparison to the README and print the two figures the reader can check"
     )
+
+
+# --------------------------------------------------------------------------------------
+# The design spec, as this repository's own acceptance test
+# --------------------------------------------------------------------------------------
+#
+# `docs/audit/0007` §5 is the portfolio's page spec and `ADR-0004` settles what carries it:
+# one checker in the private index, plus assertions here in the seven repositories that
+# already have a page test. This block is this repository's half of that.
+#
+# It exists because the index checker is in a different repository, is not in this CI, and
+# only sees this page after somebody bumps a submodule pointer. Everything below can regress
+# inside this repository, on a green build, with nothing to notice it until then.
+
+HOUSE_PALETTE = {
+    "bg": "#ffffff", "surface": "#f6f8fa", "border": "#e3e7ee", "text": "#1c2430",
+    "muted": "#5b6472", "accent": "#2563eb", "accent-soft": "#5b93e4",
+    "positive": "#047857", "warn": "#b45309",
+}
+HOUSE_DARK = {
+    "bg": "#0f1319", "surface": "#161c25", "border": "#263041", "text": "#e6eaf2",
+    "muted": "#98a3b6", "accent": "#6ea8fe", "accent-soft": "#4167a6",
+    "positive": "#34d399", "warn": "#fbbf24",
+}
+
+
+def _root_blocks() -> tuple[str, str]:
+    r"""The light `:root` and the one inside `prefers-color-scheme: dark`.
+
+    The dark block is found by walking braces rather than by a non-greedy match, because
+    `@media` nests and `\{([^}]*)\}` returns the inner `:root` opening and nothing else.
+    """
+    style = re.search(r"<style>(.*?)</style>", PAGE, re.S)
+    assert style, "the page has no stylesheet"
+    css = re.sub(r"/\*.*?\*/", " ", style.group(1), flags=re.S)
+
+    media = re.search(r"@media[^{]*prefers-color-scheme\s*:\s*dark[^{]*\{", css)
+    assert media, "the page declares no dark scheme, so half its palette is never checked"
+    depth, index = 0, media.end() - 1
+    while index < len(css):
+        depth += 1 if css[index] == "{" else -1 if css[index] == "}" else 0
+        if depth == 0:
+            break
+        index += 1
+    dark = css[media.end():index]
+    light = css[:media.start()] + css[index:]
+    return light, dark
+
+
+def _declared(block: str) -> dict[str, str]:
+    root = re.search(r":root\s*\{([^}]*)\}", block, re.S)
+    assert root, "no :root block"
+    return {name: value.strip().lower()
+            for name, value in re.findall(r"--([\w-]+)\s*:\s*([^;}]+)", root.group(1))}
+
+
+def test_the_page_declares_the_house_palette_by_name_in_both_schemes():
+    """Clause 1. The literals this page used to carry had drifted on two roles, and a value
+    with no name cannot be compared against anything."""
+    light, dark = _root_blocks()
+    for scheme, block, expected in (("light", light, HOUSE_PALETTE), ("dark", dark, HOUSE_DARK)):
+        declared = _declared(block)
+        for name, value in expected.items():
+            assert declared.get(name) == value, (
+                f"{scheme} --{name} is {declared.get(name)!r}, and the house value is {value!r}"
+            )
+
+
+def test_no_token_refers_to_itself_or_to_a_token_that_does_not_exist():
+    """The defect that made this test necessary, pinned in the repository that produced it.
+
+    A find-and-replace migrating literals onto tokens hit the token block and wrote
+    `--border: var(--border)`. Every name stayed *declared*, so a check that reads names
+    reported the page conformant while CSS discarded the property, and everything painted
+    with it, as a cycle.
+    """
+    for block in _root_blocks():
+        declared = _declared(block)
+        for name, value in declared.items():
+            for referenced in re.findall(r"var\(\s*--([\w-]+)", value):
+                assert referenced != name, f"--{name} refers to itself"
+                assert referenced in declared, f"--{name} names --{referenced}, undeclared"
+
+
+def test_no_colour_is_written_as_a_literal_outside_the_token_block():
+    """Clause 1's other half: a hex outside `:root` is a value with no name, which is how
+    this page came to hold two roles the house had already settled differently."""
+    light, dark = _root_blocks()
+    outside = re.sub(r":root\s*\{[^}]*\}", " ", light)
+    assert not re.findall(r"#[0-9a-fA-F]{3,8}\b", outside)
+
+
+def test_the_page_carries_its_card_metadata_and_a_favicon():
+    """Clause 5. Named individually because `og:*` passes on any single tag."""
+    present = {meta.get("name") or meta.get("property") for meta in RENDER.metas}
+    for key in ("description", "og:type", "og:title", "og:description", "og:url",
+                "twitter:card"):
+        assert key in present, f"the page carries no {key}"
+    assert re.search(r'<link[^>]+rel="icon"', PAGE), "no favicon"
+
+
+def test_the_title_states_the_claim_rather_than_naming_the_directory():
+    """Clause 4. This page is the case the spec names: its `h1` was fixed in #32 and its
+    `<title>` was not, and the two are different surfaces with different readers."""
+    title = re.search(r"<title>(.*?)</title>", PAGE, re.S).group(1).strip()
+    assert not title.lower().startswith("apply-scout")
+    assert title.split(" ")[0].lower() in RENDER.headline.lower()
+
+
+def test_the_page_fetches_no_type_from_a_third_party():
+    """Clause 7. A page whose subject is provenance, making a request to a third party for
+    its own letterforms — checked across `<link>`, `@import` and `@font-face` alike."""
+    assert "fonts.googleapis.com" not in PAGE
+    assert "fonts.gstatic.com" not in PAGE
+    assert not re.search(r"(?:@import|src\s*:)[^;{}]*url\(\s*[\"']?(?:https?:)?//", PAGE, re.I)
