@@ -520,7 +520,7 @@ It is a GIF here because GitHub renders an SVG as a static image, and every row 
 invisible.</sub>
 
 Recorded live on 2026-08-21 against `claude-opus-4-8` (**5 model calls, 33 `github_evidence` probes,
-49.0k+11.0k tokens, $0.4368 with prompt caching — $0.5195 without, 125 s**), then **rendered from a
+48 978+10 983 tokens, $0.4368 with prompt caching — $0.5195 without, 125 s**), then **rendered from a
 replay of that recording** — which is why the steps are evenly paced: a replay has no thinking time to
 show. Repeated probes are folded up with an explicit count (`... 7 more github_evidence call(s)`) and
 one frame contributes at most six rows; nothing is edited or reordered.
@@ -534,7 +534,7 @@ python scripts/demo.py render
 ```
 
 The replay reproduces the recorded stream **character for character** — under a second instead of 125 s,
-$0 instead of $0.44 — because every external seam of that run is committed in
+$0 instead of $0.4368 — because every external seam of that run is committed in
 `eval/cassettes/run.jsonl` (see [ADR-0004](docs/decisions/0004_record_replay_cassettes.md)).
 
 Three things the run shows:

@@ -4,7 +4,7 @@ Guidance for Claude Code (and any contributor) working in this repository.
 
 ## What this project is
 
-An LLM agent that, given a job-posting URL,
+Portfolio project **P3** (stage 2). An LLM agent that, given a job-posting URL,
 fetches and structures the requirements, compares them against the candidate's CV and
 the evidence in their GitHub repositories, and produces a match report plus a
 cover-letter draft with cited sources — built on a **from-scratch tool loop** with
@@ -205,7 +205,7 @@ The README needs the GIF: GitHub sanitises HTML, so `<object>` is unavailable th
 every row of this recording starts at `opacity: 0`. Re-render **both** after re-recording;
 a test fails on a GIF whose frame count no longer matches the cast.
 
-## Roadmap (7 milestones)
+## Roadmap
 
 1. **Architecture + contracts + loop skeleton.** ✅ Pydantic contracts, budgets,
    trajectory, from-scratch loop, mock tools, tests.
@@ -265,7 +265,7 @@ a test fails on a GIF whose frame count no longer matches the cast.
    `truncated`; `run` exits non-zero when nothing was submitted; the structurer seam re-derives cost
    from recorded tokens so the rate card is never frozen in the artifact; CI diffs the replayed
    tables against `eval/expected/` instead of only printing them.
-14. **Prompt caching (this milestone).** ✅ The loop re-sends the conversation every step and
+14. **Prompt caching.** ✅ The loop re-sends the conversation every step and
    ~65% of its cost is input tokens, so requests carry a **top-level** `cache_control` — chosen
    over per-block breakpoints precisely because it leaves `{model, system, messages, tools}`
    byte-identical, so no cassette entry is invalidated (verified: 0 recorded, tables byte-identical).
@@ -275,7 +275,7 @@ a test fails on a GIF whose frame count no longer matches the cast.
    loop's prompt tokens came from cache, **26% saved** ($0.3994 → $0.2950), 16% on the shorter demo,
    and 0% on the task where the loop gave up after one call. Re-recording also moved the loop's
    completion 75% → 62% with no code change — eight tasks is a small sample (ADR-0007).
-15. **Grounding the report in the posting (this milestone).** ✅ The guardrail checked the letter
+15. **Grounding the report in the posting.** ✅ The guardrail checked the letter
    against the report and **nothing checked the report against the posting** — the hole an earlier
    recording fell straight into (ten requirements lifted from the candidate's CV on a page the loop
    could not read, every citation valid). `guardrail.requirement_grounding` scores what a report rates
@@ -291,7 +291,7 @@ a test fails on a GIF whose frame count no longer matches the cast.
    deliberately unfixed here: an unreadable page still yields *some* text, so the tool returns a valid
    `JobPosting` with **zero requirements** instead of an error — fixing that changes the conversation
    the cassette is keyed on and costs a full re-record.
-16. **Evidence grounding (this milestone).** ✅ Last unchecked link of the chain: tool retrieves evidence
+16. **Evidence grounding.** ✅ Last unchecked link of the chain: tool retrieves evidence
    → report cites it → letter cites the report. `citation_fidelity` scores only the last hop, so a
    fabricated URL that reaches the *report* becomes a valid citation target and launders itself into a
    perfect fidelity. `guardrail.evidence_grounding` scores the report's links against what
@@ -302,7 +302,7 @@ a test fails on a GIF whose frame count no longer matches the cast.
    (ADR-0009). Reads 1.00 across the recording; cost $0. Deliberately *not* changed: per-requirement
    tightening of the letter check — measured first, and the one apparent cross-requirement citation
    turned out to be a correct multi-skill sentence, so the tightening would convict accurate writing.
-17. **Review pass: one definition of "Completed" (this milestone).** ✅ A code review found the published
+17. **Review pass: one definition of "Completed".** ✅ A code review found the published
    table asking two different questions in one column: the agent path required a submission, the pipeline
    only required that nothing raised — so the JavaScript-only task counted as a pipeline success with
    **zero requirements, zero ratings and two sentences of boilerplate**, against its own fixture. Both
@@ -314,7 +314,7 @@ a test fails on a GIF whose frame count no longer matches the cast.
    cache split so a replay cannot re-price cached tokens at the full rate; `Cited` gained the denominator
    every other column carries; `matching.tokens` stopped shattering Polish words (`różnych` →
    `['r', 'nych']` made a one-letter needle match noise). Cost $0 — all of it re-scored from the cassette.
-18. **The trifecta, confined and then measured (this milestone).** ✅ `read_cv` honours only the file
+18. **The trifecta, confined and then measured.** ✅ `read_cv` honours only the file
    `--cv` named; `fetch_job_posting` refuses non-public addresses **on every redirect hop** — a red proof
    found the first fix still fetched `169.254.169.254` through a client built `follow_redirects=True`,
    because httpx walked the chain internally and returned only the final response. Then `attack/`
@@ -331,7 +331,7 @@ a test fails on a GIF whose frame count no longer matches the cast.
    libxml2 that produced them. Freezing them would defend nothing and redden the build on a
    dependency bump. Cost $0: no key, no network, no cassette.
 
-19. **The retriever, finally scored (this milestone).** ✅ Every link of the RAG chain had a column in
+19. **The retriever, finally scored.** ✅ Every link of the RAG chain had a column in
    the published table except the first: `evidence_grounding` scores the report *against what the
    retriever returned*, so a miss by `find_evidence` is invisible to the harness. The corpus and the
    queries were already in the cassette, so `retrieval/` scores it offline for $0 against committed
@@ -357,42 +357,39 @@ every placement against a reader that obeys everything, and CI diffs the table a
 `eval/expected/attack.md`. The narrowed legs hold; the outbound leg does not, and neither does
 extraction. Read the README's **Limitations** for the numbers and what they still cannot see.
 
-<!-- code-review-graph MCP tools -->
-## MCP Tools: code-review-graph
+## The published page
 
-This project has a knowledge graph. Reach for the code-review-graph MCP
-tools ahead of Grep/Glob/Read when the question is **structural** — what
-calls this, what breaks if it changes, what covers it — because the graph
-answers those in one call, with callers, dependents and test coverage
-attached, for fewer tokens than reading the files.
+`docs/index.html` is one of twelve surfaces held to a single specification: ten house colour tokens
+with pinned per-theme values, a dark override, six card-metadata tags, a profile back-link, a
+result-shaped `h1`, and — since S4 — the rule that **every figure the surface prints is a figure
+a committed artifact prints**, never a rounding and never a re-derivation. The spec is
+`docs/audit/0007_divergence-and-the-page-spec.md` §5 in the private portfolio index, and
+`tools/pagespec` there sweeps all twelve from the submodule working trees on every push.
 
-### Where the graph answers better
+That checker reads HTML and CSS, so it cannot see this repository's artifacts and cannot tell an
+exempt page from one nobody built tiles for. What it structurally cannot carry lives in
+`tests/test_docs_page.py` — the other half of the carrier, and the reason `docs/adr/0004_what-carries-the-page-spec.md`
+chose one checker plus local assertions over eleven vendored copies.
 
-- **Exploring code**: `semantic_search_nodes_tool` or `query_graph_tool` instead of Grep
-- **Understanding impact**: `get_impact_radius_tool` instead of manually tracing imports
-- **Code review**: `detect_changes_tool` + `get_review_context_tool` instead of reading entire files
-- **Finding relationships**: `query_graph_tool` with callers_of/callees_of/imports_of/tests_for
-- **Architecture questions**: `get_architecture_overview_tool` + `list_communities_tool`
+## Code intelligence
 
-Grep, Glob and Read stay the right tools when the question is about text rather
-than structure, and when the graph has no answer for it.
+Two indexes exist over this repo, and which one is reachable depends on where the session started:
 
-### Key Tools
+- `.codegraph/` — the `codegraph_explore` MCP tool, or `codegraph explore "<question>"` from a
+  shell. Returns the relevant symbols' verbatim source plus the call paths between them, so it
+  usually answers a "how does X work" or "what calls Y" question in one call. The CLI ships as
+  `codegraph.cmd`, so from Git Bash it needs the extension — bare `codegraph` resolves only
+  where PATHEXT applies.
+- `.code-review-graph/` — its MCP server is declared in **this repository's** `.mcp.json`, so it
+  loads when Claude Code runs with this directory as the working directory, and is simply absent
+  when the session started in the private portfolio index one level up. When its tools are
+  missing the CLI still works: `uvx code-review-graph <command>`.
 
-| Tool | Use when |
-| ------ | ---------- |
-| `detect_changes_tool` | Reviewing code changes — gives risk-scored analysis |
-| `get_review_context_tool` | Need source snippets for review — token-efficient |
-| `get_impact_radius_tool` | Understanding blast radius of a change |
-| `get_affected_flows_tool` | Finding which execution paths are impacted |
-| `query_graph_tool` | Tracing callers, callees, imports, tests, dependencies |
-| `semantic_search_nodes_tool` | Finding functions/classes by name or keyword |
-| `get_architecture_overview_tool` | Understanding high-level codebase structure |
-| `refactor_tool` | Planning renames, finding dead code |
+**Neither index has a hook**, so both are only as fresh as the last manual update — and a graph
+that predates the work you are looking at will answer confidently about code that is gone.
+`codegraph.cmd status` reports the index's age; `codegraph.cmd sync` brings it forward, and
+`uvx code-review-graph update` does the same for the other. Check before trusting either on a
+question about recent changes.
 
-### Workflow
-
-1. No hooks installed — run `code-review-graph update` after code changes.
-2. Use `detect_changes_tool` for code review.
-3. Use `get_affected_flows_tool` to understand impact.
-4. Use `query_graph_tool` pattern="tests_for" to check coverage.
+Grep, Glob and Read stay correct whenever the question is about text rather than structure, or
+when neither index is available.
