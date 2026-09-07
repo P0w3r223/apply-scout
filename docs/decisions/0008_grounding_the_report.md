@@ -2,7 +2,7 @@
 
 Date: 2026-08-21
 Status: accepted
-Author: P0w3r223
+Author: Piotr Cząstkiewicz
 Related to: [ADR 0003](0003_structured_outputs_and_guardrail.md) — the guardrail this extends;
 [ADR 0005](0005_requirement_coverage_not_f1.md) — the metric conventions it follows
 

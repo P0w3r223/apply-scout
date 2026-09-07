@@ -2,7 +2,7 @@
 
 Date: 2026-08-21
 Status: accepted
-Author: P0w3r223
+Author: Piotr Cząstkiewicz
 Related to: [ADR 0008](0008_grounding_the_report.md) — the same check one level up;
 [ADR 0003](0003_structured_outputs_and_guardrail.md) — the letter check this completes
 

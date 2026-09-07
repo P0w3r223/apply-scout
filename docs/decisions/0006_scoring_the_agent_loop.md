@@ -2,7 +2,7 @@
 
 Date: 2026-08-21
 Status: accepted
-Author: P0w3r223
+Author: Piotr Cząstkiewicz
 Related to: [ADR 0001](0001_own_loop_vs_framework.md) (own the loop),
 [ADR 0002](0002_pipeline_vs_agent_loop.md) (why both exist),
 [ADR 0005](0005_requirement_coverage_not_f1.md) (what the coverage metric means)
