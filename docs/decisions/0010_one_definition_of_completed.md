@@ -2,7 +2,7 @@
 
 Date: 2026-08-21
 Status: accepted
-Author: P0w3r223
+Author: Piotr Cząstkiewicz
 Related to: [ADR 0006](0006_scoring_the_agent_loop.md) — where the second runner arrived;
 [ADR 0005](0005_requirement_coverage_not_f1.md) — the same class of mistake in a different metric
 

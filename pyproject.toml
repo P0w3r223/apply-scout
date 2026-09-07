@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,7 +8,8 @@ version = "0.1.0"
 description = "An LLM agent that matches a job posting against a candidate's CV and GitHub evidence — a from-scratch tool loop with safety budgets and a trajectory-evaluation harness."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 # This list leads and the GitHub topics copy it — the repository is the original, because a
 # topic is a fact about what is in here rather than an editorial choice about how to present
 # it. Every entry is backed by code: `rag`/`retrieval-evaluation`/`information-retrieval`/`bm25`

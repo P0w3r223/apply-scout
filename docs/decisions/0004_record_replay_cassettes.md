@@ -2,7 +2,7 @@
 
 Date: 2026-08-21
 Status: accepted
-Author: P0w3r223
+Author: Piotr Cząstkiewicz
 Related to: ADR 0001 (own loop), ADR 0003 (structured outputs + guardrail)
 
 ---

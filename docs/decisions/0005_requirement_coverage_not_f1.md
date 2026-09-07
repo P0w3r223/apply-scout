@@ -2,7 +2,7 @@
 
 Date: 2026-08-21
 Status: accepted
-Author: P0w3r223
+Author: Piotr Cząstkiewicz
 Related to: [ADR 0004](0004_record_replay_cassettes.md) — the cassette is what made re-scoring free
 
 ---
