@@ -10,17 +10,24 @@ the step. They agree today, and this file is what keeps that a fact rather than 
 Read the artifact, not a copy of it. A guard carrying its own table would prove the README
 matches *that* table, which is not the claim the README makes to a reader.
 
-**Every registry below is asserted against the directory or the artifact it stands for.**
-The first edition of this file pinned its two artifact names, its two cassettes and its
-five attack rows by hand, and a review reddened four of them by adding a file or a row the
-registry did not know about — each time leaving the test green over exactly the case its
-own docstring promised to catch. A hand-maintained list inside a guard against
-hand-maintained lists is the shape worth naming once and never shipping again.
+**Every registry below is asserted in both directions against the thing it stands for.**
+The first edition pinned two artifact names, two cassettes and five attack rows by hand, and
+two reviews reddened all of them by adding a file or a row the registry did not know about —
+each time leaving a test green over exactly the case its own docstring promised to catch. The
+second review then found the same shape *inside the fix*: a test named for "is this artifact
+claimed by a guard" that compared a directory to a constant and would have passed with every
+guard in the file deleted. A hand-maintained list inside a guard against hand-maintained lists
+is worth naming once and never shipping again.
+
+*This file duplicates a markdown table walker that `tests/test_docs_page.py` already has, and
+the copy had drifted from the original. The divergence is repaired below; the duplication is
+not, because lifting one into a shared module is its own change with its own blast radius.*
 """
 
 from __future__ import annotations
 
 import argparse
+import functools
 import re
 from pathlib import Path
 
@@ -32,9 +39,9 @@ EXPECTED = ROOT / "eval" / "expected"
 #: Which artifact each row of the README's results table was copied from. The README
 #: prepends a `Runner` column the artifacts do not have; this is that column's meaning.
 ARTIFACT_BY_RUNNER = {"pipeline": "pipeline.md", "agent loop": "agent.md"}
-#: Every approved table, and the fact that some guard in this file answers for it —
-#: `attack.md` and `retrieval.md` have their own tests below. A fifth file belongs to
-#: nobody until it is named here, which is what stops an artifact entering unguarded.
+#: Every approved table some guard in this file answers for. Asserted against the directory
+#: **and** against this file's own source, so a name cannot be registered and then read by
+#: nobody — which is what the first edition of that test permitted.
 GUARDED_ARTIFACTS = set(ARTIFACT_BY_RUNNER.values()) | {"attack.md", "retrieval.md"}
 #: Which README sentence describes each payload `attack.md` names. The README spells out
 #: what the attacker asked for and the artifact prints the payload id, so without this the
@@ -47,18 +54,45 @@ DESCRIPTION_BY_PAYLOAD = {
     "exfiltrate": "send data to an ordinary public host",
     "benign": "an ordinary sentence (control)",
 }
-#: Flags the documents name in order to say they do **not** exist. `_named` cannot tell a
-#: flag that is documented from a flag documented as absent, and the README paragraph this
-#: guard shipped beside says `--max-tokens` is settable in code only — so the parser
-#: gaining one would have arrived pre-approved by the sentence denying it. Found by review.
+#: Flags the documents name in order to say they do **not** exist, which the sweep below
+#: cannot tell from a flag that does. Pinned in both directions: the parser may not accept
+#: one, and the documents must still deny one — otherwise the entry outlives its sentence
+#: and eventually fires a message pointing at prose nobody can find.
 DOCUMENTED_AS_ABSENT = ("--max-tokens",)
+#: How a block scopes itself to every subcommand instead of naming one. `--cassette-mode`
+#: and `--cassette` are documented once, for both, and a per-subcommand reader that could
+#: not see that would demand the paragraph be written twice.
+EVERY_SUBCOMMAND = "both subcommands"
+
+
+#: Which `eval/expected/*.md` a guard has actually opened this session. Recorded rather
+#: than inferred: the artifacts are read two different ways — `attack.md` and
+#: `retrieval.md` by name, `pipeline.md` and `agent.md` through `ARTIFACT_BY_RUNNER` — and
+#: a source-text heuristic convicts the second, which is the better of the two patterns.
+_READ_FROM_EXPECTED: set[str] = set()
 
 
 def _text(path: Path) -> str:
+    """A file, recorded if it is an approved artifact, with its line endings folded."""
+    if path.parent == EXPECTED:
+        _READ_FROM_EXPECTED.add(path.name)
+    return _read(path)
+
+
+@functools.cache
+def _read(path: Path) -> str:
     """A file with its line endings folded.
 
-    `README.md` is committed CRLF and `eval/expected/*.md` are pinned LF by
-    `.gitattributes`, so a comparison of raw bytes compares line endings and not content.
+    Every blob here is committed LF. The working tree is not: on a checkout with
+    `core.autocrlf` set these arrive CRLF, so a comparison of raw bytes compares the
+    checkout's line endings and not content. *An earlier edition of this docstring said
+    `README.md` was committed CRLF and `eval/expected/*.md` were LF by contrast — read off a
+    `grep` pattern that matched every line of whatever it was pointed at, with the figure
+    equalling the line count.* The fold is load-bearing; only the reason was wrong.
+
+    It matters beyond tidiness: a contributor who believed it might reconcile the two by
+    adding `text eol=crlf`, which `.gitattributes` deliberately withholds and which would
+    break the `diff -u` contract its own comment defends.
     """
     return path.read_bytes().decode("utf-8").replace("\r\n", "\n")
 
@@ -78,13 +112,17 @@ def _tables(text: str) -> list[list[list[str]]]:
 
     Walked rather than matched by regex: a pattern for a whole table has to guess where one
     ends, and this README puts a two-column table with an empty header immediately after a
-    paragraph. A maximal run of pipe-leading lines has no such guess in it.
+    paragraph. A maximal run of pipe-delimited lines has no such guess in it.
+
+    Both ends are required, which `tests/test_docs_page.py`'s original does and the first
+    copy of it here dropped: a prose line merely *beginning* with a pipe was swallowed into
+    whatever table preceded it.
     """
     tables: list[list[list[str]]] = []
     current: list[list[str]] = []
     for line in text.split("\n"):
         stripped = line.strip()
-        if stripped.startswith("|"):
+        if stripped.startswith("|") and stripped.endswith("|"):
             cells = [_cell(one) for one in stripped.strip("|").split("|")]
             if not all(set(one) <= set("-: ") for one in cells):
                 current.append(cells)
@@ -107,16 +145,41 @@ def _table_headed(text: str, first: str) -> list[list[str]]:
     return found[0]
 
 
-def test_every_approved_artifact_is_claimed_by_a_guard_in_this_file():
-    """The directory, not the registry, decides what has to be checked.
+def _column(header: list[str], name: str) -> int:
+    """The index of a named column, with a message when it is not there.
 
-    Written as its own test because it is the precondition for the three below: each names
-    the artifacts it reads, and a new `eval/expected/*.md` would simply not be read by any
-    of them. A review added `agent-opus.md` with a full table and no README row, and every
-    test in this file stayed green — in the direction the results guard's own docstring
-    calls the one a reader never notices.
+    `header.index(name)` raises a bare `ValueError` naming the column and nothing else,
+    which is the only failure in this file that would arrive without a sentence.
     """
-    assert {one.name for one in EXPECTED.glob("*.md")} == GUARDED_ARTIFACTS
+    assert name in header, f"the table has no {name!r} column; it reads {header}"
+    return header.index(name)
+
+
+def test_every_approved_artifact_is_claimed_by_a_guard_in_this_file():
+    """The directory decides what must be checked — **and the registry stands for nothing
+    unless a guard below actually reads the name.**
+
+    A review added `agent-opus.md` with a full table and no README row, and every test here
+    stayed green: the direction the results guard's docstring calls the one a reader never
+    notices. *The fix for that stopped at a set comparison, and the next review deleted
+    `test_the_attack_rows_say_what_the_approved_table_says` outright and watched this test
+    stay green while going on asserting that `attack.md` is claimed by a guard in this
+    file.* That is the defect this whole file was written against, displaced one hop into
+    the test named for it.
+    """
+    names = {one.name for one in EXPECTED.glob("*.md")}
+    assert names == GUARDED_ARTIFACTS
+
+    # Run them and see what they open. Deleting a guard reddens this twice over: the call
+    # below stops resolving, and the artifact it read stops being recorded. A source-text
+    # heuristic was tried first and convicted `pipeline.md` and `agent.md`, which are read
+    # through `ARTIFACT_BY_RUNNER` rather than by literal — punishing the better pattern.
+    _READ_FROM_EXPECTED.clear()
+    test_the_results_table_carries_the_numbers_its_artifacts_print()
+    test_the_attack_rows_say_what_the_approved_table_says()
+    test_the_readme_quotes_the_retrieval_miss_rate_its_artifact_computes()
+    unread = sorted(names - _READ_FROM_EXPECTED)
+    assert unread == [], f"{unread} is approved and registered, and no guard here reads it"
 
 
 def test_the_results_table_carries_the_numbers_its_artifacts_print():
@@ -170,17 +233,20 @@ def test_the_attack_rows_say_what_the_approved_table_says():
     claimed exfiltration was blocked, and this test stayed green.
     """
 
-    def verdicts(table: list[list[str]], described) -> dict[str, tuple[str, bool]]:
+    def verdicts(table: list[list[str]], described, leg: str, outcome: str):
+        header = table[0]
+        leg_at, outcome_at = _column(header, leg), _column(header, outcome)
         read: dict[str, tuple[str, bool]] = {}
         for row in table[1:]:
-            outcome = row[2]
-            held = "never succeeded" in outcome
-            assert held != outcome.startswith("succeeded every time"), (
-                f"outcome {outcome!r} is neither a hold nor a landed attack"
+            assert len(row) == len(header), f"row {row} does not match the header {header}"
+            text = row[outcome_at]
+            held = "never succeeded" in text
+            assert held != text.startswith("succeeded every time"), (
+                f"outcome {text!r} is neither a hold nor a landed attack"
             )
             key = described(row[0])
             assert key not in read, f"two rows describe {key!r}"
-            read[key] = (row[1], held)
+            read[key] = (row[leg_at], held)
         return read
 
     def by_payload(payload: str) -> str:
@@ -192,14 +258,16 @@ def test_the_attack_rows_say_what_the_approved_table_says():
     assert len(arms) == 2, f"attack.md must print both arms, found {len(arms)}"
     # The README states one outcome column for both arms. That is only true while the arms
     # agree, and when they stop agreeing the README is wrong before any copy has drifted.
-    first, second = (verdicts(one, by_payload) for one in arms)
+    first, second = (verdicts(one, by_payload, "leg", "outcome") for one in arms)
     assert first == second, "the arms disagree, so the README's `both arms` column is false"
     assert set(first) == set(DESCRIPTION_BY_PAYLOAD.values()), (
         "the map above describes payloads attack.md no longer prints"
     )
 
     readme = _table_headed(_text(README), "what the attacker asked for")
-    assert verdicts(readme, lambda one: one) == first
+    # By header text, so the README cannot quietly stop claiming both arms — the claim the
+    # comment above is spending its argument on was the one cell nothing read.
+    assert verdicts(readme, lambda one: one, "leg", "outcome, both arms") == first
 
 
 def test_the_readme_quotes_the_retrieval_miss_rate_its_artifact_computes():
@@ -216,10 +284,10 @@ def test_the_readme_quotes_the_retrieval_miss_rate_its_artifact_computes():
     assert len(shipped) == 1, "retrieval.md must print exactly one row for the shipped retriever"
     row = shipped[0]
 
-    # By column name rather than by position, which `_table_headed` makes free: an inserted
-    # metric would otherwise move the cells under a reader that still trusts its indices.
-    found = re.fullmatch(r"\d+% \((\d+)/(\d+)\)", row[header.index("found at all")])
-    silence = re.fullmatch(r"(\d+)/(\d+)", row[header.index("correct silence")])
+    # By column name rather than by position: an inserted metric would otherwise move the
+    # cells under a reader that still trusts its indices.
+    found = re.fullmatch(r"\d+% \((\d+)/(\d+)\)", row[_column(header, "found at all")])
+    silence = re.fullmatch(r"(\d+)/(\d+)", row[_column(header, "correct silence")])
     assert found and silence, f"unreadable row: {row}"
     hits, answerable = int(found[1]), int(found[2])
     silent, unanswerable = int(silence[1]), int(silence[2])
@@ -227,65 +295,103 @@ def test_the_readme_quotes_the_retrieval_miss_rate_its_artifact_computes():
     misses = (answerable - hits) + silent
     total = answerable + unanswerable
 
-    # Every occurrence, and exactly one. `re.search` reads the first, so appending a second
-    # contradictory figure to the same line passed — the *"same ratio two different ways"*
-    # shape this portfolio's page has already published once.
-    quoted = re.findall(r"\*\*(\d+) of (\d+) probes return no evidence\*\*", _text(README))
+    # Every occurrence of the claim, and exactly one. Matched without the bold markers,
+    # which are presentation: the *"same ratio two different ways"* defect this portfolio
+    # has published once was prose, and the first edition of this pattern required `**` and
+    # so passed an unbolded second copy. It still does not catch a contradicting figure
+    # written in different words — `— or 71 of 72, depending how you count` — and widening
+    # it that far starts convicting ordinary prose.
+    quoted = re.findall(r"(\d+) of (\d+) probes return no evidence", _text(README))
     assert len(quoted) == 1, f"the README states the miss rate {len(quoted)} times, not once"
     assert (int(quoted[0][0]), int(quoted[0][1])) == (misses, total)
 
 
 def _named(flag: str, text: str) -> bool:
     """Not `flag in text`: the whole value of the guard below is the flag nobody has
-    written yet, and `--model` reads as documented because `--models` is. The first sweep
-    behind this file reported two missing flags for exactly that reason, and three is the
-    answer."""
+    written yet, and `--model` reads as documented because `--models` is."""
     return re.search(rf"(?<![\w-]){re.escape(flag)}(?![\w-])", text) is not None
 
 
-def test_every_flag_the_parser_accepts_is_named_somewhere_a_reader_looks():
-    """`run --model`, `--max-steps` and `--max-cost` were accepted and documented nowhere.
+def _blocks(text: str) -> list[str]:
+    """Documentation in blocks — each fenced block whole, each run of adjacent prose lines.
 
-    Read off the parser rather than listed here, so a flag added later arrives with this
-    guard already pointing at it — with one exception this test has to handle itself, in
-    `DOCUMENTED_AS_ABSENT` above.
-
-    **The fenced blocks are searched too, and its twin in `auth-log-scan` strips them.**
-    That is a real disagreement and not a copy that drifted. There, every `-m` in the file
-    is inside a fence — `python -m venv` — so an example proves nothing and the prose has
-    an `Options:` section to answer from. Here the runnable examples *are* how `--url`,
-    `--cv` and `--github-user` are taught, and there is no options section to move them to.
-    Stripping fences would redden this on six flags and demand a section this README does
-    not have, which is a redesign wearing a guard's clothes.
+    The unit matters: a flag is documented *for a subcommand* when something naming that
+    subcommand also names the flag, and the smallest honest scope for "also" is the block.
+    A whole-file search cannot make that distinction, and that is not theoretical — see the
+    guard below.
     """
-    scope = [
-        README,
-        ROOT / "CLAUDE.md",
-        *sorted((ROOT / "docs").glob("*.md")),
-        *sorted((ROOT / "docs" / "decisions").glob("*.md")),
-    ]
-    text = "\n".join(_text(one) for one in scope)
+    blocks: list[str] = []
+    current: list[str] = []
+    fenced = False
+    for line in text.split("\n"):
+        if line.lstrip().startswith("```"):
+            if current:
+                blocks.append("\n".join(current))
+                current = []
+            fenced = not fenced
+            continue
+        if fenced or line.strip():
+            current.append(line)
+        elif current:
+            blocks.append("\n".join(current))
+            current = []
+    if current:
+        blocks.append("\n".join(current))
+    return blocks
 
-    options: list[list[str]] = []
-    stack = [_build_parser()]
-    while stack:
-        parser = stack.pop()
-        for action in parser._actions:
-            # By type and not by `choices`, which `--runner` also has as a plain tuple of
-            # strings. The first edition asked whether every choice looked like a parser
-            # and died on that tuple — loudly, which is the only reason it is not still
-            # walking one subcommand deep and calling that every flag.
-            if isinstance(action, argparse._SubParsersAction):
-                stack.extend(action.choices.values())
-            if action.option_strings and "--help" not in action.option_strings:
-                options.append(action.option_strings)
 
-    assert options, "the parser must expose options for this guard to mean anything"
-    assert any(one.startswith("--") for strings in options for one in strings)
+def test_every_flag_the_parser_accepts_is_named_where_its_subcommand_is():
+    """`run --model`, `--max-steps`, `--max-cost` and `--out` were undocumented.
 
-    accepted = {flag for strings in options for flag in strings}
+    **Four, not the three an earlier sweep reported**, and the fourth is why this guard is
+    scoped to a block instead of to the whole corpus. `--out` belongs to both subcommands
+    and appeared only in `CLAUDE.md`'s `python -m apply_scout.retrieval --out` and
+    `python -m apply_scout.attack --out` — two entirely different commands — so a
+    whole-file search called it documented while a reader of `apply-scout run --help` had
+    nowhere to read about it. A flag is documented for a subcommand when a block that names
+    that subcommand also names the flag, or when the block scopes itself to every one.
+
+    The parser is walked rather than listed here, so a flag added later arrives with this
+    guard already pointing at it. Fenced blocks are searched, unlike in the `auth-log-scan`
+    twin which strips them: there every `-m` in the file is inside a fence (`python -m
+    venv`) so an example proves nothing, and the prose has an `Options:` section to answer
+    from. Here the runnable examples *are* how `--url`, `--cv` and `--github-user` are
+    taught. Block scoping is what makes searching them safe.
+    """
+    scope = [README, ROOT / "CLAUDE.md", *sorted((ROOT / "docs").rglob("*.md"))]
+    assert len(scope) > 2, "the documentation sweep found no docs/ markdown at all"
+    blocks = [one for path in scope for one in _blocks(_text(path))]
+    corpus = "\n".join(blocks)
+
+    parser = _build_parser()
+    subs = [one for one in parser._actions if isinstance(one, argparse._SubParsersAction)]
+    assert len(subs) == 1, "the parser's subcommand layout has changed under this guard"
+
+    missing = []
+    for name, sub in subs[0].choices.items():
+        scoped = [
+            one for one in blocks
+            if f"apply-scout {name}" in one or EVERY_SUBCOMMAND in one.lower()
+        ]
+        assert scoped, f"no documentation block names `apply-scout {name}` at all"
+        for action in sub._actions:
+            flags = action.option_strings
+            # The help action, whole: filtering the string `--help` alone leaves `-h`
+            # behind and demands the documents name a flag argparse wrote itself.
+            if not flags or "--help" in flags:
+                continue
+            # Every spelling: naming one half of a `-m/--model` pair leaves the other
+            # unfindable, which is the defect in miniature.
+            if not all(any(_named(flag, one) for one in scoped) for flag in flags):
+                missing.append(f"{name} {'/'.join(flags)}")
+    assert missing == []
+
+    # The other direction for `DOCUMENTED_AS_ABSENT`: the parser must not accept one, and
+    # the documents must still deny one. Without the second half the entry outlives the
+    # sentence it stands for and eventually fires a message naming prose nobody can find.
+    accepted = {one for sub in subs[0].choices.values() for a in sub._actions
+                for one in a.option_strings}
     lying = sorted(accepted & set(DOCUMENTED_AS_ABSENT))
     assert not lying, f"{lying} is accepted by the parser and documented as not existing"
-
-    missing = ["/".join(one) for one in options if not all(_named(flag, text) for flag in one)]
-    assert missing == []
+    stale = [one for one in DOCUMENTED_AS_ABSENT if not _named(one, corpus)]
+    assert stale == [], f"{stale} is pinned as documented-absent and no document mentions it"

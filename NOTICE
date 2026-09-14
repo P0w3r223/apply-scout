@@ -1,14 +1,16 @@
 NOTICE — third-party content in this repository
 
-The MIT licence in LICENSE covers the software in this repository: the sources under
-src/, the tests, the scripts, the prose in docs/ and the files at the root.
+The MIT licence in LICENSE covers everything in this repository except one thing: the
+recorded third-party responses in eval/cassettes/. Stated as an exception and not as a list
+of directories, because a list goes stale the first time one is added — an earlier edition
+of this paragraph enumerated src/, tests, scripts, docs/ and the root, and left cv/ and the
+rest of eval/ answered by neither half.
 
-It does not cover the recorded third-party responses in eval/cassettes/. Those files
-hold job-board pages retrieved verbatim from the URLs below and stored so the published
-evaluation tables reproduce offline, with no API key and no network. The pages remain
-their publishers' work. They are redistributed here under no grant from the copyright
-holder named in LICENSE, as a reproducibility artifact rather than as part of the
-licensed software: what this repository offers under MIT is the code, and the recorded
+Those files hold job-board pages retrieved verbatim from the URLs below, stored so the
+published evaluation tables reproduce offline with no API key and no network. The pages
+remain their publishers' work. They are redistributed here under no grant from the
+copyright holder named in LICENSE, as a reproducibility artifact rather than as part of
+the licensed software: what this repository offers under MIT is the code, and the recorded
 pages travel with it on their publishers' terms rather than on ours.
 
 These URLs contributed page content:
@@ -21,9 +23,11 @@ These URLs contributed page content:
   Zapier        Ashby            https://jobs.ashbyhq.com/zapier/1f858242-acf4-4358-9197-2c79921c9d91
 
 These were recorded and answered HTTP 404. Their records hold that status and nothing
-else — no page content of any kind is stored for them, and nothing in this repository
-is derived from them. They are listed so a reader who finds the names elsewhere in the
-tree knows exactly what was and was not kept:
+else: no page content of theirs is stored anywhere in this repository, and none is
+reproduced. Their *failure* is used — both are tasks in eval/tasks.json and the two
+withdrawn advertisements are part of why the published completion rate is not 100% — so
+this paragraph says what is not kept rather than claiming nothing was derived. They are
+listed so a reader who finds the names elsewhere in the tree knows which of the two it is:
 
   HHAeXchange   Lever            https://jobs.lever.co/hhaexchange/58b599a5-48d2-4c12-a93c-c9d82678ab0b
   The Athletic  Lever            https://jobs.lever.co/theathletic/131761d5-4711-4afc-bd7c-37070952ad45
