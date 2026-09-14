@@ -104,6 +104,17 @@ Both subcommands accept `--cassette-mode {off,record,replay,auto}` (and `--casse
 and no key**, and `auto` replays what is recorded while recording what is not — so extending a task set
 only pays for the new tasks. See [Reproducibility](#reproducibility--record-once-replay-forever).
 
+`run` takes three more, which the **Safety budgets** bullet above describes only as concepts.
+`--model <id>` chooses the model the loop runs on — `eval` spells the same thing `--models`,
+plural, because it compares several, and the singular is easy to miss for that reason.
+`--max-steps N` and `--max-cost USD` set two of the three ceilings; breaching one ends the run
+with a **partial report** rather than an exception. Their defaults are `DEFAULT_MODEL`,
+`DEFAULT_MAX_STEPS` and `DEFAULT_MAX_COST_USD` in [`config.py`](src/apply_scout/config.py),
+named rather than copied here so there is one place to read them. **The third ceiling has no
+flag** — `max_tokens` is settable in code only, so a reader who reaches for `--max-tokens`
+after that bullet will not find it. `--out PATH` moves the trajectory JSONL off its timestamped
+default under `eval/results/`.
+
 ## Evaluation
 
 The harness scores each annotated task (see [`eval/tasks.example.json`](eval/tasks.example.json) for
@@ -554,4 +565,9 @@ Three things the run shows:
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE), which covers the code.
+
+It does not cover the job-board pages recorded verbatim in `eval/cassettes/`. Those remain
+their publishers' work and travel with this repository on their terms rather than ours;
+[NOTICE](NOTICE) names every URL and carves them out of the grant. `tests/test_notice.py`
+holds that list to the cassettes in both directions, so it cannot quietly go stale.

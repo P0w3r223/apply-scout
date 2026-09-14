@@ -103,8 +103,18 @@ def _build_parser() -> argparse.ArgumentParser:
     run_p.add_argument("--model", default=config.DEFAULT_MODEL, help="Agent model id.")
     run_p.add_argument("--verbose", action="store_true", help="Print each step as it happens.")
     run_p.add_argument("--out", default=None, help="Where to write the trajectory JSONL.")
-    run_p.add_argument("--max-steps", type=int, default=config.DEFAULT_MAX_STEPS)
-    run_p.add_argument("--max-cost", type=float, default=config.DEFAULT_MAX_COST_USD)
+    run_p.add_argument(
+        "--max-steps",
+        type=int,
+        default=config.DEFAULT_MAX_STEPS,
+        help="Model calls before the run stops with a partial report.",
+    )
+    run_p.add_argument(
+        "--max-cost",
+        type=float,
+        default=config.DEFAULT_MAX_COST_USD,
+        help="USD before the run stops with a partial report.",
+    )
     _add_cassette_args(run_p, "run")
 
     eval_p = sub.add_parser("eval", help="Run the evaluation harness over a tasks file.")
