@@ -104,16 +104,22 @@ Both subcommands accept `--cassette-mode {off,record,replay,auto}` (and `--casse
 and no key**, and `auto` replays what is recorded while recording what is not — so extending a task set
 only pays for the new tasks. See [Reproducibility](#reproducibility--record-once-replay-forever).
 
-`run` takes three more, which the **Safety budgets** bullet above describes only as concepts.
-`--model <id>` chooses the model the loop runs on — `eval` spells the same thing `--models`,
-plural, because it compares several, and the singular is easy to miss for that reason.
-`--max-steps N` and `--max-cost USD` set two of the three ceilings; breaching one ends the run
-with a **partial report** rather than an exception. Their defaults are `DEFAULT_MODEL`,
+`apply-scout run` takes four more, which the **Safety budgets** bullet above describes only as
+concepts. `--model <id>` chooses the model the loop runs on — `eval` spells the same thing
+`--models`, plural, because it compares several, and the singular is easy to miss for that
+reason. `--max-steps N` and `--max-cost USD` set two of the three ceilings; breaching one ends
+the run with a **partial report** rather than an exception. Their defaults are `DEFAULT_MODEL`,
 `DEFAULT_MAX_STEPS` and `DEFAULT_MAX_COST_USD` in [`config.py`](src/apply_scout/config.py),
 named rather than copied here so there is one place to read them. **The third ceiling has no
 flag** — `max_tokens` is settable in code only, so a reader who reaches for `--max-tokens`
 after that bullet will not find it. `--out PATH` moves the trajectory JSONL off its timestamped
 default under `eval/results/`.
+
+`apply-scout eval` takes `--out PATH` too, for the markdown table rather than the trajectory,
+defaulting the same way. It is listed separately because a flag two subcommands share is not
+documented by an example of the other one — which is how `--out` sat unfindable for `run`
+while a sweep reported it named, on the strength of two `python -m apply_scout.retrieval --out`
+lines in `CLAUDE.md`.
 
 ## Evaluation
 
