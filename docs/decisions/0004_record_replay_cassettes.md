@@ -113,6 +113,11 @@ when it crosses the network.
   reproduction since has been free.
 - The repository carries a ~1.5 MB data artifact of third-party responses, including raw
   posting HTML. That is the price of reproducibility, and it is paid once per re-record.
+- **Disclosing that is not licensing it, and for a while this bullet was the whole of it.**
+  `LICENSE` grants MIT over the tree and nothing carved the recorded pages out, so a reader
+  taking the repository at its licence took five companies' pages with it. `NOTICE` at the
+  root now names every recorded URL and states what the grant does not reach, and
+  `tests/test_notice.py` holds that list to the cassettes in both directions.
 - A replayed run is only as current as its recording. It answers "does this code still
   produce these numbers on these inputs", not "is the model still behaving this way today"
   — that question still requires a paid `record` run, which is exactly when the cassette
