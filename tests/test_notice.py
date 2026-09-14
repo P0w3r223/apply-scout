@@ -18,24 +18,43 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 NOTICE = ROOT / "NOTICE"
-#: Both, because `run.jsonl` records the demo against a posting of its own. A guard
-#: reading only the evaluation's cassette would let a page enter the tree unlisted.
-CASSETTES = (
-    ROOT / "eval" / "cassettes" / "eval.jsonl",
-    ROOT / "eval" / "cassettes" / "run.jsonl",
-)
+#: Every cassette, derived. `run.jsonl` records the demo against a posting of its own and
+#: arrived after `eval.jsonl`, so a third is an ordinary thing for this repository to gain
+#: — and the first edition of this file answered that by naming the two it knew about,
+#: which is the hand-maintained registry the note itself refuses to keep. A review caught
+#: it by dropping a third cassette in and watching all three tests stay green.
+CASSETTE_DIR = ROOT / "eval" / "cassettes"
 #: The sentence opening the second list. Everything above it kept page content.
 REFUSED_MARKER = "These were recorded and answered HTTP 404."
+#: Which board serves each host, so the note's middle column answers to the URL rather
+#: than to whoever typed it. Not derivable — a hostname does not spell its product — so it
+#: is pinned, and a host absent from here fails rather than being skipped.
+BOARD_BY_HOST = {
+    "jobs.smartrecruiters.com": "SmartRecruiters",
+    "jobs.lever.co": "Lever",
+    "jobs.ashbyhq.com": "Ashby",
+    "job-boards.greenhouse.io": "Greenhouse",
+}
+
+
+def _notice() -> str:
+    """The note with its line endings folded, since it is committed CRLF like `LICENSE`."""
+    return NOTICE.read_bytes().decode("utf-8").replace("\r\n", "\n")
 
 
 def _recorded() -> dict[str, bool]:
     """Every URL an `http` record holds, mapped to whether it kept page content."""
+    cassettes = sorted(CASSETTE_DIR.glob("*.jsonl"))
+    assert cassettes, f"no cassettes under {CASSETTE_DIR}; this guard is reading nothing"
     found: dict[str, bool] = {}
-    for path in CASSETTES:
+    for path in cassettes:
         for line in path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
             record = json.loads(line)
             if record.get("kind") != "http":
                 continue
@@ -54,7 +73,7 @@ def _recorded() -> dict[str, bool]:
 
 def _listed() -> dict[str, bool]:
     """Every URL the note names, mapped to which of its two lists it sits in."""
-    text = NOTICE.read_bytes().decode("utf-8")
+    text = _notice()
     assert REFUSED_MARKER in text, (
         "NOTICE must keep the two lists apart; without that sentence this guard cannot "
         "tell a page it kept from a 404 it did not"
@@ -82,13 +101,18 @@ def test_the_notice_lists_exactly_the_urls_the_cassettes_recorded():
     assert _listed() == recorded
 
 
-def test_and_it_tells_the_pages_it_kept_from_the_ones_that_answered_404():
+def test_the_cassettes_still_hold_both_a_kept_page_and_a_404():
     """The classification, asserted as a property rather than trusted to the test above.
 
     Dict equality already compares it, but only while both classes are present: if every
     record were a page, the mapping would be all-`True` on both sides and a note that had
     silently moved a URL between its lists would still read green. This says the corpus
     still has one of each, so that comparison is doing work.
+
+    Named for the corpus and not for the note, because the corpus is what it reads. The
+    first edition was called *"and it tells the pages it kept from the ones that answered
+    404"*, which is `_listed`'s `REFUSED_MARKER` assertion doing the telling, one function
+    over — a name promising a property its own body does not hold.
     """
     recorded = _recorded()
     kept = [url for url, page in recorded.items() if page]
@@ -99,6 +123,34 @@ def test_and_it_tells_the_pages_it_kept_from_the_ones_that_answered_404():
     )
 
 
+def test_the_note_attributes_each_url_to_the_publisher_and_board_it_came_from():
+    """The two columns the URL comparison never reads.
+
+    What a reader takes away from a NOTICE is the publisher's name, and every other guard
+    in this file passes with `Reddit  Greenhouse` rewritten to `Allegro  SmartRecruiters`
+    on the Reddit URL — a misattribution in the one file whose whole job is attribution.
+    Both columns are derivable from the URL, so neither is trusted: the board must be the
+    one serving the host, and the publisher must be the account the path names.
+    """
+    text = _notice()
+    rows = re.findall(r"^ +(\S.*?) {2,}(\S+) +(https://\S+)$", text, re.M)
+    urls = re.findall(r"https://\S+", text)
+    # Every listed URL must have parsed into three columns. Without this a row whose
+    # spacing drifts drops out of `rows`, is attributed to nothing, and says so nowhere.
+    assert len(rows) == len(urls), f"{len(rows)} of {len(urls)} listed URLs carry two columns"
+    assert rows, "NOTICE lists nothing"
+
+    wrong = []
+    for publisher, board, url in rows:
+        split = urlsplit(url)
+        account = split.path.strip("/").split("/")[0]
+        if BOARD_BY_HOST.get(split.netloc) != board:
+            wrong.append(f"{url}: served by {split.netloc}, attributed to {board}")
+        if publisher.lower().replace(" ", "") != account.lower():
+            wrong.append(f"{url}: account {account!r}, attributed to {publisher!r}")
+    assert wrong == []
+
+
 def test_the_note_says_what_it_carves_out_and_from_which_grant():
     """The claim itself, which the URL lists do not make.
 
@@ -106,6 +158,6 @@ def test_the_note_says_what_it_carves_out_and_from_which_grant():
     nothing. These are the three names the carve-out is written in terms of, so deleting
     the sentence that does the work fails here rather than reading as a formatting change.
     """
-    text = NOTICE.read_bytes().decode("utf-8")
+    text = _notice()
     for phrase in ("LICENSE", "eval/cassettes/", "docs/decisions/0004"):
         assert phrase in text, f"NOTICE must name {phrase}"

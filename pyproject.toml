@@ -9,7 +9,9 @@ description = "An LLM agent that matches a job posting against a candidate's CV 
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
-license-files = ["LICENSE"]
+# NOTICE too: it carves the recorded third-party pages out of the grant above, so a
+# distribution carrying the licence without it carries only half the terms.
+license-files = ["LICENSE", "NOTICE"]
 # This list leads and the GitHub topics copy it — the repository is the original, because a
 # topic is a fact about what is in here rather than an editorial choice about how to present
 # it. Every entry is backed by code: `rag`/`retrieval-evaluation`/`information-retrieval`/`bm25`

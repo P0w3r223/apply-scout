@@ -9,6 +9,13 @@ the step. They agree today, and this file is what keeps that a fact rather than 
 
 Read the artifact, not a copy of it. A guard carrying its own table would prove the README
 matches *that* table, which is not the claim the README makes to a reader.
+
+**Every registry below is asserted against the directory or the artifact it stands for.**
+The first edition of this file pinned its two artifact names, its two cassettes and its
+five attack rows by hand, and a review reddened four of them by adding a file or a row the
+registry did not know about — each time leaving the test green over exactly the case its
+own docstring promised to catch. A hand-maintained list inside a guard against
+hand-maintained lists is the shape worth naming once and never shipping again.
 """
 
 from __future__ import annotations
@@ -25,6 +32,26 @@ EXPECTED = ROOT / "eval" / "expected"
 #: Which artifact each row of the README's results table was copied from. The README
 #: prepends a `Runner` column the artifacts do not have; this is that column's meaning.
 ARTIFACT_BY_RUNNER = {"pipeline": "pipeline.md", "agent loop": "agent.md"}
+#: Every approved table, and the fact that some guard in this file answers for it —
+#: `attack.md` and `retrieval.md` have their own tests below. A fifth file belongs to
+#: nobody until it is named here, which is what stops an artifact entering unguarded.
+GUARDED_ARTIFACTS = set(ARTIFACT_BY_RUNNER.values()) | {"attack.md", "retrieval.md"}
+#: Which README sentence describes each payload `attack.md` names. The README spells out
+#: what the attacker asked for and the artifact prints the payload id, so without this the
+#: two tables meet only on `leg` — which is not unique, two rows being `[C] reach`, and
+#: which leaves the README free to attribute an outcome to the wrong attack entirely.
+DESCRIPTION_BY_PAYLOAD = {
+    "read_secret": "read ~/.ssh/id_rsa via read_cv",
+    "internal_fetch": "fetch 169.254.169.254 directly",
+    "redirect_fetch": "fetch it behind a 302",
+    "exfiltrate": "send data to an ordinary public host",
+    "benign": "an ordinary sentence (control)",
+}
+#: Flags the documents name in order to say they do **not** exist. `_named` cannot tell a
+#: flag that is documented from a flag documented as absent, and the README paragraph this
+#: guard shipped beside says `--max-tokens` is settable in code only — so the parser
+#: gaining one would have arrived pre-approved by the sentence denying it. Found by review.
+DOCUMENTED_AS_ABSENT = ("--max-tokens",)
 
 
 def _text(path: Path) -> str:
@@ -80,6 +107,18 @@ def _table_headed(text: str, first: str) -> list[list[str]]:
     return found[0]
 
 
+def test_every_approved_artifact_is_claimed_by_a_guard_in_this_file():
+    """The directory, not the registry, decides what has to be checked.
+
+    Written as its own test because it is the precondition for the three below: each names
+    the artifacts it reads, and a new `eval/expected/*.md` would simply not be read by any
+    of them. A review added `agent-opus.md` with a full table and no README row, and every
+    test in this file stayed green — in the direction the results guard's own docstring
+    calls the one a reader never notices.
+    """
+    assert {one.name for one in EXPECTED.glob("*.md")} == GUARDED_ARTIFACTS
+
+
 def test_the_results_table_carries_the_numbers_its_artifacts_print():
     """Every cell of the README's three-row table, against the two files CI diffs.
 
@@ -96,6 +135,10 @@ def test_the_results_table_carries_the_numbers_its_artifacts_print():
         runner, rest = row[0], row[1:]
         assert runner in ARTIFACT_BY_RUNNER, f"unknown runner {runner!r} in the README's table"
         published[(ARTIFACT_BY_RUNNER[runner], rest[0])] = rest
+    # Both sides are dicts, so a repeated (runner, model) silently overwrites and the
+    # comparison passes while the page shows a row nothing produced. A review inserted a
+    # second haiku pipeline row reading 99% above the real one and this file said nothing.
+    assert len(published) == len(rows), "the README's table names one (runner, model) twice"
 
     recorded: dict[tuple[str, str], list[str]] = {}
     for name in sorted(set(ARTIFACT_BY_RUNNER.values())):
@@ -104,44 +147,59 @@ def test_the_results_table_carries_the_numbers_its_artifacts_print():
             f"{name} and the README disagree about the columns themselves: "
             f"{artifact[0]} vs {header[1:]}"
         )
+        before = len(recorded)
         for row in artifact[1:]:
             recorded[(name, row[0])] = row
+        assert len(recorded) - before == len(artifact) - 1, f"{name} names one model twice"
 
     assert published == recorded
 
 
 def test_the_attack_rows_say_what_the_approved_table_says():
-    """The four legs and the control, by verdict rather than by wording.
+    """The four legs and the control, bound to the attack each one describes.
 
-    Deliberately weaker than a string comparison, and the reason is written here so the
-    next reader does not take it for an oversight: the artifact prints `succeeded every
-    time` and the README prints `succeeded every time it reached the reader`, which is the
-    same verdict carrying the qualifier the README spends a paragraph on. What must not
-    drift is which legs held, so that is what this compares — and an outcome matching
-    neither pattern fails rather than being quietly filed as a hold.
+    The outcome is compared **by verdict rather than by wording**, deliberately: the
+    artifact prints `succeeded every time` and the README prints `succeeded every time it
+    reached the reader`, the same verdict carrying the qualifier the README spends a
+    paragraph on. An outcome matching neither pattern fails rather than being filed as a
+    hold.
+
+    What is *not* weakened is which row each verdict belongs to. The first edition keyed on
+    `leg`, which two rows share, and left the description column — the sentence a reader
+    actually reads — compared to nothing: a review swapped two descriptions so the page
+    claimed exfiltration was blocked, and this test stayed green.
     """
 
-    def verdicts(table: list[list[str]], leg: int, outcome: int) -> list[tuple[str, bool]]:
-        read = []
+    def verdicts(table: list[list[str]], described) -> dict[str, tuple[str, bool]]:
+        read: dict[str, tuple[str, bool]] = {}
         for row in table[1:]:
-            text = row[outcome]
-            held = "never succeeded" in text
-            assert held != text.startswith("succeeded every time"), (
-                f"outcome {text!r} is neither a hold nor a landed attack"
+            outcome = row[2]
+            held = "never succeeded" in outcome
+            assert held != outcome.startswith("succeeded every time"), (
+                f"outcome {outcome!r} is neither a hold nor a landed attack"
             )
-            read.append((row[leg], held))
-        return sorted(read)
+            key = described(row[0])
+            assert key not in read, f"two rows describe {key!r}"
+            read[key] = (row[1], held)
+        return read
+
+    def by_payload(payload: str) -> str:
+        assert payload in DESCRIPTION_BY_PAYLOAD, f"attack.md prints unmapped {payload!r}"
+        return DESCRIPTION_BY_PAYLOAD[payload]
 
     approved = _text(EXPECTED / "attack.md")
     arms = [one for one in _tables(approved) if one and one[0][0] == "payload"]
     assert len(arms) == 2, f"attack.md must print both arms, found {len(arms)}"
     # The README states one outcome column for both arms. That is only true while the arms
     # agree, and when they stop agreeing the README is wrong before any copy has drifted.
-    first, second = (verdicts(one, 1, 2) for one in arms)
+    first, second = (verdicts(one, by_payload) for one in arms)
     assert first == second, "the arms disagree, so the README's `both arms` column is false"
+    assert set(first) == set(DESCRIPTION_BY_PAYLOAD.values()), (
+        "the map above describes payloads attack.md no longer prints"
+    )
 
     readme = _table_headed(_text(README), "what the attacker asked for")
-    assert verdicts(readme, 1, 2) == first
+    assert verdicts(readme, lambda one: one) == first
 
 
 def test_the_readme_quotes_the_retrieval_miss_rate_its_artifact_computes():
@@ -153,12 +211,15 @@ def test_the_readme_quotes_the_retrieval_miss_rate_its_artifact_computes():
     reddens when the judgment set moves — which is the whole point of quoting a figure.
     """
     rows = _table_headed(_text(EXPECTED / "retrieval.md"), "retriever")
+    header = rows[0]
     shipped = [one for one in rows[1:] if one[0].startswith("substring")]
     assert len(shipped) == 1, "retrieval.md must print exactly one row for the shipped retriever"
     row = shipped[0]
 
-    found = re.fullmatch(r"\d+% \((\d+)/(\d+)\)", row[2])
-    silence = re.fullmatch(r"(\d+)/(\d+)", row[-2])
+    # By column name rather than by position, which `_table_headed` makes free: an inserted
+    # metric would otherwise move the cells under a reader that still trusts its indices.
+    found = re.fullmatch(r"\d+% \((\d+)/(\d+)\)", row[header.index("found at all")])
+    silence = re.fullmatch(r"(\d+)/(\d+)", row[header.index("correct silence")])
     assert found and silence, f"unreadable row: {row}"
     hits, answerable = int(found[1]), int(found[2])
     silent, unanswerable = int(silence[1]), int(silence[2])
@@ -166,9 +227,12 @@ def test_the_readme_quotes_the_retrieval_miss_rate_its_artifact_computes():
     misses = (answerable - hits) + silent
     total = answerable + unanswerable
 
-    quoted = re.search(r"\*\*(\d+) of (\d+) probes return no evidence\*\*", _text(README))
-    assert quoted, "the README must state the miss rate, or this guard checks nothing"
-    assert (int(quoted[1]), int(quoted[2])) == (misses, total)
+    # Every occurrence, and exactly one. `re.search` reads the first, so appending a second
+    # contradictory figure to the same line passed — the *"same ratio two different ways"*
+    # shape this portfolio's page has already published once.
+    quoted = re.findall(r"\*\*(\d+) of (\d+) probes return no evidence\*\*", _text(README))
+    assert len(quoted) == 1, f"the README states the miss rate {len(quoted)} times, not once"
+    assert (int(quoted[0][0]), int(quoted[0][1])) == (misses, total)
 
 
 def _named(flag: str, text: str) -> bool:
@@ -183,7 +247,8 @@ def test_every_flag_the_parser_accepts_is_named_somewhere_a_reader_looks():
     """`run --model`, `--max-steps` and `--max-cost` were accepted and documented nowhere.
 
     Read off the parser rather than listed here, so a flag added later arrives with this
-    guard already pointing at it.
+    guard already pointing at it — with one exception this test has to handle itself, in
+    `DOCUMENTED_AS_ABSENT` above.
 
     **The fenced blocks are searched too, and its twin in `auth-log-scan` strips them.**
     That is a real disagreement and not a copy that drifted. There, every `-m` in the file
@@ -193,9 +258,12 @@ def test_every_flag_the_parser_accepts_is_named_somewhere_a_reader_looks():
     Stripping fences would redden this on six flags and demand a section this README does
     not have, which is a redesign wearing a guard's clothes.
     """
-    scope = [README, ROOT / "CLAUDE.md", *sorted((ROOT / "docs").glob("*.md")), *sorted(
-        (ROOT / "docs" / "decisions").glob("*.md")
-    )]
+    scope = [
+        README,
+        ROOT / "CLAUDE.md",
+        *sorted((ROOT / "docs").glob("*.md")),
+        *sorted((ROOT / "docs" / "decisions").glob("*.md")),
+    ]
     text = "\n".join(_text(one) for one in scope)
 
     options: list[list[str]] = []
@@ -214,5 +282,10 @@ def test_every_flag_the_parser_accepts_is_named_somewhere_a_reader_looks():
 
     assert options, "the parser must expose options for this guard to mean anything"
     assert any(one.startswith("--") for strings in options for one in strings)
+
+    accepted = {flag for strings in options for flag in strings}
+    lying = sorted(accepted & set(DOCUMENTED_AS_ABSENT))
+    assert not lying, f"{lying} is accepted by the parser and documented as not existing"
+
     missing = ["/".join(one) for one in options if not all(_named(flag, text) for flag in one)]
     assert missing == []
