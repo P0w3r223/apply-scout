@@ -31,6 +31,9 @@ reproduce it offline: [docs/demo.md](docs/demo.md).</sub>
 
 ## Why it's built this way
 
+<details>
+<summary>Details</summary>
+
 - **A tool loop written from scratch (no LangChain).** A deliberate, defensible choice: full
   control over the control flow is what makes safety budgets, the trajectory log, and systematic
   evaluation possible. See [ADR-0001](docs/decisions/0001_own_loop_vs_framework.md).
@@ -44,7 +47,12 @@ reproduce it offline: [docs/demo.md](docs/demo.md).</sub>
 - **Two models compared.** The harness runs a cheap model (`claude-haiku-4-5`) and a
   strong one (`claude-opus-4-8`) to answer *"when is the cheaper model enough?"*.
 
+</details>
+
 ## Architecture
+
+<details>
+<summary>Details</summary>
 
 ```mermaid
 flowchart LR
@@ -73,6 +81,8 @@ Every component depends only on injected collaborators (an `LLMClient`, an `Http
 `GitHubClient`, a `Structurer`), so the whole system runs under scripted fakes with **no network and
 no API key** — which is exactly how the tests drive it.
 
+</details>
+
 ## Install & test
 
 ```bash
@@ -83,6 +93,9 @@ ruff check .
 ```
 
 ## Usage
+
+<details>
+<summary>Details</summary>
 
 Real runs read `ANTHROPIC_API_KEY` from the environment (and optionally `GITHUB_TOKEN` for a higher
 GitHub rate limit).
@@ -120,7 +133,12 @@ documented by an example of the other one — which is how `--out` sat unfindabl
 while a sweep reported it named, on the strength of two `python -m apply_scout.retrieval --out`
 lines in `CLAUDE.md`.
 
+</details>
+
 ## Evaluation
+
+<details>
+<summary>Details</summary>
 
 The harness scores each annotated task (see [`eval/tasks.example.json`](eval/tasks.example.json) for
 the format, including edge cases: English postings, no salary range, JS-only pages, repos without a
@@ -195,6 +213,8 @@ What each column means and why: [docs/metrics.md](docs/metrics.md).
 
 Cost per task and what prompt caching saved: [docs/cost.md](docs/cost.md).
 
+</details>
+
 ## Reproducibility
 
 Every external response of a paid run is recorded to a committed cassette, and
@@ -202,6 +222,9 @@ Every external response of a paid run is recorded to a committed cassette, and
 pull request. How the recording works and what invalidates it: [docs/reproducibility.md](docs/reproducibility.md).
 
 ## Limitations — what apply-scout can't do
+
+<details>
+<summary>Details</summary>
 
 Honest and specific, because an agent that hides its failure modes is worse than one that names them:
 
@@ -289,7 +312,12 @@ and CI regenerates and diffs it.
 
 The full list of known limits, with what each one costs: [docs/limitations.md](docs/limitations.md).
 
+</details>
+
 ## Design decisions
+
+<details>
+<summary>Details</summary>
 
 - [ADR-0001 — a from-scratch tool loop, not a framework](docs/decisions/0001_own_loop_vs_framework.md)
 - [ADR-0002 — a deterministic pipeline alongside the agent loop](docs/decisions/0002_pipeline_vs_agent_loop.md)
@@ -303,6 +331,8 @@ The full list of known limits, with what each one costs: [docs/limitations.md](d
 - [ADR-0010 — one definition of "Completed" for both runners](docs/decisions/0010_one_definition_of_completed.md)
 - [ADR-0011 — score the retriever, and score it only where retrieval is possible](docs/decisions/0011_scoring_the_retriever.md)
 - [ADR-0012 — the page quotes the artifacts; it never retypes them](docs/decisions/0012_the_page_quotes_the_artifacts.md)
+
+</details>
 
 ## License
 
