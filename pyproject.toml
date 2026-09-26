@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "apply-scout"
 version = "0.1.0"
-description = "An LLM agent that matches a job posting against a candidate's CV and GitHub evidence — a from-scratch tool loop with safety budgets and a trajectory-evaluation harness."
+description = "LLM agent that checks a job posting against a CV and GitHub work; every cover-letter claim must cite evidence."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
@@ -19,9 +19,9 @@ license-files = ["LICENSE", "NOTICE"]
 # policy. Deliberately absent: `embeddings` and `vector-search` — there is no dense retriever
 # here, and a topic asserting one would be the mistake `doc-extract` avoided with `ocr`.
 keywords = [
-    "llm-agent", "ai-agent", "agentic", "anthropic", "claude", "python",
-    "function-calling", "tool-use", "agent-evaluation", "evaluation", "llm",
-    "rag", "retrieval-evaluation", "information-retrieval", "bm25",
+    "python", "llm", "llm-agent", "ai-agent", "anthropic", "claude",
+    "tool-use", "function-calling", "evaluation", "agent-evaluation",
+    "retrieval-evaluation", "information-retrieval", "bm25", "rag",
     "prompt-injection", "llm-security", "ssrf",
 ]
 dependencies = [

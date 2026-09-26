@@ -1,35 +1,38 @@
 # apply-scout
 
-**An LLM agent that matches a job posting against a candidate's CV and GitHub evidence —
-with a from-scratch tool loop, safety budgets, and a trajectory-evaluation harness.**
+[![CI](https://github.com/P0w3r223/apply-scout/actions/workflows/ci.yml/badge.svg)](https://github.com/P0w3r223/apply-scout/actions/workflows/ci.yml)
 
-**[Live page](https://p0w3r223.github.io/apply-scout/)** — it opens with the measurement this
-project is proudest of and least comfortable about: the retriever finds the evidence for **8 of the
-27** requirements a repository can prove, and nothing in the harness could see that.
+**An LLM agent that checks a job posting against a candidate's CV and public GitHub work, then writes
+a match report and a cover-letter draft in which every claim links to evidence.**
 
-Given a job-posting URL, apply-scout fetches and
-structures the requirements, compares them against the candidate's CV and the evidence in
-their GitHub repositories, and produces a **match report** (requirement → evidence → rating,
-with links) and a **cover-letter draft built only from facts it can cite**. It runs on a
-tool loop written from scratch — no agent framework — so that safety budgets, a
-machine-readable trajectory log, and a proper evaluation are possible.
+Given a job-posting URL, apply-scout fetches and structures the requirements, looks for evidence in
+the CV and the candidate's repositories, and rates each requirement with links. The tool loop is
+written from scratch, without an agent framework, so every run has step, token and cost budgets and a
+machine-readable trajectory log.
 
-> Status: **complete — published, with a real evaluation that anyone can re-run.**
-> The full agent, the three real tools, the structured deliverables, the measured anti-hallucination
-> guardrail, and the evaluation harness are built and tested — no network or key required.
-> The table under **Evaluation** comes from a real paid run over 8 annotated postings on two models —
-> and every external response is **recorded to a committed cassette**, so `--cassette-mode replay`
-> reproduces that exact table offline, with no API key and at no cost. CI does this on every
-> pull request and every push to `main`.
->
-> Two more properties are scored rather than asserted, and neither costs anything to re-run:
-> the **retriever** is measured against committed relevance judgments
-> ([`eval/expected/retrieval.md`](eval/expected/retrieval.md)), and the **injection surface** is
-> measured by running attacks through the toolset a real run builds
-> ([`eval/expected/attack.md`](eval/expected/attack.md)). CI regenerates both tables on every push
-> and fails on any difference, so each is a regression test rather than a paragraph.
+Two parts are hard. An application agent that invents evidence is worse than none, so a deterministic
+guardrail deletes any cover-letter sentence whose citation is not in the report. The agent also reads
+untrusted web text while it can fetch URLs and read files, so prompt injection and SSRF are tested
+with an attack suite.
+
+| On 8 annotated postings | Result | Where |
+|---|---|---|
+| Cover-letter citations that point at real evidence, agent loop (`claude-haiku-4-5`) | 1.00 | [Evaluation](#evaluation) |
+| Letter sentences that cite evidence: agent loop vs pipeline, same model | 0.45 vs 0.34 | [Evaluation](#evaluation) |
+| Median cost per task, pipeline: `claude-haiku-4-5` vs `claude-opus-4-8` | $0.0306 vs $0.1910 | [Evaluation](#evaluation) |
+
+The evaluation replays offline from committed recordings, with no API key, and CI re-runs it on every
+push. **Status: complete.** · **[Live page](https://p0w3r223.github.io/apply-scout/)**
+
+<img src="docs/demo.gif" alt="apply-scout run: the agent fetches the posting, reads the CV, probes GitHub for evidence, and prints a match report" width="876">
+
+<sub>A replay of one recorded run (`claude-opus-4-8`, 2026-08-21). How it was recorded and how to
+reproduce it offline: [docs/demo.md](docs/demo.md).</sub>
 
 ## Why it's built this way
+
+<details>
+<summary>Details</summary>
 
 - **A tool loop written from scratch (no LangChain).** A deliberate, defensible choice: full
   control over the control flow is what makes safety budgets, the trajectory log, and systematic
@@ -37,15 +40,19 @@ machine-readable trajectory log, and a proper evaluation are possible.
 - **Safety budgets.** Every run is bounded by `max_steps`, `max_tokens`, and `max_cost`. Exceeding
   a ceiling is a **controlled stop with a partial report**, never a crash.
 - **A trajectory for every run.** Each model call, tool call, and its cost is logged as JSONL — the
-  substrate the evaluation harness reads. *95% of junior agent projects stop at "it worked on my
-  example"; this one measures.*
+  substrate the evaluation harness reads.
 - **Evidence or nothing.** A report/letter claim must trace to a real, checkable link. A requirement
   with no evidence is rated `none`; a cover-letter sentence citing a link not in the report is
   **removed by the guardrail** — the gap is reported, not hidden.
-- **Two models, honestly compared.** The harness runs a cheap model (`claude-haiku-4-5`) and a
+- **Two models compared.** The harness runs a cheap model (`claude-haiku-4-5`) and a
   strong one (`claude-opus-4-8`) to answer *"when is the cheaper model enough?"*.
 
+</details>
+
 ## Architecture
+
+<details>
+<summary>Details</summary>
 
 ```mermaid
 flowchart LR
@@ -74,6 +81,8 @@ Every component depends only on injected collaborators (an `LLMClient`, an `Http
 `GitHubClient`, a `Structurer`), so the whole system runs under scripted fakes with **no network and
 no API key** — which is exactly how the tests drive it.
 
+</details>
+
 ## Install & test
 
 ```bash
@@ -84,6 +93,9 @@ ruff check .
 ```
 
 ## Usage
+
+<details>
+<summary>Details</summary>
 
 Real runs read `ANTHROPIC_API_KEY` from the environment (and optionally `GITHUB_TOKEN` for a higher
 GitHub rate limit).
@@ -102,7 +114,7 @@ apply-scout eval --tasks eval/tasks.json --models claude-haiku-4-5,claude-opus-4
 Both subcommands accept `--cassette-mode {off,record,replay,auto}` (and `--cassette PATH`):
 `record` calls the real services and stores every response, `replay` serves them back with **no network
 and no key**, and `auto` replays what is recorded while recording what is not — so extending a task set
-only pays for the new tasks. See [Reproducibility](#reproducibility--record-once-replay-forever).
+only pays for the new tasks. See [Reproducibility](#reproducibility).
 
 `apply-scout run` takes four more, which the **Safety budgets** bullet above describes only as
 concepts. `--model <id>` chooses the model the loop runs on — `eval` spells the same thing
@@ -121,7 +133,12 @@ documented by an example of the other one — which is how `--out` sat unfindabl
 while a sweep reported it named, on the strength of two `python -m apply_scout.retrieval --out`
 lines in `CLAUDE.md`.
 
+</details>
+
 ## Evaluation
+
+<details>
+<summary>Details</summary>
 
 The harness scores each annotated task (see [`eval/tasks.example.json`](eval/tasks.example.json) for
 the format, including edge cases: English postings, no salary range, JS-only pages, repos without a
@@ -192,122 +209,22 @@ regressed; the *web* changed underneath the task set, and the metric now says so
 That is precisely the failure this milestone set out to fix, and it is the reason the numbers above are
 recorded rather than merely reported — see **Reproducibility** below.
 
-**What each metric means (and why):**
+What each column means and why: [docs/metrics.md](docs/metrics.md).
 
-- **Completed** — did the run produce a report + letter without a fatal error. Catches brittleness on
-  edge-case postings.
-- **Req coverage** — the fraction of the human-annotated skills that appear somewhere in the extracted
-  requirements, over the tasks that *have* an annotation (the bracketed count). Measures how well the
-  posting was actually understood, not just fetched. It is recall and nothing else, on purpose: the
-  annotation lists the five to ten skills a human judged load-bearing, never all two dozen requirements
-  in the posting, so there is no denominator that would make precision mean anything — see
-  [ADR-0005](docs/decisions/0005_requirement_coverage_not_f1.md). This column previously reported an
-  exact-match F1 (0.33 / 0.23); on this task set a *flawless* extraction could not have scored above
-  0.68 under that metric, because every correctly extracted requirement the annotator had not listed
-  counted against it.
-- **Report grounded** — of the requirements a report rates, the fraction that trace back to the posting
-  that was actually fetched. Checked deterministically, against the posting object `fetch_job_posting`
-  returned — never against the report's own list, which would ask a document to confirm itself. It
-  closes the hole the citation columns cannot see: a letter can cite its report perfectly while the
-  *report* was invented, which is what an earlier recording of the JavaScript-only task did (ten
-  requirements lifted from the candidate's own CV, every citation valid). **A report that rates
-  requirements with no posting behind it scores 0.00, not `n/a`** — calling the fabrication case
-  "not applicable" would drop the one run the metric exists for. It reads 1.00 everywhere in this
-  recording; see the limitations for what that does and does not prove.
-- **Evidence grounded** — of the links the *report* cites, the fraction pointing at a repository
-  `github_evidence` actually returned during that run. This is the link the citation columns cannot
-  see: they score the letter against the report, so a fabricated URL that reaches the report becomes a
-  valid citation target and launders itself into a perfect fidelity. Compared at repository level
-  (`owner/name`), not by URL string — the tool returns a README's link while a report may cite the
-  repository root, and calling those two sources produced a false positive the first time this was
-  measured by hand ([ADR-0009](docs/decisions/0009_evidence_grounding.md)). Reads 1.00 across the
-  recording: every cited link traces to a repository the tools retrieved.
-- **Citation fidelity** — of the letter's sentences that cite evidence, the fraction whose citation is
-  a real link from the report. The anti-hallucination guardrail computes this deterministically; a low
-  number means the model was inventing citations. **Never read it without the next column**: a letter
-  that cites nothing scores no fidelity at all (`n/a`), and one that cites once and gets it right scores
-  1.00 — the same as one that cites forty times and gets them all right.
-- **Cited** — of everything the letter wrote, the fraction of sentences that cite anything. This is the
-  denominator fidelity throws away. Opus's pipeline letters sit at **0.13**: they make claims and back
-  almost none of them, which is how they reach a 1.00 fidelity over a single task. The loop sits at
-  **0.45**.
-- **Median LLM calls / cost** — the price of a task, per model. This is the "cheaper model enough?"
-  question made quantitative.
+Cost per task and what prompt caching saved: [docs/cost.md](docs/cost.md).
 
-## Reproducibility — record once, replay forever
+</details>
 
-The evaluation runs against live job postings and a paid API. Both decay: ads get taken down (two of
-these eight already have), and re-running the numbers costs money every time. An evaluation nobody can
-re-run is a claim, not a measurement.
+## Reproducibility
 
-So every outbound seam — the model transport, the structuring calls, the HTTP fetch, and the GitHub API
-— is wrapped by [`cassette.py`](src/apply_scout/cassette.py), which records what came back into a
-**committed** JSONL cassette ([`eval/cassettes/`](eval/cassettes/)) and serves it again on replay.
-Main-text extraction is recorded too, even though it never leaves the machine: trafilatura's output
-shifts between its own versions and libxml2 builds, so a replay that re-ran it would key its
-structuring request off different text and miss every entry behind it — which is exactly what CI
-caught on a runner with a newer trafilatura.
-
-```bash
-apply-scout eval --tasks eval/tasks.json --models claude-haiku-4-5,claude-opus-4-8 \
-  --cassette-mode replay      # no network, no ANTHROPIC_API_KEY, $0.00
-```
-
-- **Replay never falls back to the network.** An unrecorded request raises `CassetteMiss` and stops the
-  run. Quietly serving it live would turn a reproducible evaluation back into a paid, unverifiable one.
-- **Cost survives the offline path.** Token counts and USD are replayed from what was captured *at
-  recording time*, so the cost column above is real measurement, not a zero.
-- **A prompt edit invalidates exactly what it touches.** The cassette key hashes the whole request,
-  system prompt included — so the project's "change a prompt ⇒ re-run the harness" rule is enforced by
-  the machinery instead of by memory.
-- **CI replays it on every pull request and every push to `main`**, which turns the published table
-  into a regression test.
-
-Recording the whole 8-posting × 2-model table cost **$0.88** and produced 68 entries (40 structuring
-calls, 8 pages, 6 extractions, 14 GitHub responses). Every reproduction since has been free.
-
-## Cost analysis
-
-Each eval row runs one model end-to-end, and every model call's token usage flows through one
-`token_cost()` helper, so per-task cost is measured, not estimated. For this task set the result is
-unambiguous: **`claude-opus-4-8` costs ≈6× more per task than `claude-haiku-4-5` ($0.1910 vs $0.0306)
-and does not buy a better match report** — identical completion (62%, both blocked by the same three
-URLs) and *lower* requirement coverage (0.62 vs 0.76).
-
-**What prompt caching actually saved.** The loop re-sends the whole conversation every step, so
-requests carry a top-level `cache_control` and a repeated prefix bills at a tenth of the input rate.
-Measured **inside each recorded run** — the same prompts and replies, priced as if nothing had been
-cached — so the model's own sampling variance cannot be mistaken for a saving:
-
-| recorded run | prompt tokens | served from cache | cost | same run, uncached | saved |
-|---|---:|---:|---:|---:|---:|
-| eval loop — Haiku, 38 turns | 248,710 | 53% | **$0.2950** | $0.3994 | **26%** |
-| demo — Opus, 5 turns | 48,978 | 51% | **$0.4368** | $0.5195 | **16%** |
-
-Per task the saving runs from **36% to nothing**, and the shape is the point: the Reddit task saved
-**0%** because the loop gave up after a single call — nothing was ever re-sent, so nothing could be
-read back. Caching pays for turns over a growing prefix, and a cache *write* costs 1.25×, which is
-why the five-turn demo saves less than the 38-turn eval. On the median task: $0.0741 → **$0.0592**.
-
-Cached tokens are priced and counted against the budget rather than treated as free — with caching on,
-the API's `input_tokens` is only the uncached remainder ([ADR-0007](docs/decisions/0007_prompt_caching.md)).
-
-It does not buy a better letter either, which took a metric fix to see. The strong model's 1.00 citation
-fidelity is over **one task**; in the other four its letters cite nothing at all (a 0.13 citation rate),
-and a letter that promises nothing checkable cannot be caught fabricating. What actually produces
-grounded letters on this task set is **giving the cheap model the agent loop** — 0.45 cited, 1.00
-fidelity across four tasks, at $0.0592. Spend the money on agency, not on the tier.
-
-One caveat found while measuring the loop, and worth naming because it undercut this very section: cost
-was priced from the model id the **API returns**, which for Haiku is a dated snapshot
-(`claude-haiku-4-5-20251001`) absent from `PRICING`. `token_cost` silently returned 0.0, so the loop's
-whole cost column read `$0.00` — and `max_cost` could never fire, because a run that never spends
-anything cannot breach a spend ceiling. `price_for` now resolves the longest matching prefix and the
-recorded entries were re-priced from their captured token counts. **The first table this produced said
-the loop was 3.5× cheaper than the pipeline; it was 3.3× more expensive** (2.5× today, on a like-for-like
-basis, after prompt caching). Measured cost is only as honest as the rate card lookup behind it.
+Every external response of a paid run is recorded to a committed cassette, and
+`--cassette-mode replay` reproduces the evaluation offline with no API key. CI does this on every
+pull request. How the recording works and what invalidates it: [docs/reproducibility.md](docs/reproducibility.md).
 
 ## Limitations — what apply-scout can't do
+
+<details>
+<summary>Details</summary>
 
 Honest and specific, because an agent that hides its failure modes is worse than one that names them:
 
@@ -360,53 +277,6 @@ and CI regenerates and diffs it.
 | send data to an ordinary public host | [C] send | **succeeded every time it reached the reader** |
 | an ordinary sentence (control) | control | never succeeded |
 
-Every row is judged **only on the attempts that reached the reader**, and that qualifier is doing
-real work — see the third point below. Three readings, and only the first is good news:
-
-- **The two narrowed legs held, on every attempt that landed, under both extractors.** They read
-  identically in both arms, which is the point of running both: `read_cv` and the URL policy do not
-  care how the instruction arrived.
-- **The outbound leg is narrowed, not closed — and it fails on everything that lands.** An allowlist
-  restricts *where* a request may go, not *what* a permitted request carries. The reader composed a
-  URL encoding the attacker's data in its query and sent it to a perfectly ordinary public host.
-  Closing that needs the content leaving to be constrained, not just the destination.
-- **Extraction is not the third guard it looks like — and it is not even stable.** Which of the four
-  placements reach the reader was measured twice, on two machines, from the same commit:
-
-  | | trafilatura 2.1.0 / libxml2 2.11.9 | trafilatura 2.2.0 / libxml2 2.14.6 (CI) |
-  |---|---|---|
-  | trafilatura arm | `body` | `body`, **`hidden`** |
-  | stdlib fallback arm | `body`, `hidden`, `tail` | `body`, `hidden`, `tail` |
-
-  A **patch-level bump of a content extractor opened a placement**: a `display:none` div, invisible
-  to any human reading the posting, now reaches the model in the production path. Nothing in this
-  project changed. Those placements were never defended, they were **unparsed** — by a readability
-  heuristic, on a page the attacker wrote, in whichever version the deployment happens to have. That
-  is why the approved file carries no count of them: the run prints them into the log beside the
-  versions that produced them, and freezing them would turn somebody's dependency bump into a failed
-  build while defending nothing.
-
-Two things the suite still cannot see, named rather than left to be assumed:
-
-- **The resolved address is not the address connected to.** `check_resolved` resolves the name, and
-  the HTTP client resolves it again when it connects. A DNS answer that changes between the two is
-  not caught — and the suite substitutes the transport, so `check_resolved` does not run in it at
-  all; that half is covered by unit tests. Closing it needs the connection pinned to the address
-  that was checked, which means a custom transport — deliberately out of scope here, against an
-  attack that needs the attacker to run their own resolver.
-- **Whether a real model obeys is not asked.** On purpose. A model that refuses is not a boundary,
-  and the number would move with every re-recording while the architecture stood still.
-
-The honest reading is now *one leg cut; two narrowed, and measured shut against a fully compromised
-reader; one open and failing on everything that reaches it; one tool that holds a token and has been
-neither narrowed nor measured — and a fourth thing that is not a guard at all, quietly deciding how
-much reaches*.
-
-- **JavaScript-only postings.** `fetch_job_posting` fetches static HTML with no headless browser, so a
-  client-rendered page yields only its pre-hydration shell. In the eval, the deliberately JavaScript-only
-  Ashby posting still *completed* on every runner — robustness to thin input rather than crashing — but
-  there was almost no text to read, so anything reported for such a page is unreliable, and the agent
-  loop went further and invented requirements outright (see below).
 - **Evidence is repo + README only, and the match is the *whole requirement* as a literal
   substring — now scored, and the number is not the one this bullet used to carry.**
   `github_evidence` reads repo metadata and README text rather than searching code, so a skill
@@ -439,77 +309,15 @@ much reaches*.
   is why MRR and nDCG read `n/a` for it rather than a number. Still unfixed here on purpose — the
   tool's output is hashed into every cassette key, so ranking it costs a full paid re-record, and
   measuring first keeps *what is wrong* separate from *what changing it costs*.
-- **Extraction is only as good as the model.** Odd posting layouts can drop or merge requirements; the
-  coverage metric exists precisely to quantify this rather than assume it away. The Reddit posting is
-  the worked example — it yields a single extracted requirement and scores **0.00 coverage**.
-- **Nothing measures over-extraction.** Coverage is recall only, so an extractor that split a posting
-  into far too many requirements would still score well. The task set has no exhaustive annotation to
-  support a precision metric, and inventing one from a partial annotation is what the old F1 did
-  wrong ([ADR-0005](docs/decisions/0005_requirement_coverage_not_f1.md)).
-- **A fabricated posting is now measured — but this recording does not contain one.** The gap was real:
-  on the JavaScript-only page an earlier recording of the loop could not read the ad, said so in its
-  summary, and then rated ten requirements taken from the **candidate's own CV**, all `strong`, with a
-  letter citing its own invented report. The guardrail passed it, because those citations really did
-  point at the report; only the report was fiction. **Report grounded** closes that blind spot by
-  scoring the report against the posting `fetch_job_posting` returned. Two honest caveats: the column
-  reads **1.00 on every completed task here**, so it is a control that fired nowhere rather than a catch
-  — and the very run it was built from is **no longer in the cassette**, because re-recording the loop
-  for the caching measurement produced a different reply, in which it refuses to assess rather than
-  inventing (that is the same re-record that moved completion 75% → 62%). The unit tests pin the
-  behaviour the task set no longer exercises.
-- **An unreadable posting comes back as a *success*.** On the JavaScript-only page the extractor does
-  find some text, so `fetch_job_posting` returns a valid `JobPosting` titled "Job Posting" with **zero
-  requirements** rather than an error — and the model is told "posting 'Job Posting' with 0
-  requirement(s)". That is an invitation to fill the gap from the CV, which is exactly what the earlier
-  recording did. Turning it into a tool error would change the text the model reads, and every cassette
-  entry is keyed on the conversation, so the fix costs a full re-record — deliberately not bundled into
-  the change that added the measurement.
-- **The metric bounds untraceable claims, not false ones.** Matching is the same crude token containment
-  used by coverage, so a fabricated requirement that happens to echo the posting's wording counts as
-  grounded. It is the report-level analogue of the citation check: it proves provenance, not truth.
-- **Report grounded has exactly one firing mode, and that is now measured too.** Scored at three
-  strictness levels — exact token equality, one-directional containment, and the symmetric containment
-  that ships — every completed task reads 1.00 under **all three**, with the rated-requirement count
-  equal to the posting's on every task (19/19, 21/21, 12/12, 19/19, 1/1). Both runners copy the
-  requirement list **verbatim**: neither paraphrases, neither adds. So the column can only fall when a
-  report rates requirements the posting never yielded — a real and worthwhile guard, but not the general
-  "is this report grounded" check the name suggests.
-- **Evidence grounding reads 1.00, and the "catch" that motivated it was a measurement error.** An
-  earlier pass over this cassette reported the loop's `konux` report citing
-  `https://github.com/P0w3r223/P0w3r223` as a link no tool returned. It was not: that repository *is*
-  in the recorded GitHub responses, and `github_evidence` returned its README URL
-  (`…/blob/main/README.md`) while the report cited the repository itself. Comparing raw URL strings
-  called one source two, which is why **Evidence grounded** compares the `owner/name` a link points at
-  rather than the string. Scored that way, every cited link in this recording traces to a repository the
-  tools actually retrieved.
-- **The guardrail checks citations, not truth.** It removes sentences citing links absent from the
-  report; it does not fact-check a grounded claim's phrasing. It bounds hallucinated *citations*, not
-  every possible overstatement.
-- **The live task set decays.** Job ads are removed; two of these eight 404 within a month of being
-  annotated. The cassette makes past results reproducible, but it cannot keep the *task set* fresh —
-  extending or refreshing it means new annotation and a new paid recording.
-- **A cassette is a snapshot, not a guarantee of current behaviour.** Replay proves what the models did
-  on the recorded requests, not what they would do today. Re-record to make that claim.
-- **A long answer can outgrow one response.** `MAX_OUTPUT_TOKENS` caps a single reply at 16000 tokens.
-  A cut-off *sentence* is recoverable — the loop asks the model to continue and stitches the pieces,
-  and running out of `MAX_CONTINUATIONS` ends the run `truncated`, never `completed`. A cut-off
-  `submit_report` **tool call** is not: partial JSON has nothing to continue, so the run fails rather
-  than delivering half a report.
-- **A budget can be overshot by one call.** Ceilings are checked *before* each model call, so a single
-  expensive reply can end a run above its limit. The stop is graceful and honest; it is a ceiling on
-  starting work, not a hard cap on spend. The demo used to be the worked example — an earlier recording
-  spent $0.5948 against the $0.50 default ceiling and stopped there — but prompt caching brought the same
-  run to **$0.4368**, so the committed demo now finishes on `end_turn` without ever breaching. The
-  behaviour is pinned by tests rather than by the picture.
-- **Only the cheap model has been measured in the loop.** The third eval row is
-  `claude-haiku-4-5`; the Opus × loop cell would cost ≈$4.7 to record and is deliberately empty
-  ([ADR-0006](docs/decisions/0006_scoring_the_agent_loop.md)). Read the loop-vs-pipeline comparison as
-  established for one model, not two.
-- **English/Polish postings assumed.** Other languages are untested.
-- **No application is ever submitted.** apply-scout drafts a report and a letter for a human to review
-  and send — it does not act on the candidate's behalf.
+
+The full list of known limits, with what each one costs: [docs/limitations.md](docs/limitations.md).
+
+</details>
 
 ## Design decisions
+
+<details>
+<summary>Details</summary>
 
 - [ADR-0001 — a from-scratch tool loop, not a framework](docs/decisions/0001_own_loop_vs_framework.md)
 - [ADR-0002 — a deterministic pipeline alongside the agent loop](docs/decisions/0002_pipeline_vs_agent_loop.md)
@@ -524,50 +332,7 @@ much reaches*.
 - [ADR-0011 — score the retriever, and score it only where retrieval is possible](docs/decisions/0011_scoring_the_retriever.md)
 - [ADR-0012 — the page quotes the artifacts; it never retypes them](docs/decisions/0012_the_page_quotes_the_artifacts.md)
 
-## Demo
-
-A real `apply-scout run` against a live posting (Jeeves — *Senior AI Engineer*), matched against the
-synthetic candidate CV (`cv/candidate.md`) and the public `P0w3r223` GitHub:
-
-<img src="docs/demo.gif" alt="apply-scout run: the agent fetches the posting, reads the CV, probes GitHub for evidence, and prints a match report" width="876">
-
-<sub>The same recording is also generated as an [animated SVG](docs/demo.svg) — sharper and a
-tenth the size — which is what the [project page](https://p0w3r223.github.io/apply-scout/) shows.
-It is a GIF here because GitHub renders an SVG as a static image, and every row of this one starts
-invisible.</sub>
-
-Recorded live on 2026-08-21 against `claude-opus-4-8` (**5 model calls, 33 `github_evidence` probes,
-48 978+10 983 tokens, $0.4368 with prompt caching — $0.5195 without, 125 s**), then **rendered from a
-replay of that recording** — which is why the steps are evenly paced: a replay has no thinking time to
-show. Repeated probes are folded up with an explicit count (`... 7 more github_evidence call(s)`) and
-one frame contributes at most six rows; nothing is edited or reordered.
-
-**Reproduce it yourself — offline, in under a second, with no API key:**
-
-```bash
-python scripts/demo.py capture --url https://jobs.lever.co/tryjeeves/2f00206f-6091-4eed-8b5f-1325afdbfe30 \
-  --cv cv/candidate.md --github-user P0w3r223 --cassette-mode replay
-python scripts/demo.py render
-```
-
-The replay reproduces the recorded stream **character for character** — under a second instead of 125 s,
-$0 instead of $0.4368 — because every external seam of that run is committed in
-`eval/cassettes/run.jsonl` (see [ADR-0004](docs/decisions/0004_record_replay_cassettes.md)).
-
-Three things the run shows:
-
-- **It finishes by calling a tool, not by talking.** The last step is
-  `submit_report -> ok: submitted: 29 rating(s), 4 letter sentence(s)` — the deliverable arrives as a
-  validated `MatchReport` + `CoverLetterDraft`, which is what lets the harness score this loop on the
-  same axes as the pipeline ([ADR-0006](docs/decisions/0006_scoring_the_agent_loop.md)).
-- **It rates honestly, and audits its own evidence.** Requirements with no retrieved evidence come back
-  `none` — including "5+ years professional experience", which no repository can prove. It also throws
-  out its own hits: the `Go` probes matched repos, but the agent noticed every snippet was the English
-  word "go/goes" in prose rather than the language, and rated the requirement `none` anyway.
-- **It says what it could not verify.** The closing summary flags that the CV lists skills the
-  repository search never surfaced as citable evidence, and that those were rated `none` for lack of
-  *retrievable proof* rather than lack of skill. That distinction is the whole point of the evidence
-  standard, and the agent draws it unprompted.
+</details>
 
 ## License
 
